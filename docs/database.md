@@ -1,0 +1,203 @@
+# 数据库设计与 MySQL 迁移方案
+
+表结构以 GORM 模型为唯一事实源,开发用 SQLite(零配置),生产切 MySQL,同一套模型双端建表。功能背景见 [mvp-plan.md](./mvp-plan.md)。
+
+## 总体决策
+
+| 项       | 决策                                                             | 理由                                                                                  |
+| -------- | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------- |
+| 双轨存储 | dev: SQLite(glebarez 纯 Go 驱动);prod: MySQL 8.0+(go-sql-driver) | 纯 Go 驱动免 cgo,交叉编译部署不折腾                                                   |
+| 建表机制 | GORM AutoMigrate,启动时执行                                      | 同一套模型自动生成对应方言 DDL;SQLite 开发库可随时删库重建                            |
+| 外键     | **不建数据库外键**,关联完整性由 service 层守护                   | 规避 SQLite PRAGMA 开关与 MySQL 在线 DDL 的差异;关联清理集中在一个事务里,行为双端一致 |
+| 删除语义 | 统一硬删除                                                       | 软删除 + 唯一索引在两端都有坑(重建同名账号线冲突);防误删由 service 层校验兜底         |
+| 时间     | 统一存 UTC,`time.Time` 由 GORM 维护 `created_at`/`updated_at`    | 避免 SQLite TEXT 时间与 MySQL 时区比较差异                                            |
+| 字符集   | MySQL 建库用 utf8mb4 / utf8mb4_0900_ai_ci;SQLite 天然 UTF-8      | utf8mb4 才能存 emoji 与全角字符                                                       |
+| JSON     | 一律 `TEXT` + GORM `serializer:json`                             | 不用 MySQL JSON 列类型,双端行为一致                                                   |
+| 表名     | 模型显式 `TableName()`,全小写复数                                | 不依赖 GORM 复数化推断,方言间稳定                                                     |
+
+## 类型约定(便携规则)
+
+字段类型只用以下映射,tag 必须写全,禁止裸 `string`(MySQL 端缺长度会建出 TEXT,影响索引):
+
+| Go 模型写法                          | SQLite 实际 | MySQL 实际            | 用途                          |
+| ------------------------------------ | ----------- | --------------------- | ----------------------------- |
+| `int64` + `primaryKey;autoIncrement` | INTEGER PK  | BIGINT AUTO_INCREMENT | 所有表主键                    |
+| `string` + `size:n`                  | TEXT        | VARCHAR(n)            | 一切定长上限字段              |
+| `string` + `type:text`               | TEXT        | TEXT                  | 长文本(配置 JSON 等)          |
+| `bool`                               | INTEGER 0/1 | TINYINT(1)            | 状态、开关                    |
+| `int`                                | INTEGER     | INT                   | sort、status_code、latency_ms |
+| `time.Time`(可空用 `*time.Time`)     | TEXT(UTC)   | DATETIME(3)           | 全部时间字段                  |
+
+## 表结构明细
+
+### users — 用户
+
+| 字段                    | 类型               | 说明                   |
+| ----------------------- | ------------------ | ---------------------- |
+| id                      | PK int64           |                        |
+| username                | VARCHAR(64) UNIQUE | 登录名,唯一索引        |
+| password_hash           | VARCHAR(100)       | bcrypt(60 字符,留余量) |
+| nickname                | VARCHAR(64)        | 显示名                 |
+| email                   | VARCHAR(128)       | 可空串                 |
+| status                  | bool,默认 1        | 1 启用 / 0 禁用        |
+| last_login_at           | *time.Time         | 登录成功时更新         |
+| created_at / updated_at | time.Time          |                        |
+
+### roles — 角色
+
+| 字段                    | 类型               | 说明                  |
+| ----------------------- | ------------------ | --------------------- |
+| id                      | PK                 |                       |
+| code                    | VARCHAR(64) UNIQUE | 如 `super_admin`      |
+| name                    | VARCHAR(64)        | 显示名                |
+| remark                  | VARCHAR(255)       |                       |
+| status                  | bool,默认 1        |                       |
+| is_builtin              | bool,默认 0        | 内置角色不可删改 code |
+| created_at / updated_at |                    |                       |
+
+### user_roles — 用户 ↔ 角色
+
+| 字段              | 类型  | 说明                                    |
+| ----------------- | ----- | --------------------------------------- |
+| id                | PK    |                                         |
+| user_id / role_id | int64 | UNIQUE(user_id, role_id);INDEX(role_id) |
+
+### permissions — 权限点(menu / api 统一)
+
+| 字段                    | 类型                | 说明                                     |
+| ----------------------- | ------------------- | ---------------------------------------- |
+| id                      | PK                  |                                          |
+| code                    | VARCHAR(128) UNIQUE | `模块:资源:动作`,如 `system:user:create` |
+| name                    | VARCHAR(64)         | 展示名,如"创建用户"                      |
+| type                    | VARCHAR(16)         | `menu` / `api`;INDEX(type)               |
+| parent_id               | int64,默认 0        | 组树:menu 随菜单层级,api 按模块分组      |
+| sort                    | int,默认 0          |                                          |
+| created_at / updated_at |                     |                                          |
+
+### role_permissions — 角色 ↔ 权限
+
+| 字段                    | 类型  | 说明                                                |
+| ----------------------- | ----- | --------------------------------------------------- |
+| id                      | PK    |                                                     |
+| role_id / permission_id | int64 | UNIQUE(role_id, permission_id);INDEX(permission_id) |
+
+### menus — 菜单
+
+| 字段                    | 类型         | 说明                              |
+| ----------------------- | ------------ | --------------------------------- |
+| id                      | PK           |                                   |
+| parent_id               | int64,默认 0 | 树结构;INDEX(parent_id)           |
+| name                    | VARCHAR(64)  | 菜单名                            |
+| path                    | VARCHAR(128) | 路由路径                          |
+| component_key           | VARCHAR(64)  | 前端组件映射 key,目录留空         |
+| icon                    | VARCHAR(64)  | Arco 图标名,可空                  |
+| permission_id           | int64,默认 0 | 绑定的 menu 权限点                |
+| sort                    | int,默认 0   | 同级排序,小的在前                 |
+| visible                 | bool,默认 1  | 隐藏仍可直访路由(由 API 权限拦截) |
+| created_at / updated_at |              |                                   |
+
+### operation_logs — 操作日志(只增)
+
+| 字段        | 类型         | 说明                                         |
+| ----------- | ------------ | -------------------------------------------- |
+| id          | PK           |                                              |
+| user_id     | int64        | 0 = 未登录(如登录失败)                       |
+| username    | VARCHAR(64)  | 冗余快照,用户删除后仍可读                    |
+| method      | VARCHAR(8)   | GET/POST/…                                   |
+| path        | VARCHAR(255) | 实际请求路径                                 |
+| action      | VARCHAR(64)  | 操作名,来自路由注册表(与权限码同源)          |
+| ok          | bool         | 成功 / 失败                                  |
+| status_code | int          | 响应码                                       |
+| message     | VARCHAR(255) | 失败原因摘要,成功留空                        |
+| ip          | VARCHAR(45)  | 兼容 IPv6                                    |
+| latency_ms  | int          |                                              |
+| created_at  |              | INDEX(created_at);INDEX(user_id, created_at) |
+
+保留策略:配置保留天数,定时任务清理(MVP 后置,但字段按只增设计,清理即 DELETE)。
+
+### files — 文件
+
+| 字段        | 类型         | 说明                  |
+| ----------- | ------------ | --------------------- |
+| id          | PK           |                       |
+| orig_name   | VARCHAR(255) | 原始文件名            |
+| name        | VARCHAR(128) | 存储名(uuid + 扩展名) |
+| path        | VARCHAR(255) | 相对路径 / 对象 key   |
+| mime        | VARCHAR(64)  |                       |
+| size        | int64        | 字节                  |
+| storage     | VARCHAR(16)  | `local`,预留 `s3`     |
+| uploader_id | int64        | 0 = 系统              |
+| created_at  |              |                       |
+
+### sys_configs — 系统配置(KV)
+
+| 字段                    | 类型                   | 说明                       |
+| ----------------------- | ---------------------- | -------------------------- |
+| id                      | PK                     |                            |
+| group                   | VARCHAR(32)            | `system` / `storage`       |
+| key                     | VARCHAR(64)            | UNIQUE(group, key)         |
+| value                   | TEXT + serializer:json | 结构化 JSON,模型侧反序列化 |
+| remark                  | VARCHAR(255)           | 用途说明                   |
+| updated_by              | int64                  | 最后修改人                 |
+| created_at / updated_at |                        |                            |
+
+### dicts / dict_items — 字典
+
+dicts:id, code VARCHAR(64) UNIQUE, name VARCHAR(64), remark VARCHAR(255), status bool, created_at / updated_at。
+dict_items:id, dict_id int64(INDEX), label VARCHAR(64), value VARCHAR(64), sort int, status bool, created_at / updated_at;UNIQUE(dict_id, value)。
+
+## 关系与完整性
+
+关联只有四条 N-N/N-1:users↔roles(user_roles)、roles↔permissions(role_permissions)、menus→permissions(permission_id)、dict_items→dicts(dict_id);logs 与 files 只冗余存 id/用户名快照,不构成强关联。
+
+没有数据库外键,service 层在删除时必须守护(均在同一事务内):
+
+- 删用户:先清 user_roles;禁止删自己与内置管理员;
+- 删角色:仍有用户绑定时拒绝;
+- 删菜单:有子菜单拒绝;同步删除其绑定的 menu 权限点及 role_permissions 引用;
+- 删字典:级联删 dict_items;
+- 删文件:先删存储介质上的对象,成功后再删记录。
+
+## repo 层接入
+
+```go
+// internal/repo/db.go — 驱动由配置切换,DSN 透传
+func Open(cfg config.Database) (*gorm.DB, error) {
+    switch cfg.Driver {
+    case "sqlite":
+        return gorm.Open(sqlite.Open(cfg.DSN), &gorm.Config{}) // dev: apps/server/data/cms.db
+    case "mysql":
+        return gorm.Open(mysql.Open(cfg.DSN), &gorm.Config{})
+    }
+}
+```
+
+启动时对全部模型执行 AutoMigrate(固定顺序,幂等);种子数据按唯一键 upsert,可重复执行。
+
+## 迁移到 MySQL(上线方案)
+
+### 切换步骤
+
+1. 建库:`CREATE DATABASE cms CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci;`,账号授权;
+2. 配置 `driver=mysql`,DSN 形如 `user:pass@tcp(host:3306)/cms?charset=utf8mb4&parseTime=true&loc=UTC`;
+3. 启动服务:AutoMigrate 建表 → 种子脚本幂等补齐;
+4. 冒烟:`/healthz`、登录、`/swagger` 走一遍,确认时间字段时区正确(库内 UTC,展示层转本地)。
+
+开发库数据默认不迁移:CMS 模板的生产环境从种子数据起步,数据搬运仅在确有存量价值时执行。
+
+### 存量数据搬运(可选)
+
+提供一次性工具 `cmd/datamove`:同一套模型开两个 GORM 连接(源 SQLite / 目标 MySQL),按表逐行**显式带 id upsert**——保留原 id,日志与关联不漂移,MySQL 自增水位自动越过最大 id。幂等可重跑,适合停机窗口内执行。
+
+### 上线后的演进
+
+- AutoMigrate 只做加法(加列、加索引),不改、不删;
+- 出现破坏性变更(改类型/重命名/删列)时引入 golang-migrate:迁移 SQL 只需 MySQL 版(开发用 SQLite 删库重建 + 模型同步即可),变更流程固化为"改模型 → 破坏性操作落迁移文件";
+- 任何时刻模型与库结构必须一致,schema 变更不留口头约定。
+
+### 兼容性红线(开发期就要遵守)
+
+- 不写裸方言 SQL:日期筛选用时间范围参数(`created_at >= ? AND created_at < ?`),不用 `date()`/`DATE_FORMAT()`;
+- 不用 MySQL JSON 列、SQLite 生成列等单端特性;
+- 布尔只存 0/1,字符串比较不做大小写不敏感查询(唯一性靠 UNIQUE 索引 + 服务层校验);
+- 一切查询走 GORM 或参数化 SQL,禁止字符串拼接。
