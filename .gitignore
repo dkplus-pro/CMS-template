@@ -8,6 +8,10 @@ build/
 coverage/
 playwright-report/
 test-results/
+
+# Go server artifacts (apps/server)
+apps/server/bin/
+apps/server/data/
 .turbo/
 
 # Logs

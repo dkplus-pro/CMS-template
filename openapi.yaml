@@ -1,0 +1,79 @@
+openapi: 3.0.3
+info:
+  title: CMS Admin API
+  version: 0.1.0
+  description: |
+    CMS 管理后台接口契约,前后端唯一事实源。
+
+    修改流程:改本文件 → `pnpm gen:api` 双端生成 → 双端实现。
+    生成物(apps/admin/src/api/schema.gen.ts、apps/server/gen/)禁止手改。
+servers:
+  - url: /api
+    description: 开发环境由 admin dev server 代理,生产由网关/反代挂载
+tags:
+  - name: system
+    description: 系统公共接口
+security:
+  - bearerAuth: []
+paths:
+  /healthz:
+    get:
+      operationId: healthz
+      summary: 健康检查
+      tags:
+        - system
+      security: []
+      responses:
+        "200":
+          description: 服务健康
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthzResponse"
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+  schemas:
+    Error:
+      type: object
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: HTTP 状态码
+        message:
+          type: string
+          description: 错误描述
+    PageRequest:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+          default: 1
+        pageSize:
+          type: integer
+          minimum: 1
+          maximum: 100
+          default: 20
+    PageMeta:
+      type: object
+      required:
+        - total
+      properties:
+        total:
+          type: integer
+          description: 总条数
+    HealthzResponse:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          example: ok

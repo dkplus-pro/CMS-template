@@ -12,7 +12,9 @@ const ignores = [
   "**/dist/**",
   "**/node_modules/**",
   "**/playwright-report/**",
-  "**/test-results/**"
+  "**/test-results/**",
+  // openapi.yaml 生成物,禁止手改也不参与 lint(见 docs/development.md)
+  "**/*.gen.ts"
 ];
 
 const config = tseslint.config(

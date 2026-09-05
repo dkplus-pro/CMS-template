@@ -29,3 +29,25 @@ test("admin app config supports repository-scoped GitHub Pages paths", () => {
   assert.match(configSource, /outputStructure: "flat"/);
   assert.match(configSource, /html: ""/);
 });
+
+test("stage 0 wires openapi contract pipeline and dev proxy to the go server", async () => {
+  assert.equal(
+    packageJson.scripts["gen:api"],
+    "openapi-typescript ../../openapi.yaml -o src/api/schema.gen.ts"
+  );
+
+  const clientSource = await readFile(new URL("../src/api/client.ts", import.meta.url), "utf8");
+  assert.match(clientSource, /baseURL|BASE_URL/);
+  assert.match(clientSource, /Authorization/);
+
+  const configSource = await readFile(new URL("../modern.config.ts", import.meta.url), "utf8");
+  assert.match(configSource, /proxy: \{/);
+  assert.match(configSource, /target: "http:\/\/localhost:8080"/);
+  assert.match(configSource, /pathRewrite: \{ "\^\/api": "" \}/);
+
+  const generatedSchema = await readFile(
+    new URL("../src/api/schema.gen.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(generatedSchema, /HealthzResponse/);
+});

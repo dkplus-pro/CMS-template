@@ -1,6 +1,6 @@
 # Monorepo Template
 
-A pnpm + Turborepo monorepo template with shared configuration packages, a Modern.js React admin app, CI scripts, tests, and GitHub Pages deployment.
+A pnpm + Turborepo monorepo template with an OpenAPI-driven stack: a Go API server, a Modern.js React admin app built on Arco Design, shared configuration packages, CI scripts, tests, and GitHub Pages deployment.
 
 ## GitHub Pages
 
@@ -12,7 +12,10 @@ A pnpm + Turborepo monorepo template with shared configuration packages, a Moder
 
 ```text
 apps/
-  admin/                  Modern.js React hello-world app
+  admin/                  Modern.js React + Arco Design admin app
+  server/                 Go API server (oapi-codegen + GORM)
+openapi.yaml              Single source of truth for the API contract
+docs/                     Development docs (dev guide, MVP plan, database design)
 packages/
   tsconfig/              Shared TypeScript presets
   eslint-config/         Shared ESLint flat config
@@ -34,6 +37,7 @@ tests/
 
 - Node.js `>=20.19.5` (Node 22 LTS recommended; `.nvmrc` uses `lts/jod`)
 - pnpm via Corepack (`packageManager` pins pnpm)
+- Go `>=1.24` (for `apps/server`; uses the `go tool` directive for oapi-codegen)
 
 ```bash
 corepack enable
@@ -47,19 +51,33 @@ pnpm --version
 pnpm install
 ```
 
-## Start the admin app
+## Start in development
 
 ```bash
 pnpm dev
 ```
 
-The Modern.js admin runs at <http://localhost:8080/> by default.
+One command starts both workspaces via Turborepo:
 
-To run only the admin workspace:
+- admin at <http://localhost:8081/> (dev-proxies `/api` to the server)
+- Go server at <http://localhost:8080/> (Swagger UI at <http://localhost:8080/swagger/>)
+
+To run only one workspace:
 
 ```bash
 pnpm --filter @monorepo-template/admin run dev
+pnpm --filter @monorepo-template/server run dev
 ```
+
+## API contract workflow
+
+`openapi.yaml` at the repo root is the single source of truth. After changing it, regenerate both sides:
+
+```bash
+pnpm gen:api   # server: apps/server/gen (oapi-codegen); admin: apps/admin/src/api/schema.gen.ts
+```
+
+Generated files must never be hand-edited. See `docs/development.md` for the full convention.
 
 ## Development commands
 
@@ -70,6 +88,7 @@ pnpm test          # Jest + workspace tests + Playwright smoke test
 pnpm build         # Build all buildable workspaces
 pnpm format        # Check Prettier formatting
 pnpm format:write  # Fix Prettier formatting
+pnpm gen:api       # Regenerate API types/code from openapi.yaml (both workspaces)
 pnpm verify        # Fast local verification helper
 pnpm ci            # CI helper: install + lint + typecheck + test + build
 ```

@@ -15,6 +15,7 @@
     "dev": "turbo run dev --parallel",
     "format": "prettier --check .",
     "format:write": "prettier --write .",
+    "gen:api": "turbo run gen:api",
     "lint": "turbo run lint && pnpm run lint:root",
     "lint:root": "eslint . --max-warnings=0",
     "prepare": "husky",

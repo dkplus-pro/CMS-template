@@ -13,6 +13,9 @@
       "cache": false,
       "persistent": true
     },
+    "gen:api": {
+      "cache": false
+    },
     "lint": {
       "dependsOn": ["^build"],
       "outputs": []
