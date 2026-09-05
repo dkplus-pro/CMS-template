@@ -1,10 +1,11 @@
 import { Message } from "@arco-design/web-react";
+import Axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 
 import { TOKEN_STORAGE_KEY } from "../constants";
 
-// 统一请求客户端(orval fetch 客户端的 mutator,见 docs/admin.md):
-// baseURL 拼接、token 注入、401 处理、错误提示、{code, message, data} 解包全部只写在这里,
-// 生成物不含任何横切逻辑,生成函数拿到的直接是 data 本体。
+// 统一请求客户端(orval axios 客户端的 mutator,见 docs/admin.md):
+// 底层为 axios 实例;baseURL 拼接、token 注入、401 处理、错误提示、{code, message, data} 解包
+// 全部只写在这里,生成物不含任何横切逻辑,生成函数拿到的直接是 data 本体。
 
 const BASE_URL = "/api";
 
@@ -26,51 +27,51 @@ function isEnvelope(
   return typeof payload === "object" && payload !== null && "code" in payload && "data" in payload;
 }
 
-async function readErrorMessage(res: Response): Promise<string> {
-  try {
-    const payload: unknown = await res.json();
-    if (
-      typeof payload === "object" &&
-      payload !== null &&
-      typeof (payload as { message?: unknown }).message === "string"
-    ) {
-      return (payload as { message: string }).message;
-    }
-  } catch {
-    // 响应体不是 JSON,走通用文案。
-  }
-  return `请求失败(${res.status})`;
-}
+const axiosInstance = Axios.create({ baseURL: BASE_URL });
 
-// orval fetch 客户端 mutator:签名与全局 fetch 对齐,额外承担解析与解包,返回 Promise<T>。
-export async function customFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
-  const headers = new Headers(options.headers);
+axiosInstance.interceptors.request.use((config) => {
   const token = getToken();
   if (token) {
-    headers.set("Authorization", `Bearer ${token}`);
+    config.headers.Authorization = `Bearer ${token}`;
   }
+  return config;
+});
 
-  let res: Response;
-  try {
-    res = await fetch(`${BASE_URL}${url}`, { ...options, headers });
-  } catch (error) {
-    Message.error("网络异常,请稍后重试");
-    throw error;
+axiosInstance.interceptors.response.use(
+  (response) => {
+    // 服务端启用 {code, message, data} 包装后,这里统一解包,业务层直接拿 data。
+    if (isEnvelope(response.data)) {
+      response.data = response.data.data;
+    }
+    return response;
+  },
+  (error: AxiosError) => {
+    if (error.response?.status === 401) {
+      setToken(null);
+      Message.error("登录已过期,请重新登录");
+      // 阶段 1 登录页上线后在此跳转 /login。
+    } else if (error.response) {
+      Message.error(readErrorMessage(error.response));
+    } else {
+      Message.error("网络异常,请稍后重试");
+    }
+    return Promise.reject(error);
   }
+);
 
-  if (res.status === 401) {
-    setToken(null);
-    Message.error("登录已过期,请重新登录");
-    // 阶段 1 登录页上线后在此跳转 /login。
-    throw new Error("登录已过期,请重新登录");
+function readErrorMessage(response: AxiosResponse): string {
+  const payload: unknown = response.data;
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    typeof (payload as { message?: unknown }).message === "string"
+  ) {
+    return (payload as { message: string }).message;
   }
+  return `请求失败(${response.status})`;
+}
 
-  if (!res.ok) {
-    const message = await readErrorMessage(res);
-    Message.error(message);
-    throw new Error(message);
-  }
-
-  const payload: unknown = await res.json().catch(() => null);
-  return (isEnvelope(payload) ? payload.data : payload) as T;
+// orval axios 客户端 mutator:生成代码调用 customInstance<T>(config),返回解包后的 data。
+export function customInstance<T>(config: AxiosRequestConfig): Promise<T> {
+  return axiosInstance.request(config).then((response) => response.data as T);
 }

@@ -8,17 +8,11 @@ export default defineConfig({
     output: {
       target: "./src/api/generated",
       mode: "tags-split",
-      client: "fetch",
+      client: "axios",
       override: {
         mutator: {
           path: "./src/api/client.ts",
-          name: "customFetch"
-        },
-        fetch: {
-          // 返回 data 本体而非 {data, status, headers} 包装,customFetch 直接返回解析后的 JSON;
-          // 错误分支由 client.ts 的 customFetch 统一抛出,生成物不做状态码判断。
-          forceSuccessResponse: true,
-          includeHttpResponseReturnType: false
+          name: "customInstance"
         }
       },
       clean: true

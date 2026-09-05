@@ -36,7 +36,8 @@ test("stage 0 wires openapi contract pipeline and dev proxy to the go server", a
   const clientSource = await readFile(new URL("../src/api/client.ts", import.meta.url), "utf8");
   assert.match(clientSource, /BASE_URL/);
   assert.match(clientSource, /Authorization/);
-  assert.match(clientSource, /export async function customFetch/);
+  assert.match(clientSource, /export function customInstance/);
+  assert.match(clientSource, /Axios\.create/);
 
   const configSource = await readFile(new URL("../modern.config.ts", import.meta.url), "utf8");
   assert.match(configSource, /proxy: \{/);
@@ -47,7 +48,6 @@ test("stage 0 wires openapi contract pipeline and dev proxy to the go server", a
     new URL("../src/api/generated/system/system.ts", import.meta.url),
     "utf8"
   );
-  assert.match(generatedHealthz, /export const healthz/);
-  assert.match(generatedHealthz, /customFetch<HealthzResponse>/);
-  assert.match(generatedHealthz, /Promise<HealthzResponse>/);
+  assert.match(generatedHealthz, /export const getSystem/);
+  assert.match(generatedHealthz, /customInstance<HealthzResponse>/);
 });

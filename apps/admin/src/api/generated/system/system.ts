@@ -13,28 +13,21 @@ import type {
   HealthzResponse
 } from '../cMSAdminAPI.schemas';
 
-import { customFetch } from '../../client';
-
-export const getHealthzUrl = () => {
+import { customInstance } from '../../client';
 
 
 
-
-  return `/healthz`
-}
-
+  export const getSystem = () => {
 /**
  * @summary 健康检查
  */
-export const healthz = async ( options?: Parameters<typeof customFetch>[1]): Promise<HealthzResponse> => {
+const healthz = (
 
-  return customFetch<HealthzResponse>(getHealthzUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
+ ) => {
+      return customInstance<HealthzResponse>(
+      {url: `/healthz`, method: 'GET'
+    },
+      );
+    }
+  return {healthz}};
+export type HealthzResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getSystem>['healthz']>>>

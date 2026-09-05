@@ -62,6 +62,9 @@ importers:
       '@modern-js/runtime':
         specifier: ^3.5.0
         version: 3.5.0(core-js@3.49.0)(react-dom@19.2.7(react@19.2.7))(react-server-dom-rspack@0.0.2(@rspack/core@2.1.3(@swc/helpers@0.5.23))(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
+      axios:
+        specifier: ^1.20.0
+        version: 1.20.0
       react:
         specifier: ^19.2.1
         version: 19.2.7
@@ -2188,8 +2191,8 @@ packages:
     resolution: {integrity: sha512-wvUjBtSGN7+7SjNpq/9M2Tg350UZD3q62IFZLbRAR1bSMlCo1ZaeW+BJ+D090e4hIIZLBcTDWe4Mh4jvUDajzQ==}
     engines: {node: '>= 0.4'}
 
-  axios@1.18.1:
-    resolution: {integrity: sha512-3nTvFlvpn9Zu/RkHUqtc7/+al4UpRW5az71ap5zccp6e8RAYEzhMTecX8Dz1wWDYrPpUoB1HAQEGEAEvUr7S9g==}
+  axios@1.20.0:
+    resolution: {integrity: sha512-r8aOh8j9cGKpgQAqpzrUHnSIc6a59Y3Xf/cv8sy1DrHCkZHzQGEuoq1tARk6qSyDdtQGSDgpb9kFlruzPvrgwg==}
 
   b-tween@0.3.3:
     resolution: {integrity: sha512-oEHegcRpA7fAuc9KC4nktucuZn2aS8htymCPcP3qkEGPqiBH+GfqtqoG2l7LxHngg6O0HFM7hOeOYExl1Oz4ZA==}
@@ -6424,7 +6427,7 @@ snapshots:
       '@modern-js/types': 3.5.0
       '@modern-js/utils': 3.5.0(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
       '@swc/helpers': 0.5.23
-      axios: 1.18.1
+      axios: 1.20.0
       connect-history-api-fallback: 2.0.0
       http-compression: 1.0.6
       minimatch: 3.1.5
@@ -7595,7 +7598,7 @@ snapshots:
     dependencies:
       possible-typed-array-names: 1.1.0
 
-  axios@1.18.1:
+  axios@1.20.0:
     dependencies:
       follow-redirects: 1.16.0
       form-data: 4.0.6
