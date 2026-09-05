@@ -8,7 +8,7 @@
     "build:github-pages": "modern build",
     "deploy:github-pages": "pnpm --workspace-root run build:pages",
     "dev": "modern dev",
-    "gen:api": "openapi-typescript ../../openapi.yaml -o src/api/schema.gen.ts",
+    "gen:api": "orval --config ./orval.config.ts",
     "lint": "eslint . --max-warnings=0",
     "serve": "modern serve",
     "test": "node --test tests/*.test.mjs",
@@ -26,7 +26,7 @@
     "@types/node": "^24.10.2",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
-    "openapi-typescript": "^7.13.0",
+    "orval": "^8.28.1",
     "typescript": "^5.9.3"
   },
   "engines": {

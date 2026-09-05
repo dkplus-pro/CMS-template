@@ -6,7 +6,7 @@ info:
     CMS 管理后台接口契约,前后端唯一事实源。
 
     修改流程:改本文件 → `pnpm gen:api` 双端生成 → 双端实现。
-    生成物(apps/admin/src/api/schema.gen.ts、apps/server/gen/)禁止手改。
+    生成物(apps/admin/src/api/generated/、apps/server/gen/)禁止手改。
 servers:
   - url: /api
     description: 开发环境由 admin dev server 代理,生产由网关/反代挂载

@@ -14,6 +14,7 @@ const ignores = [
   "**/playwright-report/**",
   "**/test-results/**",
   // openapi.yaml 生成物,禁止手改也不参与 lint(见 docs/development.md)
+  "**/src/api/generated/**",
   "**/*.gen.ts"
 ];
 

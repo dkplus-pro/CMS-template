@@ -1,7 +1,7 @@
 import { Tag, Typography } from "@arco-design/web-react";
 import { useEffect, useState } from "react";
 
-import { healthz } from "../api/health";
+import { healthz } from "../api/generated/system/system";
 
 const highlights = [
   "Modern.js React app shell",
@@ -21,7 +21,7 @@ export default function HomePage() {
   const [apiStatus, setApiStatus] = useState<ApiStatus>("loading");
 
   useEffect(() => {
-    healthz({ silent: true })
+    healthz()
       .then(() => setApiStatus("online"))
       .catch(() => setApiStatus("offline"));
   }, []);

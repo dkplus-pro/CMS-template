@@ -74,7 +74,7 @@ pnpm --filter @monorepo-template/server run dev
 `openapi.yaml` at the repo root is the single source of truth. After changing it, regenerate both sides:
 
 ```bash
-pnpm gen:api   # server: apps/server/gen (oapi-codegen); admin: apps/admin/src/api/schema.gen.ts
+pnpm gen:api   # server: apps/server/gen (oapi-codegen); admin: apps/admin/src/api/generated (orval)
 ```
 
 Generated files must never be hand-edited. See `docs/development.md` for the full convention.

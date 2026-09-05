@@ -52,7 +52,7 @@ src/routes/article/
 
 类型**和**接口函数都由 orval 从根 `openapi.yaml` 生成,前端不手写请求函数:
 
-- **配置**:`apps/admin/orval.config.ts`,`input` 指向根 `openapi.yaml`,输出 `src/api/generated/`(`mode: split`,按模块分文件);`*.gen.ts` 已在 eslint ignore,禁止手改;
+- **配置**:`apps/admin/orval.config.ts`,`input` 指向根 `openapi.yaml`,输出 `src/api/generated/`(`mode: tags-split`,按 tag/模块分文件);生成目录已在 eslint 与 prettier ignore,禁止手改;
 - **mutator**:所有生成函数统一经 `src/api/client.ts` 的请求函数发起请求(配置 `output.mutator` 指向它)。token 注入、401 处理、`{code, message, data}` 解包、错误 Message 只写在这一处;若 orval 要求的 mutator 签名与现有函数不一致,在 `client.ts` 内加适配导出,不得把逻辑散落到别处;
 - **函数名来自 operationId**:契约中每个接口必须写 operationId(它同时是后端 `ServerInterface` 方法名与前端生成函数名);
 - **只生成纯函数客户端**(调用返回 Promise),MVP 不启用 react-query / SWR / mocks 生成;后续若引入 `@tanstack/react-query`,改 orval 的 client 配置重新生成,页面调用方式平滑升级;

@@ -7,3 +7,4 @@ node_modules
 pnpm-lock.yaml
 playwright-report
 test-results
+apps/admin/src/api/generated/

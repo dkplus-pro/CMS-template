@@ -2,14 +2,11 @@ import { Message } from "@arco-design/web-react";
 
 import { TOKEN_STORAGE_KEY } from "../constants";
 
-const BASE_URL = "/api";
+// 统一请求客户端(orval fetch 客户端的 mutator,见 docs/admin.md):
+// baseURL 拼接、token 注入、401 处理、错误提示、{code, message, data} 解包全部只写在这里,
+// 生成物不含任何横切逻辑,生成函数拿到的直接是 data 本体。
 
-export interface RequestOptions {
-  method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
-  body?: unknown;
-  /** 静默模式:失败时不弹全局提示,由调用方自行处理。 */
-  silent?: boolean;
-}
+const BASE_URL = "/api";
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY);
@@ -23,74 +20,57 @@ export function setToken(token: string | null): void {
   }
 }
 
-// 阶段 1 起服务端启用 {code, message, data} 响应包装,此处按有无 code/data 字段兼容两种形态。
-function unwrap<T>(payload: unknown): T {
-  if (payload && typeof payload === "object" && "code" in payload && "data" in payload) {
-    return (payload as { data: T }).data;
-  }
-  return payload as T;
+function isEnvelope(
+  payload: unknown
+): payload is { code: number; message?: string; data: unknown } {
+  return typeof payload === "object" && payload !== null && "code" in payload && "data" in payload;
 }
 
-async function parseJson(res: Response): Promise<unknown> {
+async function readErrorMessage(res: Response): Promise<string> {
   try {
-    return await res.json();
+    const payload: unknown = await res.json();
+    if (
+      typeof payload === "object" &&
+      payload !== null &&
+      typeof (payload as { message?: unknown }).message === "string"
+    ) {
+      return (payload as { message: string }).message;
+    }
   } catch {
-    return null;
+    // 响应体不是 JSON,走通用文案。
   }
+  return `请求失败(${res.status})`;
 }
 
-// 统一请求客户端:baseURL /api、token 注入、401 清 token、错误统一 Message 提示。
-export async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
-  const { method = "GET", body, silent = false } = options;
-
-  const headers: Record<string, string> = {};
+// orval fetch 客户端 mutator:签名与全局 fetch 对齐,额外承担解析与解包,返回 Promise<T>。
+export async function customFetch<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers);
   const token = getToken();
   if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  if (body !== undefined) {
-    headers["Content-Type"] = "application/json";
+    headers.set("Authorization", `Bearer ${token}`);
   }
 
   let res: Response;
   try {
-    res = await fetch(`${BASE_URL}${path}`, {
-      method,
-      headers,
-      body: body === undefined ? undefined : JSON.stringify(body)
-    });
-  } catch {
-    const error = new Error("网络异常,请稍后重试");
-    if (!silent) {
-      Message.error(error.message);
-    }
+    res = await fetch(`${BASE_URL}${url}`, { ...options, headers });
+  } catch (error) {
+    Message.error("网络异常,请稍后重试");
     throw error;
   }
 
   if (res.status === 401) {
     setToken(null);
-    const error = new Error("登录已过期,请重新登录");
-    if (!silent) {
-      Message.error(error.message);
-    }
+    Message.error("登录已过期,请重新登录");
     // 阶段 1 登录页上线后在此跳转 /login。
-    throw error;
+    throw new Error("登录已过期,请重新登录");
   }
 
-  const payload = await parseJson(res);
-
   if (!res.ok) {
-    const message =
-      payload &&
-      typeof payload === "object" &&
-      typeof (payload as { message?: unknown }).message === "string"
-        ? (payload as { message: string }).message
-        : `请求失败(${res.status})`;
-    if (!silent) {
-      Message.error(message);
-    }
+    const message = await readErrorMessage(res);
+    Message.error(message);
     throw new Error(message);
   }
 
-  return unwrap<T>(payload);
+  const payload: unknown = await res.json().catch(() => null);
+  return (isEnvelope(payload) ? payload.data : payload) as T;
 }
