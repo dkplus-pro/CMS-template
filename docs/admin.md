@@ -8,7 +8,9 @@
 
 ```text
 apps/admin/src/
-  api/                 openapi 生成物 + 请求客户端(生成物勿手改)
+  api/
+    client.ts            手写:统一请求客户端(orval mutator 入口,唯一允许手写的文件)
+    generated/           orval 生成物(类型 + 接口函数,勿手改)
   components/          公共组件(跨页面复用)
   hooks/               公共 hooks(跨页面复用的状态逻辑)
   routes/              页面层(Modern.js 约定路由,即 Page 层)
@@ -46,11 +48,17 @@ src/routes/article/
 - 可复用的局部状态逻辑抽成 hooks(如 `useTableQuery` 封装"分页 + 筛选 + 请求"),放 `src/hooks/`;
 - 允许使用 zustand,但一个项目里只用一种全局方案,不要混用。
 
-## 接口与类型
+## 接口与类型(orval 生成)
 
-- 类型与请求由 `pnpm gen:api` 从根 `openapi.yaml` 生成到 `src/api/`;
-- **禁止手写与生成物重复的接口类型**;组件、hooks 一律引用 `src/api` 里的类型;
-- 请求客户端统一封装(fetch 拦截器处理鉴权、错误提示),页面不直接裸调 fetch。
+类型**和**接口函数都由 orval 从根 `openapi.yaml` 生成,前端不手写请求函数:
+
+- **配置**:`apps/admin/orval.config.ts`,`input` 指向根 `openapi.yaml`,输出 `src/api/generated/`(`mode: split`,按模块分文件);`*.gen.ts` 已在 eslint ignore,禁止手改;
+- **mutator**:所有生成函数统一经 `src/api/client.ts` 的请求函数发起请求(配置 `output.mutator` 指向它)。token 注入、401 处理、`{code, message, data}` 解包、错误 Message 只写在这一处;若 orval 要求的 mutator 签名与现有函数不一致,在 `client.ts` 内加适配导出,不得把逻辑散落到别处;
+- **函数名来自 operationId**:契约中每个接口必须写 operationId(它同时是后端 `ServerInterface` 方法名与前端生成函数名);
+- **只生成纯函数客户端**(调用返回 Promise),MVP 不启用 react-query / SWR / mocks 生成;后续若引入 `@tanstack/react-query`,改 orval 的 client 配置重新生成,页面调用方式平滑升级;
+- 页面与 hooks 只 import `src/api/generated` 的函数和类型,**禁止手写与契约重复的接口类型**。
+
+新增接口动作:改 `openapi.yaml` → `pnpm gen:api` → 前端直接调用生成函数(零手写)。
 
 ## 复用与拆分
 
@@ -61,7 +69,7 @@ src/routes/article/
 | 2 个及以上页面使用 | `src/components/`、`src/hooks/`      |
 | 仅单个页面使用     | 页面目录内的 `components/`、`hooks/` |
 | 跨页面全局共享状态 | `src/store/`(Modern.js model)        |
-| 接口类型           | 一律复用 `src/api/` 生成物           |
+| 接口类型与请求函数 | 一律复用 `src/api/generated/` 生成物 |
 
 拆分规则:
 

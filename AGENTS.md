@@ -24,7 +24,7 @@ pnpm + Turborepo monorepo,两个应用:
 ### 接口契约
 
 1. 接口改动先改 `openapi.yaml`,再 `pnpm gen:api`,然后补实现;
-2. 生成物(`apps/admin/src/api/`、`apps/server/gen/`)禁止手改;
+2. 生成物(`apps/admin/src/api/generated/`、`apps/server/gen/`)禁止手改;前端接口函数一律调用 orval 生成物,不手写请求函数,横切逻辑(token/401/错误提示)只写在 `src/api/client.ts`(mutator 入口);
 3. 两侧不允许手写与契约重复的接口类型。
 
 ### admin(详见 [docs/admin.md](docs/admin.md))

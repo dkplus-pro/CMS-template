@@ -10,17 +10,17 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 
 ## 总体技术决策
 
-| 项         | 决策                                              | 说明                                                                                                                            |
-| ---------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| 接口契约   | 根 `openapi.yaml` 单一事实源                      | tags 按模块划分(auth/users/roles/permissions/menus/logs/configs/dicts/files);server 用 oapi-codegen,admin 用 openapi-typescript |
-| Swagger UI | server 暴露 `GET /swagger`                        | 直接托管根 `openapi.yaml`;dev 必开,生产由配置开关                                                                               |
-| 存储       | GORM:dev SQLite / prod MySQL                      | 双端同一套模型建表;表结构与迁移方案见 [database.md](./database.md)                                                              |
-| 认证       | JWT(HS256,Bearer)                                 | 有效期 2h,MVP 不做 refresh token 与服务端登出失效;密码 bcrypt                                                                   |
-| 权限模型   | RBAC:user → role → permission                     | permission 分 `menu`(菜单/页面/按钮可见)与 `api`(接口/操作)两类,统一存一张表;数据权限不做                                       |
-| 前端权限   | 登录后拉取权限码 + 可见菜单                       | 动态生成路由与侧边栏;按钮级用权限码控制显隐;**服务端中间件独立校验,前端显隐只是体验,不是安全边界**                              |
-| 响应约定   | `{code, message, data}`                           | 分页入参 `page`/`pageSize`,返回 `{list, total}`;错误用 HTTP 状态码 + message                                                    |
-| 联调       | admin 开发态代理 `/api` → `http://localhost:8080` | 免 CORS;端口约定 server=8080、admin=8081                                                                                        |
-| 文件存储   | storage 接口 + local 实现                         | 预留 S3 实现,不阻塞 MVP                                                                                                         |
+| 项         | 决策                                              | 说明                                                                                                                                                |
+| ---------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 接口契约   | 根 `openapi.yaml` 单一事实源                      | tags 按模块划分(auth/users/roles/permissions/menus/logs/configs/dicts/files);server 用 oapi-codegen,admin 用 orval 生成类型 + 接口函数(见 admin.md) |
+| Swagger UI | server 暴露 `GET /swagger`                        | 直接托管根 `openapi.yaml`;dev 必开,生产由配置开关                                                                                                   |
+| 存储       | GORM:dev SQLite / prod MySQL                      | 双端同一套模型建表;表结构与迁移方案见 [database.md](./database.md)                                                                                  |
+| 认证       | JWT(HS256,Bearer)                                 | 有效期 2h,MVP 不做 refresh token 与服务端登出失效;密码 bcrypt                                                                                       |
+| 权限模型   | RBAC:user → role → permission                     | permission 分 `menu`(菜单/页面/按钮可见)与 `api`(接口/操作)两类,统一存一张表;数据权限不做                                                           |
+| 前端权限   | 登录后拉取权限码 + 可见菜单                       | 动态生成路由与侧边栏;按钮级用权限码控制显隐;**服务端中间件独立校验,前端显隐只是体验,不是安全边界**                                                  |
+| 响应约定   | `{code, message, data}`                           | 分页入参 `page`/`pageSize`,返回 `{list, total}`;错误用 HTTP 状态码 + message                                                                        |
+| 联调       | admin 开发态代理 `/api` → `http://localhost:8080` | 免 CORS;端口约定 server=8080、admin=8081                                                                                                            |
+| 文件存储   | storage 接口 + local 实现                         | 预留 S3 实现,不阻塞 MVP                                                                                                                             |
 
 ## 数据模型(一览)
 
@@ -84,7 +84,7 @@ admin:
 
 server:users 表与种子管理员(文档注明初始口令,建议首次登录即改);JWT 签发/校验中间件(除 /auth/login、/healthz、/swagger 外全量拦截);**操作日志中间件在本阶段埋点**(只记录不查询)。
 
-admin:登录页;token 与当前用户进全局 model;路由守卫(未登录跳登录);顶栏用户下拉(修改密码弹窗、退出)。
+admin:先切换 orval 接口生成(替换 openapi-typescript 手写薄函数模式,规范见 [admin.md](./admin.md));登录页;token 与当前用户进全局 model;路由守卫(未登录跳登录);顶栏用户下拉(修改密码弹窗、退出)。
 
 验收:登录后进入壳;错误口令/禁用账号被拒;token 过期后任意请求跳登录;改密后旧 token 场景按新口令可登录。
 
