@@ -8,6 +8,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // 初始超级管理员账号与角色(本地与 e2e 默认口令,首次登录后应修改)。
@@ -80,4 +81,47 @@ func SeedSuperAdminRole(ctx context.Context, db *gorm.DB) error {
 		return fmt.Errorf("get seed admin: %w", err)
 	}
 	return ReplaceUserRoles(ctx, db, admin.ID, []int64{role.ID})
+}
+
+// SeedConfigs 幂等种子:初始站点与存储配置(value 为原样字符串,结构化数据自行 JSON 编码)。
+func SeedConfigs(ctx context.Context, db *gorm.DB) error {
+	seeds := []SysConfig{
+		{Group: "system", Key: "siteName", Value: "CMS 管理后台", Remark: "站点名称"},
+		{Group: "system", Key: "logoUrl", Value: "", Remark: "Logo 图片地址"},
+		{Group: "storage", Key: "driver", Value: "local", Remark: "存储驱动(local / s3)"},
+		{Group: "storage", Key: "basePath", Value: "data/files", Remark: "本地存储目录"},
+	}
+	for _, seed := range seeds {
+		cfg := seed
+		if err := db.WithContext(ctx).
+			Clauses(clause.OnConflict{Columns: []clause.Column{{Name: "group"}, {Name: "key"}}, DoNothing: true}).
+			Create(&cfg).Error; err != nil {
+			return fmt.Errorf("seed config %s.%s: %w", seed.Group, seed.Key, err)
+		}
+	}
+	return nil
+}
+
+// SeedDicts 幂等种子:通用状态字典及其字典项。
+func SeedDicts(ctx context.Context, db *gorm.DB) error {
+	if _, err := GetDictByCode(ctx, db, "common_status"); err == nil {
+		return nil
+	} else if !errors.Is(err, ErrDictNotFound) {
+		return fmt.Errorf("check seed dict: %w", err)
+	}
+
+	dict := Dict{Code: "common_status", Name: "通用状态", Remark: "启用/禁用通用状态", Status: true}
+	if err := CreateDict(ctx, db, &dict); err != nil {
+		return err
+	}
+	entries := []DictEntry{
+		{DictID: dict.ID, Label: "启用", Value: "1", Sort: 1, Status: true},
+		{DictID: dict.ID, Label: "禁用", Value: "0", Sort: 2, Status: true},
+	}
+	for _, entry := range entries {
+		if err := CreateDictEntry(ctx, db, &entry); err != nil {
+			return err
+		}
+	}
+	return nil
 }

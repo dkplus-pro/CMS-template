@@ -93,3 +93,45 @@ type AuthMenuNode struct {
 	Sort         int
 	Children     []AuthMenuNode
 }
+
+// OperationLogItem 操作日志条目(只读)。
+type OperationLogItem struct {
+	ID         int64
+	UserID     int64
+	Username   string
+	Method     string
+	Path       string
+	Action     string
+	OK         bool
+	StatusCode int
+	Message    string
+	IP         string
+	LatencyMS  int64
+	CreatedAt  time.Time
+}
+
+// ConfigItem 配置键值条目。
+type ConfigItem struct {
+	Key    string
+	Value  string
+	Remark string
+}
+
+// Dict 字典。
+type Dict struct {
+	ID     int64
+	Code   string
+	Name   string
+	Remark string
+	Status bool
+}
+
+// DictEntry 字典项。
+type DictEntry struct {
+	ID     int64
+	DictID int64
+	Label  string
+	Value  string
+	Sort   int
+	Status bool
+}

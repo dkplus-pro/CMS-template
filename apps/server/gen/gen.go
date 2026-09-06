@@ -24,10 +24,83 @@ const (
 	Menu PermissionNodeType = "menu"
 )
 
+// Defines values for ConfigGroup.
+const (
+	ConfigGroupStorage ConfigGroup = "storage"
+	ConfigGroupSystem  ConfigGroup = "system"
+)
+
+// Defines values for GetConfigParamsGroup.
+const (
+	GetConfigParamsGroupStorage GetConfigParamsGroup = "storage"
+	GetConfigParamsGroupSystem  GetConfigParamsGroup = "system"
+)
+
+// Defines values for UpdateConfigParamsGroup.
+const (
+	Storage UpdateConfigParamsGroup = "storage"
+	System  UpdateConfigParamsGroup = "system"
+)
+
 // ChangePasswordRequest defines model for ChangePasswordRequest.
 type ChangePasswordRequest struct {
 	NewPassword string `json:"newPassword"`
 	OldPassword string `json:"oldPassword"`
+}
+
+// ConfigGroupResponse defines model for ConfigGroupResponse.
+type ConfigGroupResponse struct {
+	Group string       `json:"group"`
+	Items []ConfigItem `json:"items"`
+}
+
+// ConfigItem defines model for ConfigItem.
+type ConfigItem struct {
+	Key    string  `json:"key"`
+	Remark *string `json:"remark,omitempty"`
+
+	// Value 原样字符串,结构化数据自行 JSON 编码
+	Value string `json:"value"`
+}
+
+// ConfigUpdateRequest defines model for ConfigUpdateRequest.
+type ConfigUpdateRequest struct {
+	Items []ConfigItem `json:"items"`
+}
+
+// Dict defines model for Dict.
+type Dict struct {
+	Code   string  `json:"code"`
+	Id     int64   `json:"id"`
+	Name   string  `json:"name"`
+	Remark *string `json:"remark,omitempty"`
+	Status bool    `json:"status"`
+}
+
+// DictEntry defines model for DictEntry.
+type DictEntry struct {
+	DictId int64  `json:"dictId"`
+	Id     int64  `json:"id"`
+	Label  string `json:"label"`
+	Sort   int    `json:"sort"`
+	Status bool   `json:"status"`
+	Value  string `json:"value"`
+}
+
+// DictEntryUpsertRequest defines model for DictEntryUpsertRequest.
+type DictEntryUpsertRequest struct {
+	Label  string `json:"label"`
+	Sort   *int   `json:"sort,omitempty"`
+	Status *bool  `json:"status,omitempty"`
+	Value  string `json:"value"`
+}
+
+// DictUpsertRequest defines model for DictUpsertRequest.
+type DictUpsertRequest struct {
+	Code   string  `json:"code"`
+	Name   string  `json:"name"`
+	Remark *string `json:"remark,omitempty"`
+	Status *bool   `json:"status,omitempty"`
 }
 
 // Error defines model for Error.
@@ -56,6 +129,28 @@ type LoginResponse struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 	Token     string    `json:"token"`
 	User      UserInfo  `json:"user"`
+}
+
+// OperationLogItem defines model for OperationLogItem.
+type OperationLogItem struct {
+	Action     *string   `json:"action,omitempty"`
+	CreatedAt  time.Time `json:"createdAt"`
+	Id         int64     `json:"id"`
+	Ip         *string   `json:"ip,omitempty"`
+	LatencyMs  int       `json:"latencyMs"`
+	Message    *string   `json:"message,omitempty"`
+	Method     string    `json:"method"`
+	Ok         bool      `json:"ok"`
+	Path       string    `json:"path"`
+	StatusCode int       `json:"statusCode"`
+	UserId     int64     `json:"userId"`
+	Username   *string   `json:"username,omitempty"`
+}
+
+// OperationLogListResponse defines model for OperationLogListResponse.
+type OperationLogListResponse struct {
+	List  []OperationLogItem `json:"list"`
+	Total int                `json:"total"`
 }
 
 // PermissionIdsRequest defines model for PermissionIdsRequest.
@@ -172,6 +267,9 @@ type UserUpdateRequest struct {
 	Nickname string  `json:"nickname"`
 }
 
+// ConfigGroup defines model for ConfigGroup.
+type ConfigGroup string
+
 // Id defines model for Id.
 type Id = int64
 
@@ -180,6 +278,31 @@ type Page = int
 
 // PageSize defines model for PageSize.
 type PageSize = int
+
+// GetConfigParamsGroup defines parameters for GetConfig.
+type GetConfigParamsGroup string
+
+// UpdateConfigParamsGroup defines parameters for UpdateConfig.
+type UpdateConfigParamsGroup string
+
+// ListDictsParams defines parameters for ListDicts.
+type ListDictsParams struct {
+	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+}
+
+// ListOperationLogsParams defines parameters for ListOperationLogs.
+type ListOperationLogsParams struct {
+	Page     *Page     `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *PageSize `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// Username 按操作人模糊匹配
+	Username *string `form:"username,omitempty" json:"username,omitempty"`
+
+	// Ok 成功/失败筛选
+	Ok        *bool      `form:"ok,omitempty" json:"ok,omitempty"`
+	StartTime *time.Time `form:"startTime,omitempty" json:"startTime,omitempty"`
+	EndTime   *time.Time `form:"endTime,omitempty" json:"endTime,omitempty"`
+}
 
 // ListRolesParams defines parameters for ListRoles.
 type ListRolesParams struct {
@@ -206,6 +329,21 @@ type LoginJSONRequestBody = LoginRequest
 
 // ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
 type ChangePasswordJSONRequestBody = ChangePasswordRequest
+
+// UpdateConfigJSONRequestBody defines body for UpdateConfig for application/json ContentType.
+type UpdateConfigJSONRequestBody = ConfigUpdateRequest
+
+// CreateDictJSONRequestBody defines body for CreateDict for application/json ContentType.
+type CreateDictJSONRequestBody = DictUpsertRequest
+
+// UpdateDictItemJSONRequestBody defines body for UpdateDictItem for application/json ContentType.
+type UpdateDictItemJSONRequestBody = DictEntryUpsertRequest
+
+// CreateDictItemJSONRequestBody defines body for CreateDictItem for application/json ContentType.
+type CreateDictItemJSONRequestBody = DictEntryUpsertRequest
+
+// UpdateDictJSONRequestBody defines body for UpdateDict for application/json ContentType.
+type UpdateDictJSONRequestBody = DictUpsertRequest
 
 // CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
 type CreateRoleJSONRequestBody = RoleRequest
@@ -242,9 +380,42 @@ type ServerInterface interface {
 	// 修改密码(校验旧密码)
 	// (PUT /auth/password)
 	ChangePassword(w http.ResponseWriter, r *http.Request)
+	// 读取配置组(group = system / storage)
+	// (GET /configs/{group})
+	GetConfig(w http.ResponseWriter, r *http.Request, group GetConfigParamsGroup)
+	// 整组更新配置
+	// (PUT /configs/{group})
+	UpdateConfig(w http.ResponseWriter, r *http.Request, group UpdateConfigParamsGroup)
+	// 字典列表(全量,keyword 可选)
+	// (GET /dicts)
+	ListDicts(w http.ResponseWriter, r *http.Request, params ListDictsParams)
+	// 新建字典
+	// (POST /dicts)
+	CreateDict(w http.ResponseWriter, r *http.Request)
+	// 删除字典项
+	// (DELETE /dicts/items/{id})
+	DeleteDictItem(w http.ResponseWriter, r *http.Request, id Id)
+	// 编辑字典项
+	// (PUT /dicts/items/{id})
+	UpdateDictItem(w http.ResponseWriter, r *http.Request, id Id)
+	// 某字典的字典项列表
+	// (GET /dicts/{code}/items)
+	ListDictItems(w http.ResponseWriter, r *http.Request, code string)
+	// 新建字典项
+	// (POST /dicts/{code}/items)
+	CreateDictItem(w http.ResponseWriter, r *http.Request, code string)
+	// 删除字典(级联删除字典项)
+	// (DELETE /dicts/{id})
+	DeleteDict(w http.ResponseWriter, r *http.Request, id Id)
+	// 编辑字典
+	// (PUT /dicts/{id})
+	UpdateDict(w http.ResponseWriter, r *http.Request, id Id)
 	// 健康检查
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
+	// 操作日志分页列表
+	// (GET /operation-logs)
+	ListOperationLogs(w http.ResponseWriter, r *http.Request, params ListOperationLogsParams)
 	// 全量权限点树(menu + api)
 	// (GET /permissions)
 	ListPermissions(w http.ResponseWriter, r *http.Request)
@@ -375,11 +546,385 @@ func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// GetConfig operation middleware
+func (siw *ServerInterfaceWrapper) GetConfig(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "group" -------------
+	var group GetConfigParamsGroup
+
+	err = runtime.BindStyledParameterWithOptions("simple", "group", r.PathValue("group"), &group, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "group", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetConfig(w, r, group)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateConfig operation middleware
+func (siw *ServerInterfaceWrapper) UpdateConfig(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "group" -------------
+	var group UpdateConfigParamsGroup
+
+	err = runtime.BindStyledParameterWithOptions("simple", "group", r.PathValue("group"), &group, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "group", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateConfig(w, r, group)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDicts operation middleware
+func (siw *ServerInterfaceWrapper) ListDicts(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListDictsParams
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "keyword", r.URL.Query(), &params.Keyword)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "keyword", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDicts(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDict operation middleware
+func (siw *ServerInterfaceWrapper) CreateDict(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDict(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDictItem operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDictItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDictItem(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDictItem operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDictItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDictItem(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListDictItems operation middleware
+func (siw *ServerInterfaceWrapper) ListDictItems(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "code" -------------
+	var code string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "code", r.PathValue("code"), &code, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListDictItems(w, r, code)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateDictItem operation middleware
+func (siw *ServerInterfaceWrapper) CreateDictItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "code" -------------
+	var code string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "code", r.PathValue("code"), &code, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateDictItem(w, r, code)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteDict operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDict(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDict(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDict operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDict(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDict(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Healthz operation middleware
 func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Healthz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListOperationLogs operation middleware
+func (siw *ServerInterfaceWrapper) ListOperationLogs(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListOperationLogsParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", r.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "username" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "username", r.URL.Query(), &params.Username)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "username", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "ok" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "ok", r.URL.Query(), &params.Ok)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ok", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "startTime" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "startTime", r.URL.Query(), &params.StartTime)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "startTime", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "endTime" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "endTime", r.URL.Query(), &params.EndTime)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "endTime", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListOperationLogs(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -986,7 +1531,18 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/auth/logout", wrapper.Logout)
 	m.HandleFunc("GET "+options.BaseURL+"/auth/me", wrapper.GetMe)
 	m.HandleFunc("PUT "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
+	m.HandleFunc("GET "+options.BaseURL+"/configs/{group}", wrapper.GetConfig)
+	m.HandleFunc("PUT "+options.BaseURL+"/configs/{group}", wrapper.UpdateConfig)
+	m.HandleFunc("GET "+options.BaseURL+"/dicts", wrapper.ListDicts)
+	m.HandleFunc("POST "+options.BaseURL+"/dicts", wrapper.CreateDict)
+	m.HandleFunc("DELETE "+options.BaseURL+"/dicts/items/{id}", wrapper.DeleteDictItem)
+	m.HandleFunc("PUT "+options.BaseURL+"/dicts/items/{id}", wrapper.UpdateDictItem)
+	m.HandleFunc("GET "+options.BaseURL+"/dicts/{code}/items", wrapper.ListDictItems)
+	m.HandleFunc("POST "+options.BaseURL+"/dicts/{code}/items", wrapper.CreateDictItem)
+	m.HandleFunc("DELETE "+options.BaseURL+"/dicts/{id}", wrapper.DeleteDict)
+	m.HandleFunc("PUT "+options.BaseURL+"/dicts/{id}", wrapper.UpdateDict)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.Healthz)
+	m.HandleFunc("GET "+options.BaseURL+"/operation-logs", wrapper.ListOperationLogs)
 	m.HandleFunc("GET "+options.BaseURL+"/permissions", wrapper.ListPermissions)
 	m.HandleFunc("GET "+options.BaseURL+"/roles", wrapper.ListRoles)
 	m.HandleFunc("POST "+options.BaseURL+"/roles", wrapper.CreateRole)

@@ -16,6 +16,9 @@ type Handler struct {
 	users       *service.UserService
 	roles       *service.RoleService
 	permissions *service.PermissionService
+	logs        *service.LogService
+	configs     *service.ConfigService
+	dicts       *service.DictService
 }
 
 // New 装配 Handler。
@@ -25,8 +28,14 @@ func New(
 	users *service.UserService,
 	roles *service.RoleService,
 	permissions *service.PermissionService,
+	logs *service.LogService,
+	configs *service.ConfigService,
+	dicts *service.DictService,
 ) *Handler {
-	return &Handler{logger: logger, auth: auth, users: users, roles: roles, permissions: permissions}
+	return &Handler{
+		logger: logger, auth: auth, users: users, roles: roles,
+		permissions: permissions, logs: logs, configs: configs, dicts: dicts,
+	}
 }
 
 // 编译期保证 Handler 实现了契约生成的全部接口;新增接口后此处会立即报错。

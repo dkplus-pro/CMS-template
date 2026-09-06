@@ -21,6 +21,12 @@ tags:
     description: 角色管理
   - name: permissions
     description: 权限点
+  - name: logs
+    description: 操作日志
+  - name: configs
+    description: 系统配置
+  - name: dicts
+    description: 字典管理
 security:
   - bearerAuth: []
 paths:
@@ -412,6 +418,242 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PermissionNode"
+  /operation-logs:
+    get:
+      operationId: listOperationLogs
+      summary: 操作日志分页列表
+      tags:
+        - logs
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: username
+          in: query
+          schema:
+            type: string
+          description: 按操作人模糊匹配
+        - name: ok
+          in: query
+          schema:
+            type: boolean
+          description: 成功/失败筛选
+        - name: startTime
+          in: query
+          schema:
+            type: string
+            format: date-time
+        - name: endTime
+          in: query
+          schema:
+            type: string
+            format: date-time
+      responses:
+        "200":
+          description: 操作日志分页
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OperationLogListResponse"
+  /configs/{group}:
+    get:
+      operationId: getConfig
+      summary: 读取配置组(group = system / storage)
+      tags:
+        - configs
+      parameters:
+        - $ref: "#/components/parameters/ConfigGroup"
+      responses:
+        "200":
+          description: 配置组键值列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ConfigGroupResponse"
+    put:
+      operationId: updateConfig
+      summary: 整组更新配置
+      tags:
+        - configs
+      parameters:
+        - $ref: "#/components/parameters/ConfigGroup"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfigUpdateRequest"
+      responses:
+        "204":
+          description: 更新成功
+  /dicts:
+    get:
+      operationId: listDicts
+      summary: 字典列表(全量,keyword 可选)
+      tags:
+        - dicts
+      parameters:
+        - name: keyword
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 字典列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Dict"
+    post:
+      operationId: createDict
+      summary: 新建字典
+      tags:
+        - dicts
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DictUpsertRequest"
+      responses:
+        "200":
+          description: 新建后的字典
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dict"
+        "409":
+          description: 字典编码已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /dicts/{id}:
+    put:
+      operationId: updateDict
+      summary: 编辑字典
+      tags:
+        - dicts
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DictUpsertRequest"
+      responses:
+        "200":
+          description: 更新后的字典
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dict"
+        "409":
+          description: 字典编码已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteDict
+      summary: 删除字典(级联删除字典项)
+      tags:
+        - dicts
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: 删除成功
+  /dicts/{code}/items:
+    get:
+      operationId: listDictItems
+      summary: 某字典的字典项列表
+      tags:
+        - dicts
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 字典项列表
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DictEntry"
+    post:
+      operationId: createDictItem
+      summary: 新建字典项
+      tags:
+        - dicts
+      parameters:
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DictEntryUpsertRequest"
+      responses:
+        "200":
+          description: 新建后的字典项
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DictEntry"
+        "409":
+          description: 字典项值重复
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /dicts/items/{id}:
+    put:
+      operationId: updateDictItem
+      summary: 编辑字典项
+      tags:
+        - dicts
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DictEntryUpsertRequest"
+      responses:
+        "200":
+          description: 更新后的字典项
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DictEntry"
+        "409":
+          description: 字典项值重复
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteDictItem
+      summary: 删除字典项
+      tags:
+        - dicts
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: 删除成功
 components:
   parameters:
     Id:
@@ -436,6 +678,15 @@ components:
         minimum: 1
         maximum: 100
         default: 20
+    ConfigGroup:
+      name: group
+      in: path
+      required: true
+      schema:
+        type: string
+        enum:
+          - system
+          - storage
   securitySchemes:
     bearerAuth:
       type: http
@@ -773,3 +1024,170 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PermissionNode"
+    OperationLogItem:
+      type: object
+      required:
+        - id
+        - userId
+        - method
+        - path
+        - ok
+        - statusCode
+        - latencyMs
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        userId:
+          type: integer
+          format: int64
+        username:
+          type: string
+        method:
+          type: string
+        path:
+          type: string
+        action:
+          type: string
+        ok:
+          type: boolean
+        statusCode:
+          type: integer
+        message:
+          type: string
+        ip:
+          type: string
+        latencyMs:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    OperationLogListResponse:
+      type: object
+      required:
+        - list
+        - total
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/OperationLogItem"
+        total:
+          type: integer
+    ConfigItem:
+      type: object
+      required:
+        - key
+        - value
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+          description: 原样字符串,结构化数据自行 JSON 编码
+        remark:
+          type: string
+    ConfigGroupResponse:
+      type: object
+      required:
+        - group
+        - items
+      properties:
+        group:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfigItem"
+    ConfigUpdateRequest:
+      type: object
+      required:
+        - items
+      properties:
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ConfigItem"
+    Dict:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        code:
+          type: string
+        name:
+          type: string
+        remark:
+          type: string
+        status:
+          type: boolean
+    DictUpsertRequest:
+      type: object
+      required:
+        - code
+        - name
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        remark:
+          type: string
+          maxLength: 255
+        status:
+          type: boolean
+          default: true
+    DictEntry:
+      type: object
+      required:
+        - id
+        - dictId
+        - label
+        - value
+        - sort
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        dictId:
+          type: integer
+          format: int64
+        label:
+          type: string
+        value:
+          type: string
+        sort:
+          type: integer
+        status:
+          type: boolean
+    DictEntryUpsertRequest:
+      type: object
+      required:
+        - label
+        - value
+      properties:
+        label:
+          type: string
+          minLength: 1
+          maxLength: 64
+        value:
+          type: string
+          minLength: 1
+          maxLength: 64
+        sort:
+          type: integer
+        status:
+          type: boolean
+          default: true

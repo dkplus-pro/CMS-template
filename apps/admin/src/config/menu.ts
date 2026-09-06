@@ -16,7 +16,10 @@ export const sidebarMenus: MenuConfig[] = [
     title: "系统管理",
     children: [
       { path: "/system/users", title: "用户管理", permission: "menu:system:user" },
-      { path: "/system/roles", title: "角色管理", permission: "menu:system:role" }
+      { path: "/system/roles", title: "角色管理", permission: "menu:system:role" },
+      { path: "/system/logs", title: "操作日志", permission: "menu:system:log" },
+      { path: "/system/configs", title: "系统配置", permission: "menu:system:config" },
+      { path: "/system/dicts", title: "字典管理", permission: "menu:system:dict" }
     ]
   }
 ];

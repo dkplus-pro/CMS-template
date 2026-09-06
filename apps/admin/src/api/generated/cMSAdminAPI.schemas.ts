@@ -195,6 +195,90 @@ export interface PermissionNode {
   children: PermissionNode[];
 }
 
+export interface OperationLogItem {
+  id: number;
+  userId: number;
+  username?: string;
+  method: string;
+  path: string;
+  action?: string;
+  ok: boolean;
+  statusCode: number;
+  message?: string;
+  ip?: string;
+  latencyMs: number;
+  createdAt: string;
+}
+
+export interface OperationLogListResponse {
+  list: OperationLogItem[];
+  total: number;
+}
+
+export interface ConfigItem {
+  key: string;
+  /** 原样字符串,结构化数据自行 JSON 编码 */
+  value: string;
+  remark?: string;
+}
+
+export interface ConfigGroupResponse {
+  group: string;
+  items: ConfigItem[];
+}
+
+export interface ConfigUpdateRequest {
+  items: ConfigItem[];
+}
+
+export interface Dict {
+  id: number;
+  code: string;
+  name: string;
+  remark?: string;
+  status: boolean;
+}
+
+export interface DictUpsertRequest {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  code: string;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  name: string;
+  /** @maxLength 255 */
+  remark?: string;
+  status?: boolean;
+}
+
+export interface DictEntry {
+  id: number;
+  dictId: number;
+  label: string;
+  value: string;
+  sort: number;
+  status: boolean;
+}
+
+export interface DictEntryUpsertRequest {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  label: string;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  value: string;
+  sort?: number;
+  status?: boolean;
+}
+
 export type PageParameter = number;
 
 export type PageSizeParameter = number;
@@ -231,5 +315,31 @@ pageSize?: PageSizeParameter;
  */
 keyword?: string;
 status?: boolean;
+};
+
+export type ListOperationLogsParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: PageSizeParameter;
+/**
+ * 按操作人模糊匹配
+ */
+username?: string;
+/**
+ * 成功/失败筛选
+ */
+ok?: boolean;
+startTime?: string;
+endTime?: string;
+};
+
+export type ListDictsParams = {
+keyword?: string;
 };
 

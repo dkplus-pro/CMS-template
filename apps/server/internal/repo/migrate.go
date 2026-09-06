@@ -14,6 +14,9 @@ var autoMigrateModels = []any{
 	&Permission{},
 	&RolePermission{},
 	&OperationLog{},
+	&SysConfig{},
+	&Dict{},
+	&DictEntry{},
 }
 
 // AutoMigrate 按声明顺序幂等建表。

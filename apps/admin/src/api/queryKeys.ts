@@ -18,5 +18,21 @@ export const queryKeys = {
   },
   permissions: {
     tree: ["permissions", "tree"] as const
+  },
+  logs: {
+    list: (
+      page: number,
+      pageSize: number,
+      username: string,
+      ok?: boolean,
+      range?: [string, string]
+    ) => ["logs", "list", { page, pageSize, username, ok, range }] as const
+  },
+  configs: {
+    group: (group: string) => ["configs", group] as const
+  },
+  dicts: {
+    list: (keyword: string) => ["dicts", "list", { keyword }] as const,
+    items: (code: string) => ["dicts", "items", code] as const
   }
 };

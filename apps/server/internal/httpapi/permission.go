@@ -38,6 +38,20 @@ var RoutePermissions = []RoutePermission{
 	{"PUT", "/roles/{id}/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
 
 	{"GET", "/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
+
+	{"GET", "/operation-logs", "system:log:list", "操作日志列表", "menu:system:log", "操作日志"},
+
+	{"GET", "/configs/{group}", "system:config:list", "读取配置", "menu:system:config", "系统配置"},
+	{"PUT", "/configs/{group}", "system:config:update", "更新配置", "menu:system:config", "系统配置"},
+
+	{"GET", "/dicts", "system:dict:list", "字典列表", "menu:system:dict", "字典管理"},
+	{"POST", "/dicts", "system:dict:create", "创建字典", "menu:system:dict", "字典管理"},
+	{"PUT", "/dicts/{id}", "system:dict:update", "编辑字典", "menu:system:dict", "字典管理"},
+	{"DELETE", "/dicts/{id}", "system:dict:delete", "删除字典", "menu:system:dict", "字典管理"},
+	{"GET", "/dicts/{code}/items", "system:dict:list", "字典项列表", "menu:system:dict", "字典管理"},
+	{"POST", "/dicts/{code}/items", "system:dict:update", "创建字典项", "menu:system:dict", "字典管理"},
+	{"PUT", "/dicts/items/{id}", "system:dict:update", "编辑字典项", "menu:system:dict", "字典管理"},
+	{"DELETE", "/dicts/items/{id}", "system:dict:update", "删除字典项", "menu:system:dict", "字典管理"},
 }
 
 // MatchRoutePermission 按方法与路径匹配注册表;未命中的接口仅需登录。

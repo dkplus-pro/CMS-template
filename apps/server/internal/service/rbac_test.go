@@ -4,11 +4,13 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
 	"github.com/cms-template/server/internal/repo"
+	"github.com/cms-template/server/internal/types"
 )
 
 func newRBACService(t *testing.T) (*UserService, *RoleService, *PermissionService) {
@@ -240,5 +242,99 @@ func TestPrunePermissions(t *testing.T) {
 	}
 	if grants != 0 {
 		t.Fatalf("stale grants should be pruned, got %d", grants)
+	}
+}
+
+func TestStage4Services(t *testing.T) {
+	db, err := gorm.Open(sqlite.Open(":memory:"), &gorm.Config{})
+	if err != nil {
+		t.Fatalf("open sqlite: %v", err)
+	}
+	if err := repo.AutoMigrate(db); err != nil {
+		t.Fatalf("auto migrate: %v", err)
+	}
+	configs := NewConfigService(db)
+	dicts := NewDictService(db)
+	logs := NewLogService(db)
+	ctx := context.Background()
+
+	// 配置:非法组拒绝;整组覆盖与删除生效。
+	if _, err := configs.Get(ctx, "unknown"); !errors.Is(err, ErrInvalidConfigGroup) {
+		t.Fatalf("expected ErrInvalidConfigGroup, got %v", err)
+	}
+	if err := repo.SeedConfigs(ctx, db); err != nil {
+		t.Fatalf("seed configs: %v", err)
+	}
+	if err := configs.Replace(ctx, "system", []types.ConfigItem{
+		{Key: "siteName", Value: "新站点"},
+		{Key: "logoUrl", Value: ""},
+		{Key: "footer", Value: "© 2026"},
+	}, 0); err != nil {
+		t.Fatalf("replace configs: %v", err)
+	}
+	items, err := configs.Get(ctx, "system")
+	if err != nil {
+		t.Fatalf("get configs: %v", err)
+	}
+	if len(items) != 3 {
+		t.Fatalf("unexpected configs: %+v", items)
+	}
+	byKey := make(map[string]types.ConfigItem, len(items))
+	for _, item := range items {
+		byKey[item.Key] = item
+	}
+	if byKey["siteName"].Value != "新站点" || byKey["footer"].Value != "© 2026" {
+		t.Fatalf("unexpected configs: %+v", items)
+	}
+	if value, err := repo.GetConfigValue(ctx, db, "system", "siteName"); err != nil || value != "新站点" {
+		t.Fatalf("unexpected siteName: %q, %v", value, err)
+	}
+
+	// 字典:编码唯一;字典项 value 同字典唯一;删除级联。
+	if err := repo.SeedDicts(ctx, db); err != nil {
+		t.Fatalf("seed dicts: %v", err)
+	}
+	if _, err := dicts.Create(ctx, "common_status", "重复", "", true); !errors.Is(err, ErrDictCodeExists) {
+		t.Fatalf("expected ErrDictCodeExists, got %v", err)
+	}
+	if _, err := dicts.CreateEntry(ctx, "common_status", "停用", "0", 3, true); !errors.Is(err, ErrDictValueExists) {
+		t.Fatalf("expected ErrDictValueExists, got %v", err)
+	}
+	entries, err := dicts.ListEntries(ctx, "common_status")
+	if err != nil {
+		t.Fatalf("list entries: %v", err)
+	}
+	if len(entries) != 2 {
+		t.Fatalf("expected 2 seeded entries, got %d", len(entries))
+	}
+	created, err := dicts.Create(ctx, "gender", "性别", "", true)
+	if err != nil {
+		t.Fatalf("create dict: %v", err)
+	}
+	if _, err := dicts.CreateEntry(ctx, "gender", "男", "M", 1, true); err != nil {
+		t.Fatalf("create entry: %v", err)
+	}
+	if err := dicts.Delete(ctx, created.ID); err != nil {
+		t.Fatalf("delete dict: %v", err)
+	}
+	if _, err := dicts.ListEntries(ctx, "gender"); !errors.Is(err, repo.ErrDictNotFound) {
+		t.Fatalf("entries of deleted dict should 404, got %v", err)
+	}
+
+	// 日志:筛选条件生效(先造一条失败记录)。
+	if err := db.Create(&repo.OperationLog{
+		UserID: 1, Username: "admin", Method: "POST", Path: "/x", OK: false, StatusCode: 500, CreatedAt: time.Now(),
+	}).Error; err != nil {
+		t.Fatalf("seed log: %v", err)
+	}
+	if _, total, err := logs.List(ctx, 1, 20, "admin", nil, nil, nil); err != nil || total != 1 {
+		t.Fatalf("unexpected logs: %d, %v", total, err)
+	}
+	if _, total, err := logs.List(ctx, 1, 20, "nobody", nil, nil, nil); err != nil || total != 0 {
+		t.Fatalf("expected 0 for unknown user, got %d, %v", total, err)
+	}
+	notOK := false
+	if _, total, err := logs.List(ctx, 1, 20, "", &notOK, nil, nil); err != nil || total != 1 {
+		t.Fatalf("expected 1 failed log, got %d, %v", total, err)
 	}
 }

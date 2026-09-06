@@ -208,6 +208,20 @@ func derefBoolDefault(v *bool, fallback bool) bool {
 	return *v
 }
 
+func genOptsString(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
+}
+
+func derefInt(v *int) int {
+	if v == nil {
+		return 0
+	}
+	return *v
+}
+
 func derefInts(v *[]int64) []int64 {
 	if v == nil {
 		return []int64{}
