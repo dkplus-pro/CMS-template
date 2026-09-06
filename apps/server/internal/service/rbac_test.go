@@ -20,7 +20,7 @@ func newRBACService(t *testing.T) (*UserService, *RoleService, *PermissionServic
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := repo.AutoMigrate(db); err != nil {
+	if err := repo.AutoMigrate(context.Background(), db); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	ctx := context.Background()
@@ -251,7 +251,7 @@ func TestStage4Services(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := repo.AutoMigrate(db); err != nil {
+	if err := repo.AutoMigrate(context.Background(), db); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	configs := NewConfigService(db)

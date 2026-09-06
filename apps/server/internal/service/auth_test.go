@@ -18,7 +18,7 @@ func newTestService(t *testing.T) *AuthService {
 	if err != nil {
 		t.Fatalf("open sqlite: %v", err)
 	}
-	if err := repo.AutoMigrate(db); err != nil {
+	if err := repo.AutoMigrate(context.Background(), db); err != nil {
 		t.Fatalf("auto migrate: %v", err)
 	}
 	if err := repo.SeedAdmin(context.Background(), db); err != nil {

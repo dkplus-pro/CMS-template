@@ -100,6 +100,8 @@
 
 保留策略:业务日志是审计数据,**长期保留**,MVP 不做清理。
 
+兼容性:SQLite 不允许给旧表追加无默认值的 NOT NULL 列;启动时检测到修订前的旧结构(含 method/status_code/latency_ms 列)会自动删表重建——历史访问日志本就走文件且无保留价值,不做迁移。MySQL 上线后出现同类破坏性变更需改用迁移工具(见"上线后的演进")。
+
 ### HTTP 访问日志(开发用,不入库)
 
 方法/路径/状态码/耗时这类请求级日志只服务开发排查:以 `slog` 结构化输出到 stdout,并写入按天滚动的文件 `apps/server/logs/server-YYYY-MM-DD.log`;启动时删除超过保留天数(`ACCESS_LOG_RETAIN_DAYS`,默认 7)的旧文件。无查询接口、无表;`logs/` 目录加入 .gitignore。

@@ -44,7 +44,7 @@ func main() {
 		logger.Error("open database", "error", err)
 		os.Exit(1)
 	}
-	if err := repo.AutoMigrate(db); err != nil {
+	if err := repo.AutoMigrate(context.Background(), db); err != nil {
 		logger.Error("auto migrate", "error", err)
 		os.Exit(1)
 	}
