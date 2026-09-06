@@ -14,10 +14,12 @@
  */
 import type {
   Dict,
+  DictEntriesRequest,
   DictEntry,
   DictEntryUpsertRequest,
   DictUpsertRequest,
-  ListDictsParams
+  ListDictsParams,
+  StatusRequest
 } from '../cMSAdminAPI.schemas';
 
 import { customInstance } from '../../client';
@@ -76,6 +78,34 @@ const deleteDict = (
       );
     }
   /**
+ * @summary 字典上下线(启停)
+ */
+const updateDictStatus = (
+    id: number,
+    statusRequest: StatusRequest,
+ ) => {
+      return customInstance<void>(
+      {url: `/dicts/${id}/status`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: statusRequest
+    },
+      );
+    }
+  /**
+ * @summary 整组覆写字典项(编辑弹窗一次保存)
+ */
+const replaceDictEntries = (
+    id: number,
+    dictEntriesRequest: DictEntriesRequest,
+ ) => {
+      return customInstance<void>(
+      {url: `/dicts/${id}/entries`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: dictEntriesRequest
+    },
+      );
+    }
+  /**
  * @summary 某字典的字典项列表
  */
 const listDictItems = (
@@ -104,11 +134,12 @@ const createDictItem = (
  * @summary 编辑字典项
  */
 const updateDictItem = (
-    id: number,
+    code: string,
+    itemId: number,
     dictEntryUpsertRequest: DictEntryUpsertRequest,
  ) => {
       return customInstance<DictEntry>(
-      {url: `/dicts/items/${id}`, method: 'PUT',
+      {url: `/dicts/${code}/items/${itemId}`, method: 'PUT',
       headers: {'Content-Type': 'application/json', },
       data: dictEntryUpsertRequest
     },
@@ -118,18 +149,21 @@ const updateDictItem = (
  * @summary 删除字典项
  */
 const deleteDictItem = (
-    id: number,
+    code: string,
+    itemId: number,
  ) => {
       return customInstance<void>(
-      {url: `/dicts/items/${id}`, method: 'DELETE'
+      {url: `/dicts/${code}/items/${itemId}`, method: 'DELETE'
     },
       );
     }
-  return {listDicts,createDict,updateDict,deleteDict,listDictItems,createDictItem,updateDictItem,deleteDictItem}};
+  return {listDicts,createDict,updateDict,deleteDict,updateDictStatus,replaceDictEntries,listDictItems,createDictItem,updateDictItem,deleteDictItem}};
 export type ListDictsResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['listDicts']>>>
 export type CreateDictResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['createDict']>>>
 export type UpdateDictResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['updateDict']>>>
 export type DeleteDictResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['deleteDict']>>>
+export type UpdateDictStatusResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['updateDictStatus']>>>
+export type ReplaceDictEntriesResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['replaceDictEntries']>>>
 export type ListDictItemsResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['listDictItems']>>>
 export type CreateDictItemResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['createDictItem']>>>
 export type UpdateDictItemResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getDicts>['updateDictItem']>>>

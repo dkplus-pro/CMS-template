@@ -1,4 +1,16 @@
-import { Button, Card, Form, Input, Message, Modal, Space, Table } from "@arco-design/web-react";
+import {
+  Button,
+  Card,
+  Form,
+  Input,
+  Message,
+  Modal,
+  Popconfirm,
+  Space,
+  Switch,
+  Table,
+  Tag
+} from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -7,93 +19,81 @@ import { DictsController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
 
-// 字典管理:左侧字典列表,右侧选中字典的字典项(左右布局)。
+// 字典管理:列表页 + 操作栏(编辑 / 上下线 / 删除)。
 export default function DictsPage() {
-  const [keyword, setKeyword] = useState("");
-  const [selected, setSelected] = useState<Dict | null>(null);
-  const [dictFormVisible, setDictFormVisible] = useState(false);
-  const [editing, setEditing] = useState<Dict | null>(null);
-  const [entryFormVisible, setEntryFormVisible] = useState(false);
-  const [editingEntry, setEditingEntry] = useState<DictEntry | null>(null);
-
   const queryClient = useQueryClient();
-  const invalidateDicts = () => {
-    void queryClient.invalidateQueries({ queryKey: ["dicts"] });
-  };
+  const [keyword, setKeyword] = useState("");
+  const [formVisible, setFormVisible] = useState(false);
+  const [editing, setEditing] = useState<Dict | null>(null);
 
   const listQuery = useQuery({
     queryKey: queryKeys.dicts.list(keyword),
     queryFn: () => DictsController.listDicts({ keyword: keyword || undefined })
   });
 
-  const entriesQuery = useQuery({
-    queryKey: queryKeys.dicts.items(selected?.code ?? ""),
-    queryFn: () => DictsController.listDictItems(selected?.code ?? ""),
-    enabled: selected !== null
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["dicts"] });
+
+  const statusMutation = useMutation({
+    mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
+      DictsController.updateDictStatus(id, { status: enabled }),
+    onSuccess: () => {
+      Message.success("状态已更新");
+      invalidate();
+    }
   });
 
-  const deleteDictMutation = useMutation({
+  const deleteMutation = useMutation({
     mutationFn: (id: number) => DictsController.deleteDict(id),
     onSuccess: () => {
       Message.success("字典已删除");
-      setSelected(null);
-      invalidateDicts();
+      invalidate();
     }
   });
 
-  const deleteEntryMutation = useMutation({
-    mutationFn: (id: number) => DictsController.deleteDictItem(id),
-    onSuccess: () => {
-      Message.success("字典项已删除");
-      invalidateDicts();
-    }
-  });
-
-  const dictColumns = [
-    { title: "编码", dataIndex: "code" },
-    { title: "名称", dataIndex: "name" },
+  const columns = [
+    { title: "编码", dataIndex: "code", width: 180 },
+    { title: "名称", dataIndex: "name", width: 180 },
+    { title: "备注", dataIndex: "remark" },
     {
       title: "状态",
       dataIndex: "status",
-      width: 80,
-      render: (value: boolean) => (value ? "启用" : "停用")
-    }
-  ];
-
-  const entryColumns = [
-    { title: "标签", dataIndex: "label" },
-    { title: "值", dataIndex: "value" },
-    { title: "排序", dataIndex: "sort", width: 70 },
+      width: 100,
+      render: (value: boolean) =>
+        value ? <Tag color="green">上线</Tag> : <Tag color="gray">下线</Tag>
+    },
     {
       title: "操作",
-      width: 150,
-      render: (_: unknown, record: DictEntry) => (
+      width: 300,
+      render: (_: unknown, record: Dict) => (
         <Space>
           <AuthGate permission="system:dict:update">
             <Button
               size="mini"
               onClick={() => {
-                setEditingEntry(record);
-                setEntryFormVisible(true);
+                setEditing(record);
+                setFormVisible(true);
               }}
             >
               编辑
             </Button>
           </AuthGate>
           <AuthGate permission="system:dict:update">
-            <Button
-              size="mini"
-              status="danger"
-              onClick={() =>
-                Modal.confirm({
-                  title: "删除确认",
-                  content: `确定删除字典项 ${record.label} 吗?`,
-                  onOk: () => deleteEntryMutation.mutateAsync(record.id)
-                })
-              }
+            <Popconfirm
+              title={`确定${record.status ? "下线" : "上线"}字典 ${record.name} 吗?`}
+              onOk={() => statusMutation.mutateAsync({ id: record.id, enabled: !record.status })}
             >
-              删除
-            </Button>
+              <Button size="mini">{record.status ? "下线" : "上线"}</Button>
+            </Popconfirm>
+          </AuthGate>
+          <AuthGate permission="system:dict:delete">
+            <Popconfirm
+              title={`确定删除字典 ${record.name} 吗?字典项将一并删除。`}
+              onOk={() => deleteMutation.mutateAsync(record.id)}
+            >
+              <Button size="mini" status="danger">
+                删除
+              </Button>
+            </Popconfirm>
           </AuthGate>
         </Space>
       )
@@ -101,107 +101,61 @@ export default function DictsPage() {
   ];
 
   return (
-    <Space style={{ width: "100%", alignItems: "flex-start" }} size={16}>
-      <Card style={{ width: 380 }} title="字典">
-        <Space style={{ marginBottom: 12, width: "100%", justifyContent: "space-between" }}>
-          <Input.Search
-            placeholder="搜索编码/名称"
-            style={{ width: 180 }}
-            onSearch={(value) => setKeyword(value)}
-          />
-          <AuthGate permission="system:dict:create">
-            <Button
-              type="primary"
-              onClick={() => {
-                setEditing(null);
-                setDictFormVisible(true);
-              }}
-            >
-              新建
-            </Button>
-          </AuthGate>
-        </Space>
-        <Table
-          rowKey="id"
-          loading={listQuery.isPending}
-          columns={dictColumns}
-          data={listQuery.data ?? []}
-          pagination={false}
-          rowSelection={{
-            type: "radio",
-            selectedRowKeys: selected ? [selected.id] : [],
-            onChange: (keys, rows) => setSelected(rows[0] ?? null)
-          }}
-          onRow={(record) => ({
-            onClick: () => setSelected(record as Dict)
-          })}
+    <Card>
+      <Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
+        <Input.Search
+          placeholder="搜索编码/名称"
+          style={{ width: 240 }}
+          onSearch={(value) => setKeyword(value)}
         />
-      </Card>
+        <AuthGate permission="system:dict:create">
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditing(null);
+              setFormVisible(true);
+            }}
+          >
+            新建字典
+          </Button>
+        </AuthGate>
+      </Space>
 
-      <Card
-        style={{ flex: 1 }}
-        title={selected ? `字典项:${selected.name}(${selected.code})` : "字典项"}
-      >
-        <Space style={{ marginBottom: 12 }}>
-          <AuthGate permission="system:dict:update">
-            <Button
-              type="primary"
-              disabled={selected === null}
-              onClick={() => {
-                setEditingEntry(null);
-                setEntryFormVisible(true);
-              }}
-            >
-              新建字典项
-            </Button>
-          </AuthGate>
-          <AuthGate permission="system:dict:delete">
-            <Button
-              status="danger"
-              disabled={selected === null}
-              onClick={() =>
-                selected &&
-                Modal.confirm({
-                  title: "删除确认",
-                  content: `确定删除字典 ${selected.name} 吗?字典项将一并删除。`,
-                  onOk: () => deleteDictMutation.mutateAsync(selected.id)
-                })
-              }
-            >
-              删除字典
-            </Button>
-          </AuthGate>
-        </Space>
-        <Table
-          rowKey="id"
-          loading={entriesQuery.isPending}
-          columns={entryColumns}
-          data={entriesQuery.data ?? []}
-          pagination={false}
-        />
-      </Card>
+      <Table
+        rowKey="id"
+        loading={listQuery.isPending}
+        columns={columns}
+        data={listQuery.data ?? []}
+        pagination={false}
+      />
 
       <DictFormModal
-        visible={dictFormVisible}
+        visible={formVisible}
         editing={editing}
         onClose={() => {
-          setDictFormVisible(false);
+          setFormVisible(false);
           setEditing(null);
         }}
       />
-      <EntryFormModal
-        visible={entryFormVisible}
-        dict={selected}
-        editing={editingEntry}
-        onClose={() => {
-          setEntryFormVisible(false);
-          setEditingEntry(null);
-        }}
-      />
-    </Space>
+    </Card>
   );
 }
 
+interface EntryFormValue {
+  label: string;
+  value: string;
+  sort?: number;
+  enabled?: boolean;
+}
+
+interface DictFormValues {
+  code: string;
+  name: string;
+  remark?: string;
+  entries?: EntryFormValue[];
+}
+
+// 新建/编辑共用弹窗:字典基本信息 + 字典项动态增减(Form.List,参考 arco 动态表单)。
 function DictFormModal({
   visible,
   editing,
@@ -211,22 +165,69 @@ function DictFormModal({
   editing: Dict | null;
   onClose: () => void;
 }) {
-  const [form] = Form.useForm();
+  const [form] = Form.useForm<DictFormValues>();
   const queryClient = useQueryClient();
+  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["dicts"] });
 
   const saveMutation = useMutation({
-    mutationFn: (values: { code: string; name: string; remark?: string }) => {
+    mutationFn: async (values: DictFormValues) => {
+      let dictId = editing?.id;
       if (editing) {
-        return DictsController.updateDict(editing.id, { ...values, status: editing.status });
+        await DictsController.updateDict(editing.id, {
+          code: values.code,
+          name: values.name,
+          remark: values.remark,
+          status: editing.status
+        });
+      } else {
+        const created = await DictsController.createDict({
+          code: values.code,
+          name: values.name,
+          remark: values.remark
+        });
+        dictId = created.id;
       }
-      return DictsController.createDict(values);
+      // 字典项整组覆写:编辑保存一次全部;新建时按表单内容写入。
+      const entries = (values.entries ?? []).map((entry) => ({
+        label: entry.label,
+        value: entry.value,
+        sort: entry.sort ?? 0,
+        status: entry.enabled ?? true
+      }));
+      if (dictId) {
+        await DictsController.replaceDictEntries(dictId, { entries });
+      }
     },
     onSuccess: () => {
       Message.success(editing ? "字典已更新" : "字典已创建");
-      void queryClient.invalidateQueries({ queryKey: ["dicts"] });
+      invalidate();
       onClose();
     }
   });
+
+  const openWithDefault = () => {
+    form.clearFields();
+    if (editing) {
+      form.setFieldsValue({
+        code: editing.code,
+        name: editing.name,
+        remark: editing.remark ?? ""
+      });
+      // 编辑:回填基本信息,字典项从接口拉取后回填进 Form.List。
+      DictsController.listDictItems(editing.code).then((entries: DictEntry[]) => {
+        form.setFieldsValue({
+          entries: entries.map((entry) => ({
+            label: entry.label,
+            value: entry.value,
+            sort: entry.sort,
+            enabled: entry.status
+          }))
+        });
+      });
+    } else {
+      form.setFieldsValue({ code: "", name: "", remark: "", entries: [emptyEntry()] });
+    }
+  };
 
   const handleOk = async () => {
     try {
@@ -238,14 +239,16 @@ function DictFormModal({
 
   return (
     <Modal
-      title={editing ? "编辑字典" : "新建字典"}
+      title={editing ? `编辑字典:${editing.name}` : "新建字典"}
       visible={visible}
       onOk={handleOk}
       confirmLoading={saveMutation.isPending}
       onCancel={onClose}
       unmountOnExit
+      afterOpen={openWithDefault}
+      style={{ width: 680 }}
     >
-      <Form form={form} layout="vertical" initialValues={editing ?? {}}>
+      <Form form={form} layout="vertical">
         <Form.Item field="code" label="编码" rules={[{ required: true, message: "请输入编码" }]}>
           <Input placeholder="如 common_status" maxLength={64} />
         </Form.Item>
@@ -255,78 +258,58 @@ function DictFormModal({
         <Form.Item field="remark" label="备注">
           <Input placeholder="用途说明" maxLength={255} />
         </Form.Item>
+
+        <Form.Item label="字典项" required>
+          <Form.List field="entries">
+            {(fields, { add, remove }) => (
+              <>
+                {fields.map((field, index) => (
+                  <div
+                    key={field.key}
+                    style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}
+                  >
+                    <Form.Item
+                      field={`${field.field}.label`}
+                      rules={[{ required: true, message: "标签必填" }]}
+                      noStyle
+                    >
+                      <Input placeholder="标签,如 启用" style={{ width: 120 }} />
+                    </Form.Item>
+                    <Form.Item
+                      field={`${field.field}.value`}
+                      rules={[{ required: true, message: "值必填" }]}
+                      noStyle
+                    >
+                      <Input placeholder="值,如 1" style={{ width: 100 }} />
+                    </Form.Item>
+                    <Form.Item field={`${field.field}.sort`} noStyle>
+                      <Input placeholder="排序" style={{ width: 80 }} />
+                    </Form.Item>
+                    <Form.Item field={`${field.field}.enabled`} noStyle triggerPropName="checked">
+                      <Switch style={{ marginTop: 4 }} />
+                    </Form.Item>
+                    <Button
+                      size="mini"
+                      status="danger"
+                      onClick={() => remove(index)}
+                      style={{ marginTop: 2 }}
+                    >
+                      删除
+                    </Button>
+                  </div>
+                ))}
+                <Button size="mini" onClick={() => add(emptyEntry())}>
+                  + 添加字典项
+                </Button>
+              </>
+            )}
+          </Form.List>
+        </Form.Item>
       </Form>
     </Modal>
   );
 }
 
-function EntryFormModal({
-  visible,
-  dict,
-  editing,
-  onClose
-}: {
-  visible: boolean;
-  dict: Dict | null;
-  editing: DictEntry | null;
-  onClose: () => void;
-}) {
-  const [form] = Form.useForm();
-  const queryClient = useQueryClient();
-
-  const saveMutation = useMutation({
-    mutationFn: (values: { label: string; value: string; sort?: number }) => {
-      const payload = {
-        label: values.label,
-        value: values.value,
-        sort: values.sort ?? 0,
-        status: editing?.status ?? true
-      };
-      if (editing) {
-        return DictsController.updateDictItem(editing.id, payload);
-      }
-      return DictsController.createDictItem(dict?.code ?? "", payload);
-    },
-    onSuccess: () => {
-      Message.success(editing ? "字典项已更新" : "字典项已创建");
-      void queryClient.invalidateQueries({ queryKey: ["dicts"] });
-      onClose();
-    }
-  });
-
-  const handleOk = async () => {
-    try {
-      saveMutation.mutate(await form.validate());
-    } catch {
-      // 校验失败,表单内已显示错误信息。
-    }
-  };
-
-  return (
-    <Modal
-      title={editing ? "编辑字典项" : "新建字典项"}
-      visible={visible}
-      onOk={handleOk}
-      confirmLoading={saveMutation.isPending}
-      onCancel={onClose}
-      unmountOnExit
-    >
-      <Form form={form} layout="vertical" initialValues={editing ?? { sort: 0 }}>
-        <Form.Item field="label" label="标签" rules={[{ required: true, message: "请输入标签" }]}>
-          <Input placeholder="显示文本,如 启用" maxLength={64} />
-        </Form.Item>
-        <Form.Item field="value" label="值" rules={[{ required: true, message: "请输入值" }]}>
-          <Input placeholder="存储值,如 1" maxLength={64} />
-        </Form.Item>
-        <Form.Item field="sort" label="排序" rules={[{ required: true, message: "请输入排序" }]}>
-          <Input placeholder="数字越小越靠前" />
-        </Form.Item>
-        {dict ? (
-          <Form.Item label="所属字典">
-            <Input value={`${dict.name}(${dict.code})`} disabled />
-          </Form.Item>
-        ) : null}
-      </Form>
-    </Modal>
-  );
+function emptyEntry(): EntryFormValue {
+  return { label: "", value: "", sort: 0, enabled: true };
 }

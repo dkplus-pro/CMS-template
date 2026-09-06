@@ -12,7 +12,7 @@ type User struct {
 	PasswordHash string     `gorm:"size:100;not null" json:"-"`
 	Nickname     string     `gorm:"size:64" json:"nickname"`
 	Email        string     `gorm:"size:128" json:"email"`
-	Status       bool       `gorm:"not null;default:true" json:"status"`
+	Status       bool       `gorm:"not null" json:"status"`
 	IsBuiltin    bool       `gorm:"not null;default:false" json:"isBuiltin"`
 	LastLoginAt  *time.Time `json:"lastLoginAt"`
 	CreatedAt    time.Time  `json:"createdAt"`
@@ -27,7 +27,7 @@ type Role struct {
 	Code      string    `gorm:"size:64;uniqueIndex;not null" json:"code"`
 	Name      string    `gorm:"size:64;not null" json:"name"`
 	Remark    string    `gorm:"size:255" json:"remark"`
-	Status    bool      `gorm:"not null;default:true" json:"status"`
+	Status    bool      `gorm:"not null" json:"status"`
 	IsBuiltin bool      `gorm:"not null;default:false" json:"isBuiltin"`
 	CreatedAt time.Time `json:"createdAt"`
 	UpdatedAt time.Time `json:"updatedAt"`
@@ -91,7 +91,7 @@ type Dict struct {
 	Code   string `gorm:"size:64;uniqueIndex;not null" json:"code"`
 	Name   string `gorm:"size:64;not null" json:"name"`
 	Remark string `gorm:"size:255" json:"remark"`
-	Status bool   `gorm:"not null;default:true" json:"status"`
+	Status bool   `gorm:"not null" json:"status"`
 	Timestamps
 }
 
@@ -104,7 +104,7 @@ type DictEntry struct {
 	Label  string `gorm:"size:64;not null" json:"label"`
 	Value  string `gorm:"size:64;not null;uniqueIndex:uk_dict_entry_value" json:"value"`
 	Sort   int    `gorm:"not null;default:0" json:"sort"`
-	Status bool   `gorm:"not null;default:true" json:"status"`
+	Status bool   `gorm:"not null" json:"status"`
 	Timestamps
 }
 

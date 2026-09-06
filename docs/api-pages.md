@@ -10,7 +10,7 @@
 - **分页**:入参 `page`、`pageSize`,返回 `{list, total}`;
 - **错误码**:400 参数错误 / 401 未登录或 token 失效 / 403 无权限 / 404 资源不存在 / 409 业务冲突(用户名重复、角色仍被绑定等)/ 500 服务端错误。
 
-## 接口清单(40 个)
+## 接口清单(42 个)
 
 ### 公共(阶段 0:1 个)
 
@@ -65,18 +65,20 @@
 | GET  | /configs/{group} | 读取配置组(system / storage)   | system:config:list   |
 | PUT  | /configs/{group} | 更新配置组(key-value 整组提交) | system:config:update |
 
-### dicts 字典(阶段 4:8 个)
+### dicts 字典(阶段 4:10 个)
 
-| 方法   | 路径                | 说明                           | 权限码             |
-| ------ | ------------------- | ------------------------------ | ------------------ |
-| GET    | /dicts              | 字典列表(全量,带 keyword 可选) | system:dict:list   |
-| POST   | /dicts              | 新建字典                       | system:dict:create |
-| PUT    | /dicts/{id}         | 编辑字典                       | system:dict:update |
-| DELETE | /dicts/{id}         | 删除字典(级联删字典项)         | system:dict:delete |
-| GET    | /dicts/{code}/items | 某字典的字典项列表             | system:dict:list   |
-| POST   | /dicts/{code}/items | 新建字典项                     | system:dict:update |
-| PUT    | /dicts/items/{id}   | 编辑字典项                     | system:dict:update |
-| DELETE | /dicts/items/{id}   | 删除字典项                     | system:dict:update |
+| 方法   | 路径                         | 说明                             | 权限码             |
+| ------ | ---------------------------- | -------------------------------- | ------------------ |
+| GET    | /dicts                       | 字典列表(全量,带 keyword 可选)   | system:dict:list   |
+| POST   | /dicts                       | 新建字典                         | system:dict:create |
+| PUT    | /dicts/{id}                  | 编辑字典                         | system:dict:update |
+| DELETE | /dicts/{id}                  | 删除字典(级联删字典项)           | system:dict:delete |
+| PATCH  | /dicts/{id}/status           | 字典上下线(启停)                 | system:dict:update |
+| PUT    | /dicts/{id}/entries          | 整组覆写字典项(编辑弹窗一次保存) | system:dict:update |
+| GET    | /dicts/{code}/items          | 某字典的字典项列表               | system:dict:list   |
+| POST   | /dicts/{code}/items          | 新建字典项                       | system:dict:update |
+| PUT    | /dicts/{code}/items/{itemId} | 编辑字典项                       | system:dict:update |
+| DELETE | /dicts/{code}/items/{itemId} | 删除字典项                       | system:dict:update |
 
 > 字典项不设独立权限码,统一归入 `system:dict:update`(字典管理页内的动作)。
 
@@ -129,5 +131,5 @@
 ## 使用方式
 
 1. 新增/变更接口:先改本清单 → 落 `openapi.yaml` → `pnpm gen:api` → 前端直接调用生成函数(零手写)、后端补 handler/service/repo,清单与契约同一 PR;
-2. 排期核对:阶段交付时按下表打勾——接口 40 个、页面 10 个路由(9 业务 + 登录)、弹窗 9 个;
+2. 排期核对:阶段交付时按下表打勾——接口 42 个、页面 10 个路由(9 业务 + 登录)、弹窗 9 个;
 3. 页面开发顺序 = 表格"依赖接口"列就绪即可开工,不依赖后端整体完成。

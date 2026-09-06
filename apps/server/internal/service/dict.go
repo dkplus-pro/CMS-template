@@ -8,6 +8,8 @@ import (
 
 	"gorm.io/gorm"
 
+	"fmt"
+
 	"github.com/cms-template/server/internal/oplog"
 	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/types"
@@ -101,6 +103,43 @@ func (s *DictService) Delete(ctx context.Context, id int64) error {
 	oplog.Success(ctx, s.db, oplog.Entry{
 		Action: "dict.delete", Resource: "dict", ResourceID: dict.Code,
 		Description: "删除字典 " + dict.Name + "(" + dict.Code + ")",
+	}, "")
+	return nil
+}
+
+// UpdateStatus 字典上下线。
+func (s *DictService) UpdateStatus(ctx context.Context, id int64, status bool) error {
+	dict, err := repo.GetDictByID(ctx, s.db, id)
+	if err != nil {
+		return err
+	}
+	dict.Status = status
+	if err := repo.UpdateDict(ctx, s.db, &dict); err != nil {
+		return err
+	}
+	verb := "上线"
+	if !status {
+		verb = "下线"
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "dict.updateStatus", Resource: "dict", ResourceID: dict.Code,
+		Description: verb + "字典 " + dict.Name + "(" + dict.Code + ")",
+	}, "")
+	return nil
+}
+
+// ReplaceEntries 整组覆写字典项(记业务日志)。
+func (s *DictService) ReplaceEntries(ctx context.Context, dictID int64, entries []repo.DictEntry) error {
+	dict, err := repo.GetDictByID(ctx, s.db, dictID)
+	if err != nil {
+		return err
+	}
+	if err := repo.ReplaceDictEntries(ctx, s.db, dictID, entries); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "dict.updateEntries", Resource: "dict", ResourceID: dict.Code,
+		Description: fmt.Sprintf("更新字典 %s(%s) 的 %d 个字典项", dict.Name, dict.Code, len(entries)),
 	}, "")
 	return nil
 }

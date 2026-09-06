@@ -50,11 +50,15 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await page.getByText("系统配置").click();
   await expect(page.getByText("站点名称")).toBeVisible();
 
-  // 字典管理:种子字典可见,选中后右侧字典项加载。
+  // 字典管理:列表页种子字典可见;编辑弹窗里字典项(动态表单)回填。
   await page.getByText("字典管理").click();
   await expect(page.getByRole("cell", { name: "common_status", exact: true })).toBeVisible();
-  await page.getByRole("cell", { name: "common_status", exact: true }).click();
-  await expect(page.getByRole("cell", { name: "启用" })).toBeVisible();
+  await page
+    .getByRole("row", { name: /common_status/ })
+    .getByRole("button", { name: "编辑" })
+    .click();
+  await expect(page.getByPlaceholder("标签,如 启用").first()).toBeVisible();
+  await page.getByRole("button", { name: "取消" }).click();
 
   // 图片管理:上传(带权限头的内容端点)后网格出现缩略图。
   await page.getByText("图片管理").click();

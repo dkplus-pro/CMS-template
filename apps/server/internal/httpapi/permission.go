@@ -50,8 +50,10 @@ var RoutePermissions = []RoutePermission{
 	{"DELETE", "/dicts/{id}", "system:dict:delete", "删除字典", "menu:system:dict", "字典管理"},
 	{"GET", "/dicts/{code}/items", "system:dict:list", "字典项列表", "menu:system:dict", "字典管理"},
 	{"POST", "/dicts/{code}/items", "system:dict:update", "创建字典项", "menu:system:dict", "字典管理"},
-	{"PUT", "/dicts/items/{id}", "system:dict:update", "编辑字典项", "menu:system:dict", "字典管理"},
-	{"DELETE", "/dicts/items/{id}", "system:dict:update", "删除字典项", "menu:system:dict", "字典管理"},
+	{"PUT", "/dicts/{code}/items/{itemId}", "system:dict:update", "编辑字典项", "menu:system:dict", "字典管理"},
+	{"DELETE", "/dicts/{code}/items/{itemId}", "system:dict:update", "删除字典项", "menu:system:dict", "字典管理"},
+	{"PATCH", "/dicts/{id}/status", "system:dict:update", "字典上下线", "menu:system:dict", "字典管理"},
+	{"PUT", "/dicts/{id}/entries", "system:dict:update", "覆写字典项", "menu:system:dict", "字典管理"},
 
 	{"GET", "/images", "media:image:list", "图片列表", "menu:media:image", "图片管理"},
 	{"POST", "/images", "media:image:upload", "上传图片", "menu:media:image", "图片管理"},

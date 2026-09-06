@@ -335,6 +335,10 @@ export interface VideoListResponse {
   total: number;
 }
 
+export interface DictEntriesRequest {
+  entries: DictEntryUpsertRequest[];
+}
+
 export type PageParameter = number;
 
 export type PageSizeParameter = number;

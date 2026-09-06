@@ -90,6 +90,11 @@ type Dict struct {
 	Status bool    `json:"status"`
 }
 
+// DictEntriesRequest defines model for DictEntriesRequest.
+type DictEntriesRequest struct {
+	Entries []DictEntryUpsertRequest `json:"entries"`
+}
+
 // DictEntry defines model for DictEntry.
 type DictEntry struct {
 	DictId int64  `json:"dictId"`
@@ -439,14 +444,20 @@ type UpdateConfigJSONRequestBody = ConfigUpdateRequest
 // CreateDictJSONRequestBody defines body for CreateDict for application/json ContentType.
 type CreateDictJSONRequestBody = DictUpsertRequest
 
-// UpdateDictItemJSONRequestBody defines body for UpdateDictItem for application/json ContentType.
-type UpdateDictItemJSONRequestBody = DictEntryUpsertRequest
-
 // CreateDictItemJSONRequestBody defines body for CreateDictItem for application/json ContentType.
 type CreateDictItemJSONRequestBody = DictEntryUpsertRequest
 
+// UpdateDictItemJSONRequestBody defines body for UpdateDictItem for application/json ContentType.
+type UpdateDictItemJSONRequestBody = DictEntryUpsertRequest
+
 // UpdateDictJSONRequestBody defines body for UpdateDict for application/json ContentType.
 type UpdateDictJSONRequestBody = DictUpsertRequest
+
+// ReplaceDictEntriesJSONRequestBody defines body for ReplaceDictEntries for application/json ContentType.
+type ReplaceDictEntriesJSONRequestBody = DictEntriesRequest
+
+// UpdateDictStatusJSONRequestBody defines body for UpdateDictStatus for application/json ContentType.
+type UpdateDictStatusJSONRequestBody = StatusRequest
 
 // UploadImageMultipartRequestBody defines body for UploadImage for multipart/form-data ContentType.
 type UploadImageMultipartRequestBody UploadImageMultipartBody
@@ -501,24 +512,30 @@ type ServerInterface interface {
 	// 新建字典
 	// (POST /dicts)
 	CreateDict(w http.ResponseWriter, r *http.Request)
-	// 删除字典项
-	// (DELETE /dicts/items/{id})
-	DeleteDictItem(w http.ResponseWriter, r *http.Request, id Id)
-	// 编辑字典项
-	// (PUT /dicts/items/{id})
-	UpdateDictItem(w http.ResponseWriter, r *http.Request, id Id)
 	// 某字典的字典项列表
 	// (GET /dicts/{code}/items)
 	ListDictItems(w http.ResponseWriter, r *http.Request, code string)
 	// 新建字典项
 	// (POST /dicts/{code}/items)
 	CreateDictItem(w http.ResponseWriter, r *http.Request, code string)
+	// 删除字典项
+	// (DELETE /dicts/{code}/items/{itemId})
+	DeleteDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64)
+	// 编辑字典项
+	// (PUT /dicts/{code}/items/{itemId})
+	UpdateDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64)
 	// 删除字典(级联删除字典项)
 	// (DELETE /dicts/{id})
 	DeleteDict(w http.ResponseWriter, r *http.Request, id Id)
 	// 编辑字典
 	// (PUT /dicts/{id})
 	UpdateDict(w http.ResponseWriter, r *http.Request, id Id)
+	// 整组覆写字典项(编辑弹窗一次保存)
+	// (PUT /dicts/{id}/entries)
+	ReplaceDictEntries(w http.ResponseWriter, r *http.Request, id Id)
+	// 字典上下线(启停)
+	// (PATCH /dicts/{id}/status)
+	UpdateDictStatus(w http.ResponseWriter, r *http.Request, id Id)
 	// 文件内容流(图片预览/视频播放共用;登录即可)
 	// (GET /files/{id}/content)
 	GetFileContent(w http.ResponseWriter, r *http.Request, id Id)
@@ -797,68 +814,6 @@ func (siw *ServerInterfaceWrapper) CreateDict(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
-// DeleteDictItem operation middleware
-func (siw *ServerInterfaceWrapper) DeleteDictItem(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id Id
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.DeleteDictItem(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
-// UpdateDictItem operation middleware
-func (siw *ServerInterfaceWrapper) UpdateDictItem(w http.ResponseWriter, r *http.Request) {
-
-	var err error
-
-	// ------------- Path parameter "id" -------------
-	var id Id
-
-	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
-	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
-		return
-	}
-
-	ctx := r.Context()
-
-	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
-
-	r = r.WithContext(ctx)
-
-	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		siw.Handler.UpdateDictItem(w, r, id)
-	}))
-
-	for _, middleware := range siw.HandlerMiddlewares {
-		handler = middleware(handler)
-	}
-
-	handler.ServeHTTP(w, r)
-}
-
 // ListDictItems operation middleware
 func (siw *ServerInterfaceWrapper) ListDictItems(w http.ResponseWriter, r *http.Request) {
 
@@ -921,6 +876,86 @@ func (siw *ServerInterfaceWrapper) CreateDictItem(w http.ResponseWriter, r *http
 	handler.ServeHTTP(w, r)
 }
 
+// DeleteDictItem operation middleware
+func (siw *ServerInterfaceWrapper) DeleteDictItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "code" -------------
+	var code string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "code", r.PathValue("code"), &code, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteDictItem(w, r, code, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDictItem operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDictItem(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "code" -------------
+	var code string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "code", r.PathValue("code"), &code, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "code", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "itemId" -------------
+	var itemId int64
+
+	err = runtime.BindStyledParameterWithOptions("simple", "itemId", r.PathValue("itemId"), &itemId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "itemId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDictItem(w, r, code, itemId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // DeleteDict operation middleware
 func (siw *ServerInterfaceWrapper) DeleteDict(w http.ResponseWriter, r *http.Request) {
 
@@ -974,6 +1009,68 @@ func (siw *ServerInterfaceWrapper) UpdateDict(w http.ResponseWriter, r *http.Req
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.UpdateDict(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ReplaceDictEntries operation middleware
+func (siw *ServerInterfaceWrapper) ReplaceDictEntries(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ReplaceDictEntries(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateDictStatus operation middleware
+func (siw *ServerInterfaceWrapper) UpdateDictStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateDictStatus(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1964,12 +2061,14 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("PUT "+options.BaseURL+"/configs/{group}", wrapper.UpdateConfig)
 	m.HandleFunc("GET "+options.BaseURL+"/dicts", wrapper.ListDicts)
 	m.HandleFunc("POST "+options.BaseURL+"/dicts", wrapper.CreateDict)
-	m.HandleFunc("DELETE "+options.BaseURL+"/dicts/items/{id}", wrapper.DeleteDictItem)
-	m.HandleFunc("PUT "+options.BaseURL+"/dicts/items/{id}", wrapper.UpdateDictItem)
 	m.HandleFunc("GET "+options.BaseURL+"/dicts/{code}/items", wrapper.ListDictItems)
 	m.HandleFunc("POST "+options.BaseURL+"/dicts/{code}/items", wrapper.CreateDictItem)
+	m.HandleFunc("DELETE "+options.BaseURL+"/dicts/{code}/items/{itemId}", wrapper.DeleteDictItem)
+	m.HandleFunc("PUT "+options.BaseURL+"/dicts/{code}/items/{itemId}", wrapper.UpdateDictItem)
 	m.HandleFunc("DELETE "+options.BaseURL+"/dicts/{id}", wrapper.DeleteDict)
 	m.HandleFunc("PUT "+options.BaseURL+"/dicts/{id}", wrapper.UpdateDict)
+	m.HandleFunc("PUT "+options.BaseURL+"/dicts/{id}/entries", wrapper.ReplaceDictEntries)
+	m.HandleFunc("PATCH "+options.BaseURL+"/dicts/{id}/status", wrapper.UpdateDictStatus)
 	m.HandleFunc("GET "+options.BaseURL+"/files/{id}/content", wrapper.GetFileContent)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.Healthz)
 	m.HandleFunc("GET "+options.BaseURL+"/images", wrapper.ListImages)

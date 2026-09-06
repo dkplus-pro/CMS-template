@@ -581,6 +581,40 @@ paths:
       responses:
         "204":
           description: 删除成功
+  /dicts/{id}/status:
+    patch:
+      operationId: updateDictStatus
+      summary: 字典上下线(启停)
+      tags:
+        - dicts
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusRequest"
+      responses:
+        "204":
+          description: 更新成功
+  /dicts/{id}/entries:
+    put:
+      operationId: replaceDictEntries
+      summary: 整组覆写字典项(编辑弹窗一次保存)
+      tags:
+        - dicts
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DictEntriesRequest"
+      responses:
+        "204":
+          description: 覆写成功
   /dicts/{code}/items:
     get:
       operationId: listDictItems
@@ -632,14 +666,24 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /dicts/items/{id}:
+  /dicts/{code}/items/{itemId}:
     put:
       operationId: updateDictItem
       summary: 编辑字典项
       tags:
         - dicts
       parameters:
-        - $ref: "#/components/parameters/Id"
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -665,7 +709,17 @@ paths:
       tags:
         - dicts
       parameters:
-        - $ref: "#/components/parameters/Id"
+        - name: code
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: itemId
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         "204":
           description: 删除成功
@@ -1467,3 +1521,12 @@ components:
             $ref: "#/components/schemas/VideoAsset"
         total:
           type: integer
+    DictEntriesRequest:
+      type: object
+      required:
+        - entries
+      properties:
+        entries:
+          type: array
+          items:
+            $ref: "#/components/schemas/DictEntryUpsertRequest"

@@ -111,6 +111,52 @@ func (h *Handler) DeleteDict(w http.ResponseWriter, r *http.Request, id gen.Id) 
 	httpapi.WriteJSON(w, http.StatusNoContent, nil)
 }
 
+// UpdateDictStatus PATCH /dicts/{id}/status。
+func (h *Handler) UpdateDictStatus(w http.ResponseWriter, r *http.Request, id gen.Id) {
+	var req gen.StatusRequest
+	if err := httpapi.DecodeRequest(r, &req); err != nil {
+		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
+		return
+	}
+	err := h.dicts.UpdateStatus(r.Context(), int64(id), req.Status)
+	switch {
+	case errors.Is(err, repo.ErrDictNotFound):
+		httpapi.WriteError(w, http.StatusNotFound, "字典不存在")
+		return
+	case err != nil:
+		h.logger.Error("update dict status", "error", err)
+		httpapi.WriteError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusNoContent, nil)
+}
+
+// ReplaceDictEntries PUT /dicts/{id}/entries。
+func (h *Handler) ReplaceDictEntries(w http.ResponseWriter, r *http.Request, id gen.Id) {
+	var req gen.DictEntriesRequest
+	if err := httpapi.DecodeRequest(r, &req); err != nil {
+		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
+		return
+	}
+	entries := make([]repo.DictEntry, 0, len(req.Entries))
+	for _, e := range req.Entries {
+		entries = append(entries, repo.DictEntry{
+			Label: e.Label, Value: e.Value, Sort: derefInt(e.Sort), Status: derefBoolDefault(e.Status, true),
+		})
+	}
+	err := h.dicts.ReplaceEntries(r.Context(), int64(id), entries)
+	switch {
+	case errors.Is(err, repo.ErrDictNotFound):
+		httpapi.WriteError(w, http.StatusNotFound, "字典不存在")
+		return
+	case err != nil:
+		h.logger.Error("replace dict entries", "error", err)
+		httpapi.WriteError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+	httpapi.WriteJSON(w, http.StatusNoContent, nil)
+}
+
 // ListDictItems GET /dicts/{code}/items。
 
 func (h *Handler) ListDictItems(w http.ResponseWriter, r *http.Request, code string) {
@@ -156,16 +202,15 @@ func (h *Handler) CreateDictItem(w http.ResponseWriter, r *http.Request, code st
 	httpapi.WriteJSON(w, http.StatusOK, toGenDictEntry(entry))
 }
 
-// UpdateDictItem PUT /dicts/items/{id}。
-
-func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, id gen.Id) {
+// UpdateDictItem PUT /dicts/{code}/items/{itemId}。
+func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64) {
 	var req gen.DictEntryUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
 		return
 	}
 
-	entry, err := h.dicts.UpdateEntry(r.Context(), int64(id), req.Label, req.Value, derefInt(req.Sort), derefBoolDefault(req.Status, true))
+	entry, err := h.dicts.UpdateEntry(r.Context(), itemId, req.Label, req.Value, derefInt(req.Sort), derefBoolDefault(req.Status, true))
 	switch {
 	case errors.Is(err, service.ErrDictValueExists):
 		httpapi.WriteError(w, http.StatusConflict, "字典项值重复")
@@ -181,10 +226,9 @@ func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, id gen.
 	httpapi.WriteJSON(w, http.StatusOK, toGenDictEntry(entry))
 }
 
-// DeleteDictItem DELETE /dicts/items/{id}。
-
-func (h *Handler) DeleteDictItem(w http.ResponseWriter, r *http.Request, id gen.Id) {
-	err := h.dicts.DeleteEntry(r.Context(), int64(id))
+// DeleteDictItem DELETE /dicts/{code}/items/{itemId}。
+func (h *Handler) DeleteDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64) {
+	err := h.dicts.DeleteEntry(r.Context(), itemId)
 	switch {
 	case errors.Is(err, repo.ErrDictEntryNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "字典项不存在")

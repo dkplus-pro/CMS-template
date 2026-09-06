@@ -145,6 +145,22 @@ func UpdateDictEntry(ctx context.Context, db *gorm.DB, entry *DictEntry) error {
 	return nil
 }
 
+// ReplaceDictEntries 整组覆写字典项(事务内先删后插,编辑弹窗一次保存)。
+func ReplaceDictEntries(ctx context.Context, db *gorm.DB, dictID int64, entries []DictEntry) error {
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("dict_id = ?", dictID).Delete(&DictEntry{}).Error; err != nil {
+			return fmt.Errorf("clear dict entries: %w", err)
+		}
+		for i := range entries {
+			entries[i].DictID = dictID
+			if err := tx.Create(&entries[i]).Error; err != nil {
+				return fmt.Errorf("insert dict entry: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
 // DeleteDictEntry 删除字典项。
 
 func DeleteDictEntry(ctx context.Context, db *gorm.DB, id int64) error {
