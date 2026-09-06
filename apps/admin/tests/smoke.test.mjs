@@ -32,12 +32,25 @@ test("admin app config supports repository-scoped GitHub Pages paths", () => {
 
 test("stage 0 wires openapi contract pipeline and dev proxy to the go server", async () => {
   assert.equal(packageJson.scripts["gen:api"], "orval --config ./orval.config.ts");
+  assert.ok(packageJson.dependencies["@tanstack/react-query"], "tanstack react-query required");
+  assert.ok(packageJson.dependencies.axios, "axios required");
+  assert.ok(packageJson.dependencies.ahooks, "ahooks required");
+  assert.ok(packageJson.dependencies.lodash, "lodash required");
 
   const clientSource = await readFile(new URL("../src/api/client.ts", import.meta.url), "utf8");
   assert.match(clientSource, /BASE_URL/);
   assert.match(clientSource, /Authorization/);
   assert.match(clientSource, /export function customInstance/);
   assert.match(clientSource, /Axios\.create/);
+
+  const controllersSource = await readFile(
+    new URL("../src/api/controllers.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(controllersSource, /export const SystemController = getSystem\(\)/);
+
+  const layoutSource = await readFile(new URL("../src/routes/layout.tsx", import.meta.url), "utf8");
+  assert.match(layoutSource, /QueryClientProvider/);
 
   const configSource = await readFile(new URL("../modern.config.ts", import.meta.url), "utf8");
   assert.match(configSource, /proxy: \{/);

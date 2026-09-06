@@ -1,9 +1,9 @@
 import { Tag, Typography } from "@arco-design/web-react";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { getSystem } from "../api/generated/system/system";
-
-const systemApi = getSystem();
+import { SystemController } from "../api/controllers";
+import { queryKeys } from "../api/queryKeys";
 
 const highlights = [
   "Modern.js React app shell",
@@ -20,15 +20,19 @@ const apiStatusConfig: Record<ApiStatus, { text: string; color: string }> = {
 };
 
 export default function HomePage() {
-  const [apiStatus, setApiStatus] = useState<ApiStatus>("loading");
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
-    systemApi
-      .healthz()
-      .then(() => setApiStatus("online"))
-      .catch(() => setApiStatus("offline"));
+    setMounted(true);
   }, []);
 
+  const { isPending, error } = useQuery({
+    queryKey: queryKeys.system.healthz,
+    queryFn: () => SystemController.healthz(),
+    enabled: mounted
+  });
+
+  const apiStatus: ApiStatus = isPending ? "loading" : error ? "offline" : "online";
   const status = apiStatusConfig[apiStatus];
 
   return (

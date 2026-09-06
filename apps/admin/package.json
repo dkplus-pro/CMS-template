@@ -17,13 +17,17 @@
   "dependencies": {
     "@arco-design/web-react": "^2.66.16",
     "@modern-js/runtime": "^3.5.0",
+    "@tanstack/react-query": "^5.102.8",
+    "ahooks": "^3.9.7",
     "axios": "^1.20.0",
+    "lodash": "^4.18.1",
     "react": "^19.2.1",
     "react-dom": "^19.2.1"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.8",
     "@modern-js/app-tools": "^3.5.0",
+    "@types/lodash": "^4.17.25",
     "@types/node": "^24.10.2",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",

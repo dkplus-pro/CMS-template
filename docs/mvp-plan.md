@@ -20,6 +20,8 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 | 前端权限   | 登录后拉取权限码 + 可见菜单                       | 动态生成路由与侧边栏;按钮级用权限码控制显隐;**服务端中间件独立校验,前端显隐只是体验,不是安全边界**                                                  |
 | 响应约定   | `{code, message, data}`                           | 分页入参 `page`/`pageSize`,返回 `{list, total}`;错误用 HTTP 状态码 + message                                                                        |
 | 联调       | admin 开发态代理 `/api` → `http://localhost:8080` | 免 CORS;端口约定 server=8080、admin=8081                                                                                                            |
+| 前端数据层 | TanStack Query + orval axios 直调                 | 服务端状态用 `useQuery`/`useMutation` + `XxxController.xxx()`(见 admin.md);客户端全局状态用 Modern.js model                                         |
+| 工具库     | lodash + ahooks                                   | 通用 React 逻辑优先 ahooks,纯数据操作优先 lodash;请求不用 ahooks useRequest                                                                         |
 | 文件存储   | storage 接口 + local 实现                         | 预留 S3 实现,不阻塞 MVP                                                                                                                             |
 
 ## 数据模型(一览)

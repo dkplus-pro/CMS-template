@@ -1,8 +1,10 @@
 import { Breadcrumb, ConfigProvider, Layout as ArcoLayout, Menu } from "@arco-design/web-react";
+import { QueryClientProvider } from "@tanstack/react-query";
 import zhCN from "@arco-design/web-react/es/locale/zh-CN";
 import { Outlet, useLocation, useNavigate } from "@modern-js/runtime/router";
 
 import { matchSelectedKey, sidebarMenus } from "../config/menu";
+import { queryClient } from "../config/queryClient";
 import { SYSTEM_NAME } from "../constants";
 
 import "@arco-design/web-react/dist/css/arco.css";
@@ -18,32 +20,34 @@ export default function Layout() {
   const activeTitle = sidebarMenus.find((menu) => menu.path === selectedKey)?.title;
 
   return (
-    <ConfigProvider locale={zhCN}>
-      <ArcoLayout className="app-shell">
-        <Sider className="app-sider" width={220}>
-          <div className="app-logo">{SYSTEM_NAME}</div>
-          <Menu
-            selectedKeys={selectedKey ? [selectedKey] : []}
-            onClickMenuItem={(key) => navigate(key)}
-            style={{ width: "100%" }}
-          >
-            {sidebarMenus.map((menu) => (
-              <Menu.Item key={menu.path}>{menu.title}</Menu.Item>
-            ))}
-          </Menu>
-        </Sider>
-        <ArcoLayout>
-          <Header className="app-header">
-            <Breadcrumb>
-              <Breadcrumb.Item>{SYSTEM_NAME}</Breadcrumb.Item>
-              {activeTitle ? <Breadcrumb.Item>{activeTitle}</Breadcrumb.Item> : null}
-            </Breadcrumb>
-          </Header>
-          <Content className="app-content">
-            <Outlet />
-          </Content>
+    <QueryClientProvider client={queryClient}>
+      <ConfigProvider locale={zhCN}>
+        <ArcoLayout className="app-shell">
+          <Sider className="app-sider" width={220}>
+            <div className="app-logo">{SYSTEM_NAME}</div>
+            <Menu
+              selectedKeys={selectedKey ? [selectedKey] : []}
+              onClickMenuItem={(key) => navigate(key)}
+              style={{ width: "100%" }}
+            >
+              {sidebarMenus.map((menu) => (
+                <Menu.Item key={menu.path}>{menu.title}</Menu.Item>
+              ))}
+            </Menu>
+          </Sider>
+          <ArcoLayout>
+            <Header className="app-header">
+              <Breadcrumb>
+                <Breadcrumb.Item>{SYSTEM_NAME}</Breadcrumb.Item>
+                {activeTitle ? <Breadcrumb.Item>{activeTitle}</Breadcrumb.Item> : null}
+              </Breadcrumb>
+            </Header>
+            <Content className="app-content">
+              <Outlet />
+            </Content>
+          </ArcoLayout>
         </ArcoLayout>
-      </ArcoLayout>
-    </ConfigProvider>
+      </ConfigProvider>
+    </QueryClientProvider>
   );
 }
