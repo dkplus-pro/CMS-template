@@ -23,10 +23,10 @@ import { customInstance } from '../../client';
 
   export const getConfigs = () => {
 /**
- * @summary 读取配置组(group = system / storage)
+ * @summary 读取配置组(目前仅 system;存储配置已迁环境变量,见 docs/mvp-plan.md 阶段 6)
  */
 const getConfig = (
-    group: 'system' | 'storage',
+    group: 'system',
  ) => {
       return customInstance<ConfigGroupResponse>(
       {url: `/configs/${group}`, method: 'GET'
@@ -37,7 +37,7 @@ const getConfig = (
  * @summary 整组更新配置
  */
 const updateConfig = (
-    group: 'system' | 'storage',
+    group: 'system',
     configUpdateRequest: ConfigUpdateRequest,
  ) => {
       return customInstance<void>(

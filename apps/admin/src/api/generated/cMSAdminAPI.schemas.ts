@@ -302,6 +302,8 @@ export interface ImageAsset {
   height?: number;
   /** 实际格式,如 png / jpeg */
   format?: string;
+  /** 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content */
+  url: string;
   createdAt: string;
 }
 
@@ -327,6 +329,8 @@ export interface VideoAsset {
      * @nullable
      */
   resolution?: string | null;
+  /** 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content */
+  url: string;
   createdAt: string;
 }
 

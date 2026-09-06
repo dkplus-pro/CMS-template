@@ -142,25 +142,14 @@
 | 字段                    | 类型                   | 说明                       |
 | ----------------------- | ---------------------- | -------------------------- |
 | id                      | PK                     |                            |
-| group                   | VARCHAR(32)            | `system` / `storage`       |
+| group                   | VARCHAR(32)            | 目前仅 `system`            |
 | key                     | VARCHAR(64)            | UNIQUE(group, key)         |
 | value                   | TEXT + serializer:json | 结构化 JSON,模型侧反序列化 |
 | remark                  | VARCHAR(255)           | 用途说明                   |
 | updated_by              | int64                  | 最后修改人                 |
 | created_at / updated_at |                        |                            |
 
-storage 组键清单(运维项,admin 不展示,改后重启生效;厂商键加前缀,新增厂商只加键不加表,见 mvp-plan.md 阶段 6):
-
-| 键              | 说明                                                              |
-| --------------- | ----------------------------------------------------------------- |
-| `driver`        | 当前存储驱动:`local` / `cos`(tos 预留)                            |
-| `basePath`      | local 专用:存储目录(默认 `data/files`)                            |
-| `cos.secretId`  | COS 专用:访问密钥 ID                                              |
-| `cos.secretKey` | COS 专用:访问密钥 Key(明文落库,后续可迁 env)                      |
-| `cos.bucket`    | COS 专用:Bucket 全名(含 `-APPID` 后缀)                            |
-| `cos.region`    | COS 专用:地域,如 `ap-guangzhou`                                   |
-| `cos.cdnDomain` | COS 专用:CDN 域名;为空用默认 `{bucket}.cos.{region}.myqcloud.com` |
-| `cos.prefix`    | COS 专用:对象 key 前缀,可空                                       |
+存储配置不入库:曾以 `storage` 配置组存放 driver/basePath,阶段 6 起整体迁到环境变量(密钥只允许留在本地 `.env.local`,见 mvp-plan.md 阶段 6);启动种子会清理库中残留的 storage 组旧行(自愈,幂等)。
 
 ### dicts / dict_items — 字典
 

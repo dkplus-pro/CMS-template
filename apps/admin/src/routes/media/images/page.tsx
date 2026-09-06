@@ -11,18 +11,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { MediaController } from "../../../api/controllers.gen";
+import type { ImageAsset } from "../../../api/generated/cMSAdminAPI.schemas";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
 import { useFileURL } from "../../../hooks/use-file-url";
-
-interface ImageItem {
-  id: number;
-  fileId: number;
-  title: string;
-  origName: string;
-  width?: number;
-  height?: number;
-}
 
 // 图片管理:网格缩略图 + 上传 + 预览大图 + 删除(底层是通用文件存储,见 docs/mvp-plan.md 阶段 5)。
 export default function ImagesPage() {
@@ -52,7 +44,7 @@ export default function ImagesPage() {
     });
   };
 
-  const images = (listQuery.data?.list ?? []) as ImageItem[];
+  const images = listQuery.data?.list ?? [];
   const total = listQuery.data?.total ?? 0;
 
   return (
@@ -98,10 +90,10 @@ function ImageCard({
   image,
   onDelete
 }: {
-  image: ImageItem;
+  image: ImageAsset;
   onDelete: (id: number, title: string) => void;
 }) {
-  const url = useFileURL(image.fileId);
+  const url = useFileURL(image.fileId, image.url);
 
   return (
     <div

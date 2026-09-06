@@ -33,20 +33,17 @@ const (
 
 // Defines values for ConfigGroup.
 const (
-	ConfigGroupStorage ConfigGroup = "storage"
-	ConfigGroupSystem  ConfigGroup = "system"
+	ConfigGroupSystem ConfigGroup = "system"
 )
 
 // Defines values for GetConfigParamsGroup.
 const (
-	GetConfigParamsGroupStorage GetConfigParamsGroup = "storage"
-	GetConfigParamsGroupSystem  GetConfigParamsGroup = "system"
+	GetConfigParamsGroupSystem GetConfigParamsGroup = "system"
 )
 
 // Defines values for UpdateConfigParamsGroup.
 const (
-	Storage UpdateConfigParamsGroup = "storage"
-	System  UpdateConfigParamsGroup = "system"
+	System UpdateConfigParamsGroup = "system"
 )
 
 // Defines values for ListOperationLogsParamsStatus.
@@ -153,6 +150,9 @@ type ImageAsset struct {
 	// Size 字节
 	Size  int64  `json:"size"`
 	Title string `json:"title"`
+
+	// Url 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content
+	Url string `json:"url"`
 
 	// Width 提取的宽(px)
 	Width *int `json:"width,omitempty"`
@@ -336,6 +336,9 @@ type VideoAsset struct {
 	// Size 字节
 	Size  int64  `json:"size"`
 	Title string `json:"title"`
+
+	// Url 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content
+	Url string `json:"url"`
 }
 
 // VideoListResponse defines model for VideoListResponse.
@@ -500,7 +503,7 @@ type ServerInterface interface {
 	// 修改密码(校验旧密码)
 	// (PUT /auth/password)
 	ChangePassword(w http.ResponseWriter, r *http.Request)
-	// 读取配置组(group = system / storage)
+	// 读取配置组(目前仅 system;存储配置已迁环境变量,见 docs/mvp-plan.md 阶段 6)
 	// (GET /configs/{group})
 	GetConfig(w http.ResponseWriter, r *http.Request, group GetConfigParamsGroup)
 	// 整组更新配置

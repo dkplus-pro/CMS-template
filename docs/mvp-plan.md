@@ -174,15 +174,15 @@ admin:用户列表页(搜索表格范式)+ 新建/编辑弹窗 + 状态 Switch +
 
 ### 接口(修订后)
 
-| 方法                      | 路径                                           | 说明                                                        |
-| ------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| GET                       | /operation-logs                                | 业务日志分页;筛选 操作人/资源/动作/成败/时间范围            |
-| GET / PUT                 | /configs/{group}                               | 读取/更新配置组(system: 站名、Logo URL;storage: 驱动与参数) |
-| GET / POST / PUT / DELETE | /dicts、/dicts/{code}/items、/dicts/items/{id} | 字典与字典项 CRUD                                           |
+| 方法                      | 路径                                           | 说明                                                                       |
+| ------------------------- | ---------------------------------------------- | -------------------------------------------------------------------------- |
+| GET                       | /operation-logs                                | 业务日志分页;筛选 操作人/资源/动作/成败/时间范围                           |
+| GET / PUT                 | /configs/{group}                               | 读取/更新配置组(仅 system: 站名、Logo URL;storage 组已于阶段 6 迁环境变量) |
+| GET / POST / PUT / DELETE | /dicts、/dicts/{code}/items、/dicts/items/{id} | 字典与字典项 CRUD                                                          |
 
 契约变化:`OperationLogItem` 换为上述业务字段(去掉 method/path/statusCode/latencyMs),筛选参数换为 `username/resource/action/status + startTime/endTime`;权限码 `system:log:list` 不变。
 
-server:业务日志表按新字段重建;各 service 在增删改方法落埋点;访问日志改文件输出 + 按天滚动清理;sys_configs、dicts/dict_items 不变;存储配置组由服务端启动时读取(local 目录),**管理端不展示**(运维项,修改需重启,见阶段 4)——后续接入 S3 或需要运行时调整时再开放。
+server:业务日志表按新字段重建;各 service 在增删改方法落埋点;访问日志改文件输出 + 按天滚动清理;sys_configs、dicts/dict_items 不变;存储配置组由服务端启动时读取(local 目录),**管理端不展示**(运维项,修改需重启,见阶段 4)——阶段 6 起整体迁环境变量,不再是配置组。
 
 admin:日志页改为业务语义——列:操作人/动作/资源/描述/结果/IP/时间,筛选同步替换;详情抽屉同步;系统设置页与字典管理页不变。
 
@@ -227,9 +227,11 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 
 验收:上传图片后缩略图与大图预览正常且 meta 含宽高/格式;上传视频可内嵌播放;删除媒体后 files 记录与介质文件同步删除;非图片/视频类型(如 .txt)被对应接口以 400 拒绝;音频接口未开放。**本阶段已按修订方案交付并验收**(e2e 覆盖真实上传与展示;冒烟覆盖提取/级联删除/类型拒绝)。
 
-## 阶段 6:对象存储接入(多厂商抽象,先接 COS)
+## 阶段 6:对象存储接入(多厂商抽象,先接 COS;**已交付并验收**)
 
-> **方案说明(先出方案,后写代码)**:文件介质要能从服务器本地目录迁到对象存储,且厂商不止一家(腾讯云 COS、火山引擎 TOS 等)。因此把"存文件"这一层按厂商抽象:接口唯一、厂商实现可插拔、配置按厂商分组,新增厂商不改业务代码。本期先接 COS:**上传直传 COS,文件记录落 CDN 地址**,admin 展示走 CDN 直链。
+> **方案说明**:文件介质要能从服务器本地目录迁到对象存储,且厂商不止一家(腾讯云 COS、火山引擎 TOS 等)。因此把"存文件"这一层按厂商抽象:接口唯一、厂商实现可插拔、配置按厂商分环境变量,新增厂商不改业务代码。本期先接 COS:**上传直传 COS,文件记录落 CDN 地址**,admin 展示走 CDN 直链。
+>
+> **配置纪律(用户明确要求)**:COS 密钥与连接参数只允许留在本地 `.env.local`(`.env.*` 已 gitignore,禁止提交),不入库、不进 CI;因此原"storage 配置组(数据库)"方案整体撤销,**存储配置全部走环境变量**,sys_configs 只剩 system 组。
 
 ### 多厂商抽象设计
 
@@ -237,9 +239,9 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 
   ```go
   type Storage interface {
-      // Save 写入文件内容,返回对象 key(uuid + 扩展名,可带厂商前缀)与字节数。
+      // Save 写入文件内容,返回对象 key(可选厂商前缀 + uuid + 扩展名)与字节数。
       Save(ctx context.Context, r io.Reader, ext string) (key string, size int64, err error)
-      // Open 顺序读对象内容(信息提取、本地兜底输出用)。
+      // Open 顺序读对象内容(本地内容端点用);本地实现返回 *os.File。
       Open(ctx context.Context, key string) (io.ReadCloser, error)
       // URL 返回外网可访问地址(CDN 直链);本地存储返回 ""。
       URL(key string) string
@@ -250,64 +252,66 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
   }
   ```
 
-  `Open` 由 `*os.File` 放宽为 `io.ReadCloser`(COS 实现为 `Object.Get` 的响应体);本地实现仍返回 `*os.File`,内容端点类型断言回 `io.ReadSeeker` 以保留 Range 播放。
+  `Open` 由 `*os.File` 放宽为 `io.ReadCloser`;本地实现仍返回 `*os.File`,内容端点类型断言回 `io.ReadSeeker` 以保留 Range 播放。
 
-- **厂商实现可插拔**:一个厂商一个文件(`internal/storage/local.go`、`cos.go`,后续 `tos.go`),各自封装 SDK 与配置;`main.go` 按 storage 配置组的 `driver` 键 switch 装配,业务层零改动。
-- **配置按厂商分组**:继续放在 storage 配置组(运维项,admin 不展示,改后重启生效),厂商键加前缀互不干扰:
+- **厂商实现可插拔**:一个厂商一个文件(`internal/storage/local.go`、`cos.go`,后续 `tos.go`),各自封装 SDK 与配置;`main.go` 按 `STORAGE_DRIVER` switch 装配,业务层零改动。
+- **配置走环境变量**:`internal/config` 启动时经 godotenv 加载 `.env.local`、`.env`(已设置的进程环境变量优先,文件只补缺失项),运维项改后重启生效:
 
-  | 键              | 示例                      | 说明                                                                |
-  | --------------- | ------------------------- | ------------------------------------------------------------------- |
-  | `driver`        | `local` / `cos`           | 当前驱动                                                            |
-  | `basePath`      | `data/files`              | local 专用:存储目录                                                 |
-  | `cos.secretId`  | `AKID...`                 | COS 专用:访问密钥 ID(建议子账号最小权限)                            |
-  | `cos.secretKey` | `***`                     | COS 专用:访问密钥 Key                                               |
-  | `cos.bucket`    | `my-assets-1250000000`    | COS 专用:Bucket 全名(含 APPID 后缀)                                 |
-  | `cos.region`    | `ap-guangzhou`            | COS 专用:地域                                                       |
-  | `cos.cdnDomain` | `https://cdn.example.com` | COS 专用:CDN 域名;为空时用默认 `{bucket}.cos.{region}.myqcloud.com` |
-  | `cos.prefix`    | `cms/`                    | COS 专用:对象 key 前缀,可空                                         |
+  | 环境变量            | 示例                      | 说明                                                                |
+  | ------------------- | ------------------------- | ------------------------------------------------------------------- |
+  | `STORAGE_DRIVER`    | `local` / `cos`           | 当前驱动,默认 `local`                                               |
+  | `STORAGE_BASE_PATH` | `data/files`              | local 专用:存储目录                                                 |
+  | `COS_SECRET_ID`     | `AKID...`                 | COS 专用:访问密钥 ID(建议子账号最小权限),driver=cos 必填            |
+  | `COS_SECRET_KEY`    | `***`                     | COS 专用:访问密钥 Key,driver=cos 必填                               |
+  | `COS_BUCKET`        | `my-assets-1250000000`    | COS 专用:Bucket 全名(含 APPID 后缀),driver=cos 必填                 |
+  | `COS_REGION`        | `ap-guangzhou`            | COS 专用:地域,driver=cos 必填                                       |
+  | `COS_CDN_DOMAIN`    | `https://cdn.example.com` | COS 专用:CDN 域名;为空时用默认 `{bucket}.cos.{region}.myqcloud.com` |
+  | `COS_PREFIX`        | `tmp/`                    | COS 专用:对象 key 前缀,可空(自动归一化:去头部 `/`、补尾部 `/`)      |
+
+  driver=cos 缺必填项时启动直接报错并列出全部缺失变量;`apps/server/.env.example` 提交占位模板,`.env.local` 持真实值且禁止提交。
 
 - **新增厂商步骤**(拓展示例,文档化固定动作):
   1. `internal/storage/{vendor}.go` 实现 `Storage` 接口(封装厂商 SDK,对象 key 规则与 local 一致:uuid + 扩展名 + 可选前缀);
-  2. seed 增补 `{vendor}.*` 配置键,`driver` 枚举说明加新值;
+  2. `internal/config` 增 `{VENDOR}_*` 环境变量与校验,`.env.example` 补占位;
   3. `main.go` 装配 switch 加分支;
   4. `files.storage` 取值登记新驱动名。
      TOS(火山引擎)届时按此四步接入(其 SDK 或 S3 兼容模式均可),接口与表结构不变。
 
 ### COS 接入方案(本期)
 
-- **SDK**:`github.com/tencentyun/cos-go-sdk-v5`。`Save` 用 `Object.Put` 流式上传;`Delete` 用 `Object.Delete`(COS 删除缺失 key 返回成功,天然幂等);`Open` 用 `Object.Get` 返回响应体。
-- **上传流程调整**(`media.Upload`):
+- **SDK**:`github.com/tencentyun/cos-go-sdk-v5`。`Save` 用 `Object.Put`;不可寻址的 reader(网络请求体)先落临时文件,保证 Content-Length 确定;`Delete` 用 `Object.Delete`(缺失 key 按幂等成功处理);`Open` 用 `Object.Get`。
+- **上传流程**(`media.Upload`):
   - 图片(≤10MB):先把请求体读入内存一次,`Save` 与宽高提取(`image.DecodeConfig`)复用同一份字节,**避免上传后再从 COS 回源 GET 一次**;
   - 视频(≤200MB):保持流式 `Save`,meta 暂无提取需求,不回源;
   - files 记录:`storage` 写当前驱动名,`url` 写 `driver.URL(key)`(CDN 完整地址;local 为空串)——**历史记录不随 CDN 域名配置漂移**;若日后更换 CDN 域名,用一条 SQL 按旧前缀批量刷新即可。
-- **内容端点** `GET /files/{id}/content`:`files.url` 非空(OSS 记录)→ **302 重定向到 CDN 地址**;为空(local)→ 维持现状 `http.ServeContent`(保留 Range,视频可拖进度)。两种记录混合共存,历史 local 文件不受影响。
-- **驱动切换**:改 `driver` 配置 + 重启即生效;local ↔ COS 可来回切,已上传记录各按各的 `url` 访问,不互相污染。
+- **内容端点** `GET /files/{id}/content`:`files.url` 非空(OSS 记录)→ **302 重定向到 CDN 地址**;为空(local)→ 维持 `http.ServeContent`(保留 Range,视频可拖进度)。两种记录混合共存,历史 local 文件不受影响。
+- **跨驱动删除守卫**:删除媒体只在"记录驱动 = 当前驱动"时删介质,随后删库;驱动切换后遗留的跨驱动记录只删记录、不碰介质(避免用错驱动误删/报错),遗留对象由运维按旧驱动另行清理。
+- **驱动切换**:改 `STORAGE_DRIVER` + 重启即生效;local ↔ COS 可来回切,已上传记录各按各的 `url` 访问,不互相污染。
+- **CDN 缓存注意**:删除媒体后 COS 源站对象即刻消失,但 CDN 边缘节点在 TTL 内仍可访问缓存副本;如需即时失效,后续接 CDN 刷新 API(用户侧的 `CDN_PURGE_URL_*` 属其既有刷新机制,本期不接)。
 
 ### 契约与数据变化
 
-- `openapi.yaml`:Image / Video 响应 schema 增加 `url`(string,CDN 直链;local 存储为空串)。**无新端点,权限码不变**;
+- `openapi.yaml`:Image / Video 响应 schema 增加 `url`(string,required,CDN 直链;local 为空串);`ConfigGroup` 枚举去掉 `storage`(存储配置不再是配置组),configs 接口只剩 `system` 组。**无新端点,权限码不变**;
 - `files` 表:新增 `url VARCHAR(512) NOT NULL DEFAULT ''`(AutoMigrate 加列,加法变更 SQLite/MySQL 双端安全);`storage` 取值扩展为 `local | cos`(tos 预留);
-- seed:storage 组补 `cos.*` 键(空值占位 + remark 说明)。
+- seed:不再写入 storage 配置组,并在启动时清理阶段 6 之前入库的 storage 旧行(自愈,幂等)。
 
 ### admin 变化
 
-- `useFileURL`:记录带 `url` 直接返回(CDN 公开可读,无需 Bearer);无 `url` 走原 blob + Bearer 通道(本地文件)。图片/视频列表、预览、播放统一经此分支,页面对存储后端无感;
-- 系统设置页维持只展示 system 组;COS 配置属运维项(改库或后续开放 storage 组),不在 admin 暴露。
+- `useFileURL(fileId, directUrl)`:记录带 `url` 直接返回 CDN 直链(公开可读,无需 Bearer);无 `url` 走原 blob + Bearer 通道(本地文件)。图片/视频列表、预览、播放统一经此分支,页面对存储后端无感;媒体页 Item 类型改用生成物 `ImageAsset`/`VideoAsset`(消除手写重复类型);
+- 系统设置页只有站点信息;存储配置不再是配置组,admin 无任何入口。
 
-### 执行前需用户提供的 COS 配置
+### COS 配置(用户已提供,落 `.env.local`)
 
-1. `SecretId` / `SecretKey`(建议子账号,最小授权:该 bucket 的 PutObject / GetObject / DeleteObject);
-2. Bucket 全名(含 `-APPID` 后缀)与 Region;
-3. CDN 域名(已配置该 bucket 为回源);暂无 CDN 则用 COS 默认域名,需确认 bucket 公共可读;
-4. 对象 key 前缀(可空,默认空);
-5. 确认项:MVP 按 **CDN/默认域名公开可读** 出直链;私有 bucket + 签名 URL(时效防盗链)属后续迭代,本期不做。
+- dev(本地开发,`.env.local`):Bucket `dev-user-profile-1348938418`,Region `ap-guangzhou`,前缀 `tmp/`,CDN `https://devcdn.ai4love.cn`;
+- prod(部署时同名环境变量注入):Bucket `prod-ai4love-cos-1348938418`,前缀 `tmp/`,CDN `https://cdn.ai4love.cn`;
+- 密钥同一对,仅存 `.env.local`;生产环境用部署平台的环境变量注入,不进任何仓库文件。
 
-### 验收
+### 验收(**已通过**)
 
-- `driver=cos`:上传图片/视频直传 COS,files 记录 `storage=cos` 且 `url` 为 CDN 地址,admin 列表/预览/播放走 CDN 直链;删除媒体同步删除 COS 对象;
-- `driver=local`:行为与现状完全一致(回归);
-- 历史 local 记录与新 COS 记录混合展示均正常;切换驱动只需改配置 + 重启;
-- 单测:COS 实现以 httptest 桩覆盖 Save/Delete/URL/幂等删除;e2e 仍跑 local;COS 链路冒烟脚本手动执行(密钥不入库、不进 CI)。
+- `driver=cos`:冒烟实测——上传图片直传 COS,响应 `url` 为 CDN 直链,CDN 下载字节与原图逐一相同;`/files/{id}/content` 返回 302 到 CDN;删除后 COS 源站对象 404(CDN 边缘缓存属预期);操作日志埋点"上传图片 smoke.png(2x2)""删除图片 smoke.png"正常;
+- `driver=local`:行为与阶段 5 一致(e2e 回归通过;playwright 起 server 时显式 `STORAGE_DRIVER=local`,不受本地 `.env.local` 影响);
+- 单测:COS 实现以 httptest 桩覆盖 Save(含流式落盘)/Delete 幂等/Open 404 映射/URL 默认域名与前缀归一化;
+- 密钥纪律:`.env.local` 被 gitignore,仓库只提交 `.env.example` 占位。
 
 ## 种子数据
 

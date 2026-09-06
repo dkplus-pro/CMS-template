@@ -7,8 +7,7 @@ import { ConfigsController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
 
 // 系统配置:展示站点信息(通用 KV 表单,整组读取与保存)。
-// 存储配置组(storage)是运维项且修改需重启生效,从管理端隐藏(服务端读取逻辑保留);
-// 若规划中解释性文案与消费方闭环后需要开放,再恢复该 Tab(见 docs/mvp-plan.md 阶段 4)。
+// 存储配置属运维项,已迁环境变量(.env.local,改后重启生效),不再是配置组(见 docs/mvp-plan.md 阶段 6)。
 export default function ConfigsPage() {
   return (
     <Card>

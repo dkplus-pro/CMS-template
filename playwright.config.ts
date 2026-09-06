@@ -19,7 +19,8 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: `rm -f /tmp/cms-e2e.db && SERVER_PORT=${E2E_SERVER_PORT} DATABASE_DSN=/tmp/cms-e2e.db SWAGGER_ENABLED=false go run ./cmd/server`,
+      // STORAGE_DRIVER=local 钉死本地存储,避免本地 .env.local(driver=cos)让 e2e 依赖外网
+      command: `rm -f /tmp/cms-e2e.db && SERVER_PORT=${E2E_SERVER_PORT} DATABASE_DSN=/tmp/cms-e2e.db SWAGGER_ENABLED=false STORAGE_DRIVER=local STORAGE_BASE_PATH=/tmp/cms-e2e-files go run ./cmd/server`,
       cwd: "./apps/server",
       url: `http://127.0.0.1:${E2E_SERVER_PORT}/healthz`,
       reuseExistingServer: false,

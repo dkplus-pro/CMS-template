@@ -62,7 +62,7 @@
 
 | 方法 | 路径             | 说明                           | 权限码               |
 | ---- | ---------------- | ------------------------------ | -------------------- |
-| GET  | /configs/{group} | 读取配置组(system / storage)   | system:config:list   |
+| GET  | /configs/{group} | 读取配置组(仅 system)          | system:config:list   |
 | PUT  | /configs/{group} | 更新配置组(key-value 整组提交) | system:config:update |
 
 ### dicts 字典(阶段 4:10 个)
@@ -118,7 +118,7 @@
 | /system/users   | 用户管理       | 2         | 新建/编辑弹窗、分配角色弹窗、状态 Switch       | users 全部 7 个           |
 | /system/roles   | 角色管理       | 2         | 新建/编辑弹窗、分配权限弹窗(Tree)              | roles 7 个 + /permissions |
 | /system/logs    | 操作日志(业务) | 4         | 详情抽屉;列:操作人/动作/资源/描述/结果/IP/时间 | operation-logs            |
-| /system/configs | 系统设置       | 4         | Tab:站点信息 / 存储配置                        | configs 2 个              |
+| /system/configs | 系统设置       | 4         | 站点信息(存储配置已迁环境变量,见阶段 6)        | configs 2 个              |
 | /system/dicts   | 字典管理       | 4         | 字典表单弹窗、字典项表单弹窗(左右布局)         | dicts 8 个                |
 | /media/images   | 图片管理       | 5(可后置) | 上传弹窗、预览大图                             | images 4 个 + content     |
 | /media/videos   | 视频管理       | 5(可后置) | 上传弹窗、内嵌播放                             | videos 4 个 + content     |

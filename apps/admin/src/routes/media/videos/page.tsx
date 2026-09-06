@@ -3,17 +3,10 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
 import { MediaController } from "../../../api/controllers.gen";
+import type { VideoAsset } from "../../../api/generated/cMSAdminAPI.schemas";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
 import { useFileURL } from "../../../hooks/use-file-url";
-
-interface VideoItem {
-  id: number;
-  fileId: number;
-  title: string;
-  origName: string;
-  size: number;
-}
 
 // 视频管理:列表 + 上传 + 内嵌播放(抽屉)+ 删除(见 docs/mvp-plan.md 阶段 5)。
 export default function VideosPage() {
@@ -21,7 +14,7 @@ export default function VideosPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [uploadVisible, setUploadVisible] = useState(false);
-  const [playing, setPlaying] = useState<VideoItem | null>(null);
+  const [playing, setPlaying] = useState<VideoAsset | null>(null);
 
   const listQuery = useQuery({
     queryKey: queryKeys.media.videos(page, pageSize),
@@ -36,7 +29,7 @@ export default function VideosPage() {
     }
   });
 
-  const deleteVideo = (video: VideoItem) => {
+  const deleteVideo = (video: VideoAsset) => {
     Modal.confirm({
       title: "删除确认",
       content: `确定删除视频 ${video.title} 吗?`,
@@ -44,7 +37,7 @@ export default function VideosPage() {
     });
   };
 
-  const videos = (listQuery.data?.list ?? []) as VideoItem[];
+  const videos = listQuery.data?.list ?? [];
   const total = listQuery.data?.total ?? 0;
 
   const columns = [
@@ -58,7 +51,7 @@ export default function VideosPage() {
     {
       title: "操作",
       width: 200,
-      render: (_: unknown, record: VideoItem) => (
+      render: (_: unknown, record: VideoAsset) => (
         <Space>
           <Button size="mini" onClick={() => setPlaying(record)}>
             播放
@@ -107,7 +100,7 @@ export default function VideosPage() {
         footer={null}
         title={playing?.title}
       >
-        {playing ? <VideoPlayer fileId={playing.fileId} /> : null}
+        {playing ? <VideoPlayer video={playing} /> : null}
       </Drawer>
 
       <UploadModal visible={uploadVisible} onClose={() => setUploadVisible(false)} />
@@ -115,8 +108,8 @@ export default function VideosPage() {
   );
 }
 
-function VideoPlayer({ fileId }: { fileId: number }) {
-  const url = useFileURL(fileId);
+function VideoPlayer({ video }: { video: VideoAsset }) {
+  const url = useFileURL(video.fileId, video.url);
   if (!url) {
     return <div style={{ color: "#86909c" }}>加载中…</div>;
   }

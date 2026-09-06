@@ -28,8 +28,9 @@ func NewConfigService(db *gorm.DB) *ConfigService {
 }
 
 // ConfigGroups 合法配置组;新增配置组时在此登记。
+// 存储配置属运维项,已迁环境变量(.env.local,见 docs/mvp-plan.md 阶段 6),不再是配置组。
 
-var ConfigGroups = []string{"system", "storage"}
+var ConfigGroups = []string{"system"}
 
 // ValidConfigGroup 校验配置组合法性。
 

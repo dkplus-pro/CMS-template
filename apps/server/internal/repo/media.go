@@ -21,6 +21,7 @@ type File struct {
 	Mime       string    `gorm:"size:64" json:"mime"`
 	Size       int64     `gorm:"not null" json:"size"`
 	Storage    string    `gorm:"size:16;not null;default:local" json:"storage"`
+	Url        string    `gorm:"size:512;not null;default:''" json:"url"`
 	UploaderID int64     `gorm:"not null;default:0" json:"uploaderId"`
 	CreatedAt  time.Time `gorm:"not null" json:"createdAt"`
 }

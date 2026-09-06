@@ -3,6 +3,7 @@
 package media
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -12,7 +13,6 @@ import (
 	_ "image/jpeg"
 	_ "image/png"
 	"io"
-	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -76,21 +76,39 @@ type Asset struct {
 	Title     string
 	OrigName  string
 	Size      int64
-	Width     int // image
-	Height    int // image
+	URL       string // 外网访问地址(CDN 直链);local 存储为空串
+	Width     int    // image
+	Height    int    // image
 	Format    string
 	CreatedAt time.Time
 }
 
 // Upload 上传媒体:校验扩展名与大小 → 存介质 → files 记录 → 提取 → media_assets 记录。
+// 图片(≤10MB)先读入内存,Save 与宽高提取复用同一份字节,避免 OSS 上传后再回源下载;
+// 视频(≤200MB)流式上传,meta 暂无提取需求。
 func (s *Service) Upload(ctx context.Context, kind, origName, contentType string, r io.Reader, uploaderID int64) (Asset, error) {
 	ext := strings.ToLower(filepath.Ext(origName))
 	if err := validateType(kind, ext); err != nil {
 		return Asset{}, err
 	}
 
-	limited := io.LimitReader(r, maxBytes[kind]+1)
-	name, size, err := s.storage.Save(ctx, limited, strings.TrimPrefix(ext, "."))
+	var data []byte // 仅图片非空
+	var name string
+	var size int64
+	var err error
+	if kind == KindImage {
+		data, err = io.ReadAll(io.LimitReader(r, maxBytes[kind]+1))
+		if err != nil {
+			return Asset{}, fmt.Errorf("read upload: %w", err)
+		}
+		if int64(len(data)) > maxBytes[kind] {
+			return Asset{}, ErrTooLarge
+		}
+		name, size, err = s.storage.Save(ctx, bytes.NewReader(data), strings.TrimPrefix(ext, "."))
+	} else {
+		limited := io.LimitReader(r, maxBytes[kind]+1)
+		name, size, err = s.storage.Save(ctx, limited, strings.TrimPrefix(ext, "."))
+	}
 	if err != nil {
 		return Asset{}, err
 	}
@@ -101,14 +119,16 @@ func (s *Service) Upload(ctx context.Context, kind, origName, contentType string
 
 	file := repo.File{
 		OrigName: filepath.Base(origName), Name: name, Path: name,
-		Mime: contentType, Size: size, Storage: "local", UploaderID: uploaderID,
+		Mime: contentType, Size: size,
+		Storage: s.storage.Driver(), Url: s.storage.URL(name),
+		UploaderID: uploaderID,
 	}
 	if err := repo.CreateFile(ctx, s.db, &file); err != nil {
 		_ = s.storage.Delete(ctx, name)
 		return Asset{}, err
 	}
 
-	meta := s.extract(kind, name)
+	meta := extractMeta(kind, data)
 
 	asset := repo.MediaAsset{
 		Kind: kind, FileID: file.ID, Title: file.OrigName,
@@ -159,15 +179,15 @@ func (s *Service) GetFile(ctx context.Context, id int64) (repo.File, error) {
 	return repo.GetFileByID(ctx, s.db, id)
 }
 
-// Open 打开介质文件。
-func (s *Service) Open(ctx context.Context, name string) (*os.File, error) {
+// Open 打开介质文件(本地内容端点用;本地实现返回 *os.File,可断言 io.ReadSeeker)。
+func (s *Service) Open(ctx context.Context, name string) (io.ReadCloser, error) {
 	return s.storage.Open(ctx, name)
 }
 
 func (s *Service) toAsset(asset repo.MediaAsset, file repo.File) Asset {
 	out := Asset{
 		ID: asset.ID, FileID: asset.FileID, Title: asset.Title,
-		OrigName: file.OrigName, Size: file.Size, CreatedAt: asset.CreatedAt,
+		OrigName: file.OrigName, Size: file.Size, URL: file.Url, CreatedAt: asset.CreatedAt,
 	}
 	meta := decodeMeta(asset.Meta)
 	out.Width, _ = strconv.Atoi(meta["width"])
@@ -185,6 +205,8 @@ func (s *Service) toAssetE(ctx context.Context, asset repo.MediaAsset) (Asset, e
 }
 
 // Delete 删除媒体:级联删除底层文件记录与介质(记业务日志)。
+// 介质只在记录与当前驱动一致时删除;驱动切换后遗留的跨驱动记录只删库,
+// 对象清理由运维按旧驱动介质另行处理(不在此处用错驱动误删/报错)。
 func (s *Service) Delete(ctx context.Context, id int64) error {
 	asset, err := repo.GetMediaAssetByID(ctx, s.db, id)
 	if err != nil {
@@ -194,8 +216,10 @@ func (s *Service) Delete(ctx context.Context, id int64) error {
 	if err != nil {
 		return err
 	}
-	if err := s.storage.Delete(ctx, file.Name); err != nil {
-		return err
+	if file.Storage == s.storage.Driver() {
+		if err := s.storage.Delete(ctx, file.Name); err != nil {
+			return err
+		}
 	}
 	if err := repo.DeleteMediaAsset(ctx, s.db, id); err != nil {
 		return err
@@ -266,18 +290,13 @@ func validateType(kind, ext string) error {
 	return ErrInvalidType
 }
 
-// extract 按类型提取信息;图片解析宽高与格式(内容校验),视频/音频预留 ffprobe。
-func (s *Service) extract(kind, name string) map[string]string {
+// extractMeta 按类型提取信息;图片从上传字节解析宽高与格式(内容校验),视频/音频预留 ffprobe。
+func extractMeta(kind string, data []byte) map[string]string {
 	meta := map[string]string{}
-	if kind != KindImage {
+	if kind != KindImage || len(data) == 0 {
 		return meta // video/audio:预留 ffprobe 提取时长/分辨率,拿到后写进 meta 即可
 	}
-	file, err := s.storage.Open(context.Background(), name)
-	if err != nil {
-		return meta
-	}
-	defer file.Close()
-	cfg, format, err := image.DecodeConfig(file)
+	cfg, format, err := image.DecodeConfig(bytes.NewReader(data))
 	if err != nil {
 		return meta // 内容不是可解码图片,meta 留空;下次列表仍可见
 	}

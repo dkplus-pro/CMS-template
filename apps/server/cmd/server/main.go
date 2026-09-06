@@ -105,16 +105,26 @@ func main() {
 		os.Exit(1)
 	}
 
-	basePath, err := repo.GetConfigValue(ctx, db, "storage", "basePath")
+	// 文件存储装配:多厂商抽象(见 docs/mvp-plan.md 阶段 6),切换驱动 = 改 STORAGE_DRIVER + 重启。
+	var fileStorage storage.Storage
+	switch cfg.Storage.Driver {
+	case "cos":
+		fileStorage, err = storage.NewCOS(storage.COSConfig{
+			SecretID:  cfg.Storage.COS.SecretID,
+			SecretKey: cfg.Storage.COS.SecretKey,
+			Bucket:    cfg.Storage.COS.Bucket,
+			Region:    cfg.Storage.COS.Region,
+			CDNDomain: cfg.Storage.COS.CDNDomain,
+			Prefix:    cfg.Storage.COS.Prefix,
+		})
+	default:
+		fileStorage, err = storage.NewLocal(cfg.Storage.BasePath)
+	}
 	if err != nil {
-		logger.Error("read storage basePath", "error", err)
+		logger.Error("init file storage", "driver", cfg.Storage.Driver, "error", err)
 		os.Exit(1)
 	}
-	fileStorage, err := storage.NewLocal(basePath)
-	if err != nil {
-		logger.Error("init file storage", "error", err)
-		os.Exit(1)
-	}
+	logger.Info("file storage ready", "driver", fileStorage.Driver())
 	mediaService := media.NewService(db, fileStorage)
 
 	mux := http.NewServeMux()

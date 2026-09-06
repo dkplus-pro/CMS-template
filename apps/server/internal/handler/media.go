@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"io"
 	"net/http"
 	"os"
 	"strconv"
@@ -140,7 +141,8 @@ func (h *Handler) deleteMedia(w http.ResponseWriter, r *http.Request, id int64) 
 	httpapi.WriteJSON(w, http.StatusNoContent, nil)
 }
 
-// GetFileContent GET /files/{id}/content:文件字节流(图片预览/视频播放共用;登录即可)。
+// GetFileContent GET /files/{id}/content:文件内容(图片预览/视频播放共用;登录即可)。
+// OSS 记录(files.url 非空)302 到 CDN 直链;local 记录流式输出并保留 Range。
 func (h *Handler) GetFileContent(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	file, err := h.media.GetFile(r.Context(), int64(id))
 	if err != nil {
@@ -150,6 +152,11 @@ func (h *Handler) GetFileContent(w http.ResponseWriter, r *http.Request, id gen.
 		}
 		h.logger.Error("get file content", "error", err)
 		httpapi.WriteError(w, http.StatusInternalServerError, "internal server error")
+		return
+	}
+
+	if file.Url != "" {
+		http.Redirect(w, r, file.Url, http.StatusFound)
 		return
 	}
 
@@ -167,7 +174,11 @@ func (h *Handler) GetFileContent(w http.ResponseWriter, r *http.Request, id gen.
 
 	w.Header().Set("Content-Type", file.Mime)
 	w.Header().Set("Content-Length", strconv.FormatInt(file.Size, 10))
-	http.ServeContent(w, r, file.OrigName, file.CreatedAt, stream)
+	if seeker, ok := stream.(io.ReadSeeker); ok {
+		http.ServeContent(w, r, file.OrigName, file.CreatedAt, seeker)
+		return
+	}
+	_, _ = io.Copy(w, stream)
 }
 
 // toGenImage / toGenVideo:富化后的媒体资源 → 契约生成物。
@@ -192,6 +203,7 @@ func toGenImage(asset media.Asset) gen.ImageAsset {
 		Width:     width,
 		Height:    height,
 		Format:    format,
+		Url:       asset.URL,
 		CreatedAt: asset.CreatedAt,
 	}
 }
@@ -203,6 +215,7 @@ func toGenVideo(asset media.Asset) gen.VideoAsset {
 		Title:     asset.Title,
 		OrigName:  asset.OrigName,
 		Size:      asset.Size,
+		Url:       asset.URL,
 		CreatedAt: asset.CreatedAt,
 		// durationSeconds / resolution 预留,待 ffprobe 接入后填充
 	}

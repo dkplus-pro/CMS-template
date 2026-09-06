@@ -472,7 +472,7 @@ paths:
   /configs/{group}:
     get:
       operationId: getConfig
-      summary: 读取配置组(group = system / storage)
+      summary: 读取配置组(目前仅 system;存储配置已迁环境变量,见 docs/mvp-plan.md 阶段 6)
       tags:
         - configs
       parameters:
@@ -919,7 +919,6 @@ components:
         type: string
         enum:
           - system
-          - storage
   securitySchemes:
     bearerAuth:
       type: http
@@ -1433,6 +1432,7 @@ components:
         - title
         - origName
         - size
+        - url
         - createdAt
       properties:
         id:
@@ -1459,6 +1459,9 @@ components:
         format:
           type: string
           description: 实际格式,如 png / jpeg
+        url:
+          type: string
+          description: 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content
         createdAt:
           type: string
           format: date-time
@@ -1482,6 +1485,7 @@ components:
         - title
         - origName
         - size
+        - url
         - createdAt
       properties:
         id:
@@ -1506,6 +1510,9 @@ components:
           type: string
           nullable: true
           description: 分辨率,如 1920x1080;MVP 未接 ffprobe 时为空
+        url:
+          type: string
+          description: 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content
         createdAt:
           type: string
           format: date-time

@@ -83,13 +83,12 @@ func SeedSuperAdminRole(ctx context.Context, db *gorm.DB) error {
 	return ReplaceUserRoles(ctx, db, admin.ID, []int64{role.ID})
 }
 
-// SeedConfigs 幂等种子:初始站点与存储配置(value 为原样字符串,结构化数据自行 JSON 编码)。
+// SeedConfigs 幂等种子:初始站点配置(value 为原样字符串,结构化数据自行 JSON 编码)。
+// 存储配置已迁环境变量(.env.local,见 docs/mvp-plan.md 阶段 6),不再入库。
 func SeedConfigs(ctx context.Context, db *gorm.DB) error {
 	seeds := []SysConfig{
 		{Group: "system", Key: "siteName", Value: "CMS 管理后台", Remark: "站点名称"},
 		{Group: "system", Key: "logoUrl", Value: "", Remark: "Logo 图片地址"},
-		{Group: "storage", Key: "driver", Value: "local", Remark: "存储驱动(local / s3)"},
-		{Group: "storage", Key: "basePath", Value: "data/files", Remark: "本地存储目录"},
 	}
 	for _, seed := range seeds {
 		cfg := seed
@@ -98,6 +97,10 @@ func SeedConfigs(ctx context.Context, db *gorm.DB) error {
 			Create(&cfg).Error; err != nil {
 			return fmt.Errorf("seed config %s.%s: %w", seed.Group, seed.Key, err)
 		}
+	}
+	// 清理阶段 6 之前入库的 storage 配置组(自愈,幂等)。
+	if err := db.WithContext(ctx).Where("`group` = ?", "storage").Delete(&SysConfig{}).Error; err != nil {
+		return fmt.Errorf("prune legacy storage configs: %w", err)
 	}
 	return nil
 }
