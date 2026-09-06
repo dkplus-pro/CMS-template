@@ -120,6 +120,22 @@
 | uploader_id | int64        | 0 = 系统              |
 | created_at  |              |                       |
 
+### media_assets — 媒体资源(类型化上层;方案见 mvp-plan.md 阶段 5 修订)
+
+底层 files 只管存取,上层按媒体类型记录提取的信息;admin 只暴露图片/视频,音频同表预留。
+
+| 字段                    | 类型         | 说明                                                                |
+| ----------------------- | ------------ | ------------------------------------------------------------------- |
+| id                      | PK           |                                                                     |
+| kind                    | VARCHAR(16)  | image / video / audio;INDEX(kind)                                   |
+| file_id                 | int64        | 关联 files(存取与介质删除都经底层)                                  |
+| title                   | VARCHAR(255) | 展示标题,默认原始文件名                                             |
+| meta                    | TEXT         | 提取信息 JSON:图片 width/height/format;视频预留 duration/resolution |
+| uploader_id             | int64        | 0 = 系统                                                            |
+| created_at / updated_at |              |                                                                     |
+
+查询列表 JOIN files 取大小/原始文件名;删除媒体时级联删除 files 记录与介质文件。后续按类型扩展提取信息只动 Extractor 与 meta,不改表结构。
+
 ### sys_configs — 系统配置(KV)
 
 | 字段                    | 类型                   | 说明                       |
@@ -139,7 +155,7 @@ dict_items:id, dict_id int64(INDEX), label VARCHAR(64), value VARCHAR(64), sort 
 
 ## 关系与完整性
 
-关联只有三条 N-N/N-1:users↔roles(user_roles)、roles↔permissions(role_permissions)、dict_items→dicts(dict_id);logs 与 files 只冗余存 id/用户名快照,不构成强关联。
+关联只有三条 N-N/N-1:users↔roles(user_roles)、roles↔permissions(role_permissions)、dict_items→dicts(dict_id);media_assets→files(file_id,删除媒体级联删文件);logs 与 files 本身只冗余存 id/用户名快照,不构成强关联。
 
 没有数据库外键,service 层在删除时必须守护(均在同一事务内):
 

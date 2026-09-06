@@ -10,7 +10,7 @@
 - **分页**:入参 `page`、`pageSize`,返回 `{list, total}`;
 - **错误码**:400 参数错误 / 401 未登录或 token 失效 / 403 无权限 / 404 资源不存在 / 409 业务冲突(用户名重复、角色仍被绑定等)/ 500 服务端错误。
 
-## 接口清单(36 个)
+## 接口清单(40 个)
 
 ### 公共(阶段 0:1 个)
 
@@ -80,19 +80,25 @@
 
 > 字典项不设独立权限码,统一归入 `system:dict:update`(字典管理页内的动作)。
 
-### files 文件(阶段 5,可后置:5 个)
+### media 媒体资源(阶段 5,可后置;方案见 mvp-plan.md 阶段 5 修订:8 个 + content 1 个)
 
-| 方法   | 路径                 | 说明                                        | 权限码             |
-| ------ | -------------------- | ------------------------------------------- | ------------------ |
-| POST   | /files               | multipart 上传;大小/类型按 storage 配置限制 | system:file:upload |
-| GET    | /files               | 分页;筛选 keyword(原始文件名)               | system:file:list   |
-| GET    | /files/{id}          | 文件信息                                    | system:file:list   |
-| GET    | /files/{id}/download | 下载(MVP 放宽到登录即可,后续可收紧)         | 登录               |
-| DELETE | /files/{id}          | 删除(先删介质再删记录)                      | system:file:delete |
+底层为通用文件存储(files + storage 接口),上层按类型化媒体接口暴露;admin 只做图片/视频管理,不做通用文件管理页。音频(/audios)规划预留,本期不落契约。
+
+| 方法   | 路径                | 说明                                       | 权限码             |
+| ------ | ------------------- | ------------------------------------------ | ------------------ |
+| POST   | /images             | multipart 上传图片,提取宽高/格式           | media:image:upload |
+| GET    | /images             | 分页列表(含 meta)                          | media:image:list   |
+| GET    | /images/{id}        | 详情                                       | media:image:list   |
+| DELETE | /images/{id}        | 删除(级联底层文件)                         | media:image:delete |
+| POST   | /videos             | multipart 上传视频(meta 预留时长/分辨率)   | media:video:upload |
+| GET    | /videos             | 分页列表                                   | media:video:list   |
+| GET    | /videos/{id}        | 详情                                       | media:video:list   |
+| DELETE | /videos/{id}        | 删除(级联底层文件)                         | media:video:delete |
+| GET    | /files/{id}/content | 文件内容流(图片预览/视频播放共用;登录即可) | 登录               |
 
 ## 权限点汇总
 
-- **api 权限点 24 个**(上表权限码去重):user 5、role 5、menu 4、log 1、config 2、dict 4、file 3;以 server 路由注册表为源,启动时 upsert 进 permissions(type=api);
+- **api 权限点 27 个**(上表权限码去重):user 5、role 5、menu 4、log 1、config 2、dict 4、media 6;以 server 路由注册表为源,启动时 upsert 进 permissions(type=api);
 - **menu 权限点**:与前端静态菜单一一对应,code 形如 `menu:system:user`,由服务端路由注册表在启动时创建,用于角色授权树分组与菜单显隐;
 - 分配权限弹窗展示为一棵树:菜单节点(menu 点)下挂对应模块的 api 点。
 
@@ -107,11 +113,12 @@
 | /system/logs    | 操作日志(业务) | 4         | 详情抽屉;列:操作人/动作/资源/描述/结果/IP/时间 | operation-logs            |
 | /system/configs | 系统设置       | 4         | Tab:站点信息 / 存储配置                        | configs 2 个              |
 | /system/dicts   | 字典管理       | 4         | 字典表单弹窗、字典项表单弹窗(左右布局)         | dicts 8 个                |
-| /system/files   | 文件管理       | 5(可后置) | 上传弹窗、图片预览                             | files 5 个                |
+| /media/images   | 图片管理       | 5(可后置) | 上传弹窗、预览大图                             | images 4 个 + content     |
+| /media/videos   | 视频管理       | 5(可后置) | 上传弹窗、内嵌播放                             | videos 4 个 + content     |
 
 全局件(不算独立页面):布局壳(侧边栏/顶栏/面包屑,阶段 0)、修改密码弹窗(阶段 1)、404 兜底路由与 403 无权限提示块(阶段 0/2)。
 
-弹窗合计 8 个:用户×2、角色×2、字典×2、文件上传×1、修改密码×1。
+弹窗合计 9 个:用户×2、角色×2、字典×2、图片上传×1、视频上传×1、修改密码×1。
 
 ### 预判抽取的公共件(出现第二个用例即提升,见 admin.md 复用规则)
 
@@ -122,5 +129,5 @@
 ## 使用方式
 
 1. 新增/变更接口:先改本清单 → 落 `openapi.yaml` → `pnpm gen:api` → 前端直接调用生成函数(零手写)、后端补 handler/service/repo,清单与契约同一 PR;
-2. 排期核对:阶段交付时按下表打勾——接口 36 个、页面 9 个路由(8 业务 + 登录)、弹窗 8 个;
+2. 排期核对:阶段交付时按下表打勾——接口 40 个、页面 10 个路由(9 业务 + 登录)、弹窗 9 个;
 3. 页面开发顺序 = 表格"依赖接口"列就绪即可开工,不依赖后端整体完成。
