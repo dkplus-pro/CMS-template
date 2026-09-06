@@ -15,8 +15,7 @@ apps/admin/src/
     generated/           orval 生成物(类型 + 接口函数,勿手改)
   components/          公共组件(跨页面复用)
   hooks/               公共 hooks(跨页面复用的状态逻辑;useAuthMenus 提供动态菜单树)
-  pages/               页面组件(按领域分目录,由动态路由按菜单 component_key 渲染)
-  routes/              路由壳:layout(守卫/侧边栏)、login、欢迎页、$.tsx(404 + 动态分发)
+  routes/              页面层(Modern.js 约定路由;$.tsx 仅作 404 兜底)
   store/               客户端全局状态(zustand,每个领域一个 useXxxStore)
   utils/               公共工具函数
   constants/           公共常量
@@ -44,7 +43,8 @@ src/routes/article/
   - 新建编辑 = `Modal` + `Form`(简单场景不单独开页面);
 - 主题色、圆角等走 Arco 的 `ConfigProvider` token 定制,组件内不写死颜色;
 - 布局(侧边栏 + 顶栏 + 内容区)在全局 layout 中实现一次,页面只写内容区;
-- **动态路由**:登录后按 `/auth/menus` 生成侧边栏(树形,目录为 SubMenu)与路由(`routes/$.tsx` 按路径分发到 `config/component-registry.tsx` 白名单组件);页面新增 = 契约 + `pages/` 组件 + 注册表 key + 菜单管理里建菜单,**不改路由文件**。
+- **菜单是静态声明 + 权限过滤**(阶段 3 修订):`config/menu.ts` 声明菜单树(路径/名称/所需权限码),layout 按 `/auth/me` 的权限码过滤显隐;路由是 Modern.js 约定式静态路由;页面新增 = 契约 + routes 页面 + menu.ts 一行声明。**不使用服务端下发菜单或动态路由**,管理端也不提供菜单管理界面(使用方为非技术人员,不允许配置路径/组件 key)。
+- **权限码一致性**:menu.ts 的权限码必须与服务端路由注册表(`internal/httpapi/permission.go` 的 Menu 字段)同名,由代码评审保证。
 
 ## 状态管理
 

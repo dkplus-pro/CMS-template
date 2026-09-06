@@ -81,21 +81,6 @@
 | id                      | PK    |                                                     |
 | role_id / permission_id | int64 | UNIQUE(role_id, permission_id);INDEX(permission_id) |
 
-### menus — 菜单
-
-| 字段                    | 类型         | 说明                              |
-| ----------------------- | ------------ | --------------------------------- |
-| id                      | PK           |                                   |
-| parent_id               | int64,默认 0 | 树结构;INDEX(parent_id)           |
-| name                    | VARCHAR(64)  | 菜单名                            |
-| path                    | VARCHAR(128) | 路由路径                          |
-| component_key           | VARCHAR(64)  | 前端组件映射 key,目录留空         |
-| icon                    | VARCHAR(64)  | Arco 图标名,可空                  |
-| permission_id           | int64,默认 0 | 绑定的 menu 权限点                |
-| sort                    | int,默认 0   | 同级排序,小的在前                 |
-| visible                 | bool,默认 1  | 隐藏仍可直访路由(由 API 权限拦截) |
-| created_at / updated_at |              |                                   |
-
 ### operation_logs — 操作日志(只增)
 
 | 字段        | 类型         | 说明                                         |
@@ -148,7 +133,7 @@ dict_items:id, dict_id int64(INDEX), label VARCHAR(64), value VARCHAR(64), sort 
 
 ## 关系与完整性
 
-关联只有四条 N-N/N-1:users↔roles(user_roles)、roles↔permissions(role_permissions)、menus→permissions(permission_id)、dict_items→dicts(dict_id);logs 与 files 只冗余存 id/用户名快照,不构成强关联。
+关联只有三条 N-N/N-1:users↔roles(user_roles)、roles↔permissions(role_permissions)、dict_items→dicts(dict_id);logs 与 files 只冗余存 id/用户名快照,不构成强关联。
 
 没有数据库外键,service 层在删除时必须守护(均在同一事务内):
 

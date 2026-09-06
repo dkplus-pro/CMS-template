@@ -10,19 +10,19 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 
 ## 总体技术决策
 
-| 项         | 决策                                              | 说明                                                                                                                                                |
-| ---------- | ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 接口契约   | 根 `openapi.yaml` 单一事实源                      | tags 按模块划分(auth/users/roles/permissions/menus/logs/configs/dicts/files);server 用 oapi-codegen,admin 用 orval 生成类型 + 接口函数(见 admin.md) |
-| Swagger UI | server 暴露 `GET /swagger`                        | 直接托管根 `openapi.yaml`;dev 必开,生产由配置开关                                                                                                   |
-| 存储       | GORM:dev SQLite / prod MySQL                      | 双端同一套模型建表;表结构与迁移方案见 [database.md](./database.md)                                                                                  |
-| 认证       | JWT(HS256,Bearer)                                 | 有效期 2h,MVP 不做 refresh token 与服务端登出失效;密码 bcrypt                                                                                       |
-| 权限模型   | RBAC:user → role → permission                     | permission 分 `menu`(菜单/页面/按钮可见)与 `api`(接口/操作)两类,统一存一张表;数据权限不做                                                           |
-| 前端权限   | 登录后拉取权限码 + 可见菜单                       | 动态生成路由与侧边栏;按钮级用权限码控制显隐;**服务端中间件独立校验,前端显隐只是体验,不是安全边界**                                                  |
-| 响应约定   | `{code, message, data}`                           | 分页入参 `page`/`pageSize`,返回 `{list, total}`;错误用 HTTP 状态码 + message                                                                        |
-| 联调       | admin 开发态代理 `/api` → `http://localhost:8080` | 免 CORS;端口约定 server=8080、admin=8081                                                                                                            |
-| 前端数据层 | TanStack Query + orval axios 直调                 | 服务端状态用 `useQuery`/`useMutation` + `XxxController.xxx()`(见 admin.md);客户端全局状态用 zustand(`src/store/`)                                   |
-| 工具库     | lodash + ahooks                                   | 通用 React 逻辑优先 ahooks,纯数据操作优先 lodash;请求不用 ahooks useRequest                                                                         |
-| 文件存储   | storage 接口 + local 实现                         | 预留 S3 实现,不阻塞 MVP                                                                                                                             |
+| 项         | 决策                                              | 说明                                                                                                                                           |
+| ---------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| 接口契约   | 根 `openapi.yaml` 单一事实源                      | tags 按模块划分(auth/users/roles/permissions/logs/configs/dicts/files);server 用 oapi-codegen,admin 用 orval 生成类型 + 接口函数(见 admin.md)  |
+| Swagger UI | server 暴露 `GET /swagger`                        | 直接托管根 `openapi.yaml`;dev 必开,生产由配置开关                                                                                              |
+| 存储       | GORM:dev SQLite / prod MySQL                      | 双端同一套模型建表;表结构与迁移方案见 [database.md](./database.md)                                                                             |
+| 认证       | JWT(HS256,Bearer)                                 | 有效期 2h,MVP 不做 refresh token 与服务端登出失效;密码 bcrypt                                                                                  |
+| 权限模型   | RBAC:user → role → permission                     | permission 分 `menu`(菜单/页面/按钮可见)与 `api`(接口/操作)两类,统一存一张表;数据权限不做                                                      |
+| 前端权限   | 静态菜单 + 权限码过滤(阶段 3 修订)                | 菜单与路由由前端代码静态声明(路径/组件/权限码),登录后按 `/auth/me` 下发的权限码过滤显隐;**服务端中间件独立校验,前端显隐只是体验,不是安全边界** |
+| 响应约定   | `{code, message, data}`                           | 分页入参 `page`/`pageSize`,返回 `{list, total}`;错误用 HTTP 状态码 + message                                                                   |
+| 联调       | admin 开发态代理 `/api` → `http://localhost:8080` | 免 CORS;端口约定 server=8080、admin=8081                                                                                                       |
+| 前端数据层 | TanStack Query + orval axios 直调                 | 服务端状态用 `useQuery`/`useMutation` + `XxxController.xxx()`(见 admin.md);客户端全局状态用 zustand(`src/store/`)                              |
+| 工具库     | lodash + ahooks                                   | 通用 React 逻辑优先 ahooks,纯数据操作优先 lodash;请求不用 ahooks useRequest                                                                    |
+| 文件存储   | storage 接口 + local 实现                         | 预留 S3 实现,不阻塞 MVP                                                                                                                        |
 
 ## 数据模型(一览)
 
@@ -35,7 +35,6 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 | user_roles         | user_id, role_id                                                                         | 用户 ↔ 角色                              |
 | permissions        | id, code, type(menu/api), name, parent_id                                                | 统一权限点;code 见命名规范               |
 | role_permissions   | role_id, permission_id                                                                   | 角色 ↔ 权限,唯一关联表                   |
-| menus              | id, parent_id, name, path, component_key, sort, visible, permission_id                   | 菜单树;删除时联动处理权限点              |
 | operation_logs     | id, user_id, username, method, path, action, ok, status_code, ip, latency_ms, created_at | 只增不改                                 |
 | files              | id, name, orig_name, mime, size, storage, path, uploader_id                              | storage: local                           |
 | sys_configs        | group, key, value                                                                        | KV,value 存 JSON;group: system / storage |
@@ -48,7 +47,7 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 | 0    | 工程基座(契约流水线 + Swagger UI + 双端骨架) | S    | —    | —                 |
 | 1    | 登录与账号                                   | S    | 0    | —                 |
 | 2    | 用户 · 角色 · 权限(RBAC 核心,API 权限生效)   | L    | 1    | —                 |
-| 3    | 菜单管理与动态路由                           | M    | 2    | 与阶段 4 前半并行 |
+| 3    | 权限驱动的菜单(静态菜单方案,修订)            | S    | 2    | 与阶段 4 前半并行 |
 | 4    | 操作日志 · 系统基础配置                      | M    | 2    | 与阶段 3 并行     |
 | 5    | 文件管理(整体可后置)                         | M    | 4    | 独立              |
 
@@ -113,23 +112,32 @@ admin:用户列表页(搜索表格范式)+ 新建/编辑弹窗 + 状态 Switch +
 
 验收:无权限账号调用对应 API 返回 403;管理员可完成用户/角色/授权全流程;`/auth/me` 返回的权限码随授权变化。**本阶段已交付并验收**(service 单测覆盖守卫与授权链路,e2e 覆盖用户创建流程)。
 
-## 阶段 3:菜单管理与动态路由
+## 阶段 3:权限驱动的菜单(静态菜单方案,修订版)
 
-| 方法                | 路径                | 说明                               |
-| ------------------- | ------------------- | ---------------------------------- |
-| GET                 | /menus              | 全量菜单树(管理端)                 |
-| POST / PUT / DELETE | /menus, /menus/{id} | 菜单 CRUD(sort、visible、权限绑定) |
-| GET                 | /auth/menus         | 当前用户可见菜单树                 |
+> **方案修订说明**:本阶段曾按"菜单管理界面 + 服务端下发菜单树驱动动态路由"交付。实际使用方为非技术人员,让其在界面配置路由路径、组件 key、权限码不可接受且易错;且菜单结构变更本就伴随发版。修订为:**菜单与路由由前端代码静态声明,运行期只按权限码过滤显隐**。管理员只需要在角色管理里勾选权限(勾"用户管理"= 看得到用户菜单 + 能调相关接口),不再存在"菜单管理"这一概念。
 
-server:menus 表;`/auth/menus` 按 user → roles → permissions 过滤;菜单增删改时联动维护其 menu 权限点。
+### 新方案
 
-admin:
+- **菜单声明**:`apps/admin/src/config/menu.ts` 静态声明菜单树:路径、名称、图标、所需权限码、子菜单;权限码与服务端路由注册表(`internal/httpapi/permission.go` 的 Menu 字段)同名,由开发保证一致;
+- **路由**:回到 Modern.js 约定式静态路由(页面在 `routes/` 下按目录组织),`$.tsx` 仅作 404 兜底;新增页面 = routes 页面 + menu.ts 一行声明 + 契约接口,**不存在运行时组件分发**;
+- **侧边栏**:layout 按 `/auth/me` 下发的权限码过滤静态菜单声明——菜单绑定了权限码则要求命中,目录只要有任一可见子项即显示;面包屑取当前菜单名;
+- **权限点**:服务端路由注册表继续在启动时创建 `menu:` 权限点(用于角色授权树分组),与 menus 表无关;
+- **服务端**:不下发任何菜单数据;`/auth/me` 的 `permissions` 字段(已实现)即菜单显隐的全部依据。
 
-- 菜单管理页(`pages/system/menus.tsx`):树表格增删改、排序、显示/隐藏、权限码绑定;删除联动删除权限点;
-- 登录后按 `/auth/menus` 动态生成侧边栏与路由;页面组件移入 `src/pages/`,静态路由只保留壳(`$` 兜底路由按路径分发到 `config/component-registry.tsx` 白名单组件,禁止后端直接下发文件路径);
-- 按钮级显隐封装权限组件/工具(`hasPermission(code)`)。
+### 接口变化
 
-验收:调整角色权限后重新登录,菜单与按钮显隐随之变化;直接调用被限接口仍被服务端拒绝。**本阶段已交付并验收**(e2e 覆盖动态侧边栏与菜单管理页,单测覆盖组树与空目录剔除)。
+移除 5 个接口:`GET/POST /menus`、`GET/PUT/DELETE /menus/{id}`、`GET /auth/menus`;契约同步删除 MenuItem / MenuUpsertRequest / AuthMenuNode schemas 与 menus tag。`system:menu:*` 四个 api 权限点随注册表条目一并移除。
+
+### 从旧方案回退(代码层)
+
+阶段 3 已按旧方案交付,修订采用**原地修改而非整体回滚**(保留旧提交中的 permissions.Tree 指针挂载 bugfix 与 404 组件)。回退清单:
+
+- server:删 `internal/{repo,service,handler}/menu*.go`、menus 表模型与 AutoMigrate 条目、SeedMenus、注册表 4 条 system:menu:× 路由;`/auth/me` 与权限中间件不动;
+- admin:页面组件从 `src/pages/` 移回 `routes/`(users/roles);删 `config/component-registry.tsx`、`hooks/use-auth-menus.ts`、`pages/system/menus.tsx`;`$.tsx` 恢复为纯 404;layout 侧边栏改为"静态菜单 × 权限码过滤";
+- 契约:删 menus 块后 `pnpm gen:api`,前端 `MenusController`、`getAuthMenus` 自动消失;
+- 测试:e2e 去掉菜单管理页步骤,保留"调整角色权限 → 菜单显隐变化"断言。
+
+验收:角色未授权某菜单权限码时侧边栏不显示该菜单、直访路由得到 404/403;授权后重新登录可见;直接调用被限接口仍被服务端 403。
 
 ## 阶段 4:操作日志 · 系统基础配置(可与阶段 3 并行)
 
