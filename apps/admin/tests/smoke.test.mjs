@@ -93,7 +93,7 @@ test("stage 0 wires openapi contract pipeline and dev proxy to the go server", a
   assert.match(layoutSource, /APP_BASENAME/);
 
   const runtimeConfigSource = await readFile(
-    new URL("../src/runtime.config.ts", import.meta.url),
+    new URL("../src/modern.runtime.ts", import.meta.url),
     "utf8"
   );
   assert.match(runtimeConfigSource, /defineRuntimeConfig/);

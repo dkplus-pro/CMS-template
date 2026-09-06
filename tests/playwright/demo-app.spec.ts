@@ -4,6 +4,9 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   // 后台网页整体挂在 /admin 下(basename,见 docs/mvp-plan.md 阶段 8)。
   // 未登录访问业务页被守卫重定向到登录页(/admin/login)。
   await page.goto("/admin");
+  // basename 关键断言:守卫重定向后 URL 必须保留 /admin(发现过 runtime 配置文件名
+  // 不在约定上导致 basename 静默失效的回归,见 docs/mvp-plan.md 阶段 8 修补)。
+  await expect(page).toHaveURL(/\/admin\/login$/);
   await expect(page.getByRole("heading", { name: "CMS 管理后台" })).toBeVisible();
 
   // 错误口令被拒绝且停留在登录页。
@@ -15,6 +18,7 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   // 种子管理员登录成功进入欢迎页,healthz 经代理连通。
   await page.getByPlaceholder("密码").fill("admin123");
   await page.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(/\/admin\/?$/);
   await expect(page.getByRole("heading", { name: /hello from the admin app/i })).toBeVisible();
   await expect(page.getByText("Turborepo + pnpm template")).toBeVisible();
   await expect(page.getByText("在线")).toBeVisible();
@@ -30,6 +34,7 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
 
   // 用户管理:列表加载种子管理员,新建用户成功后出现在表格中。
   await page.getByText("用户管理").click();
+  await expect(page).toHaveURL(/\/admin\/system\/users$/);
   await expect(page.getByRole("cell", { name: "admin", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "新建用户" }).click();
   await page.getByPlaceholder("登录名").fill("bob");
@@ -82,5 +87,6 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   // 退出登录回到登录页。
   await page.getByText("管理员", { exact: true }).click();
   await page.getByText("退出登录").click();
+  await expect(page).toHaveURL(/\/admin\/login$/);
   await expect(page.getByRole("heading", { name: "CMS 管理后台" })).toBeVisible();
 });

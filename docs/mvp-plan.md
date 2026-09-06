@@ -338,7 +338,7 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 1. **API 前缀写进契约(字面),不做挂载期改写**:契约即部署真相——swagger 展示的就是生产路径;dev 代理从"rewrite 去前缀"简化为纯透传;网关规则退化为按前缀转发。admin.yaml 全部端点统一加 `/api/admin` 前缀(机械替换),site.yaml `/site/v1/*` → `/api/site/*`(阶段 7 的 `/site/v1` 约定自此修订)。
 2. **site 严格无版本位**(用户确认):`/api/site/...` 不保留 v1;site 契约维护规则同步改为"只加不删,破坏性变更整体协商"。
 3. **healthz 留在 admin 契约**,路径变 `/api/admin/healthz`(LB 探活打这个路径;`/swagger` 保持根级运维端点)。site 契约如需探活另行声明,不复用 admin 的。
-4. **网页侧 = SPA basename + 网关静态路由**:已核实 Modern.js 用 `defineRuntimeConfig({ router: { basename } })`(`src/runtime.config.ts`,basename 与 `src/constants` 的 `APP_BASENAME` 同源);layout 统一以"剥离 basename 的应用内路径"做登录判断/面包屑/菜单高亮(替代 implement 前的 `location.pathname === "/login"` 直比);生产构建 `assetPrefix=/admin/`(env 可覆盖,GitHub Pages 仓库 basePath 优先)。
+4. **网页侧 = SPA basename + 网关静态路由**:已核实 Modern.js 用 `defineRuntimeConfig({ router: { basename } })`,配置文件**必须**叫 `src/modern.runtime.ts`(约定名 `modern.runtime`;写成别的名字会被**静默忽略**,basename 失效且 e2e 若不断言 URL 无法察觉——本阶段交付后踩过此坑,已靠 e2e URL 断言兜底);basename 与 `src/constants` 的 `APP_BASENAME` 同源;layout 统一以"剥离 basename 的应用内路径"做登录判断/面包屑/菜单高亮;生产构建 `assetPrefix=/admin/`(env 可覆盖,GitHub Pages 仓库 basePath 优先)。
 5. **网关为唯一路由真相表**(生产 nginx 示例,执行后放 docs):
 
    ```nginx
@@ -368,7 +368,7 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 - `src/api/client.ts`:`BASE_URL = "/api"` 删除(契约路径已自带 `/api/admin`),取消无外部消费者的 `getToken`/`setToken` 导出;
 - `src/hooks/use-file-url.ts`:硬编码 `/api/files/...` → `/api/admin/files/...`;
 - `modern.config.ts`:dev proxy 去掉 `pathRewrite`(`/api` 原样透传到 server,与生产一致);生产 `assetPrefix=/admin/`(env `ADMIN_ASSET_PREFIX` 可覆盖,GitHub Pages 仓库 basePath 优先);
-- 路由 basename:新增 `src/runtime.config.ts`(`defineRuntimeConfig` 的 `router.basename`,与 `src/constants` 的 `APP_BASENAME` 同源);**防呆**:`layout.tsx` 以剥离 basename 后的 `appPathname` 统一做登录页判断/面包屑/侧边栏高亮(`location.pathname === "/login"` 直比在 basename 下失效);`navigate("/login")` 等编程式跳转由 basename 自动叠加,无需改;
+- 路由 basename:新增 `src/modern.runtime.ts`(`defineRuntimeConfig` 的 `router.basename`,与 `src/constants` 的 `APP_BASENAME` 同源;注意约定文件名,写成 `runtime.config.ts` 会被静默忽略);**防呆**:`layout.tsx` 以剥离 basename 后的 `appPathname` 统一做登录页判断/面包屑/侧边栏高亮(`location.pathname === "/login"` 直比在 basename 下失效),并靠 e2e 的 URL 断言兜底 basename 生效;`navigate("/login")` 等编程式跳转由 basename 自动叠加,无需改;
 - `config/menu.ts` 菜单 key 为应用内路径,basename 自动叠加,无需改。
 
 **e2e / 工具链**:
