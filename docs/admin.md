@@ -43,7 +43,7 @@ src/routes/article/
   - 新建编辑 = `Modal` + `Form`(简单场景不单独开页面);
 - 主题色、圆角等走 Arco 的 `ConfigProvider` token 定制,组件内不写死颜色;
 - 布局(侧边栏 + 顶栏 + 内容区)在全局 layout 中实现一次,页面只写内容区;
-- **菜单是静态声明 + 权限过滤**(阶段 3 修订):`config/menu.ts` 声明菜单树(路径/名称/所需权限码),layout 按 `/auth/me` 的权限码过滤显隐;路由是 Modern.js 约定式静态路由;页面新增 = 契约 + routes 页面 + menu.ts 一行声明。**不使用服务端下发菜单或动态路由**,管理端也不提供菜单管理界面(使用方为非技术人员,不允许配置路径/组件 key)。
+- **菜单是静态声明 + 权限过滤**(阶段 3 修订):`config/menu.ts` 声明菜单树(路径/名称/所需权限码),layout 按 `/auth/me` 的权限码过滤显隐;**最小颗粒度判定**:拥有菜单权限点本身,或该模块下任一 api 权限码(如仅有 `system:user:list`)即显示菜单,见 `hasMenuPermission`;路由是 Modern.js 约定式静态路由;页面新增 = 契约 + routes 页面 + menu.ts 一行声明。**不使用服务端下发菜单或动态路由**,管理端也不提供菜单管理界面(使用方为非技术人员,不允许配置路径/组件 key)。
 - **权限码一致性**:menu.ts 的权限码必须与服务端路由注册表(`internal/httpapi/permission.go` 的 Menu 字段)同名,由代码评审保证。
 
 ## 状态管理

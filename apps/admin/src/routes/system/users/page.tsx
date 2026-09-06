@@ -12,11 +12,12 @@ import {
   Tag
 } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { UserItem } from "../../../api/generated/cMSAdminAPI.schemas";
 import { RolesController, UsersController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
+import AuthGate from "../../../components/auth-gate";
 
 interface UserFormModalProps {
   visible: boolean;
@@ -112,8 +113,13 @@ interface UserRolesModalProps {
 }
 
 function UserRolesModal({ visible, user, onClose }: UserRolesModalProps) {
-  // unmountOnExit 保证每次打开重新挂载,以 user.roleIds 初始化选中项。
   const [roleIds, setRoleIds] = useState<number[]>(user?.roleIds ?? []);
+  // 回填:每次打开时以该用户已绑定的角色初始化选中项。
+  useEffect(() => {
+    if (visible) {
+      setRoleIds(user?.roleIds ?? []);
+    }
+  }, [visible, user]);
   const queryClient = useQueryClient();
 
   const rolesQuery = useQuery({
@@ -206,11 +212,13 @@ export default function UsersPage() {
       dataIndex: "status",
       width: 90,
       render: (_: unknown, record: UserItem) => (
-        <Switch
-          checked={record.status}
-          disabled={record.isBuiltin}
-          onChange={(enabled) => statusMutation.mutate({ id: record.id, enabled })}
-        />
+        <AuthGate permission="system:user:update">
+          <Switch
+            checked={record.status}
+            disabled={record.isBuiltin}
+            onChange={(enabled) => statusMutation.mutate({ id: record.id, enabled })}
+          />
+        </AuthGate>
       )
     },
     {
@@ -224,26 +232,32 @@ export default function UsersPage() {
       width: 230,
       render: (_: unknown, record: UserItem) => (
         <Space>
-          <Button
-            size="mini"
-            onClick={() => {
-              setEditing(record);
-              setFormVisible(true);
-            }}
-          >
-            编辑
-          </Button>
-          <Button size="mini" onClick={() => setRolesUser(record)}>
-            分配角色
-          </Button>
-          <Button
-            size="mini"
-            status="danger"
-            disabled={record.isBuiltin}
-            onClick={() => deleteUser(record)}
-          >
-            删除
-          </Button>
+          <AuthGate permission="system:user:update">
+            <Button
+              size="mini"
+              onClick={() => {
+                setEditing(record);
+                setFormVisible(true);
+              }}
+            >
+              编辑
+            </Button>
+          </AuthGate>
+          <AuthGate permission="system:user:assign">
+            <Button size="mini" onClick={() => setRolesUser(record)}>
+              分配角色
+            </Button>
+          </AuthGate>
+          <AuthGate permission="system:user:delete">
+            <Button
+              size="mini"
+              status="danger"
+              disabled={record.isBuiltin}
+              onClick={() => deleteUser(record)}
+            >
+              删除
+            </Button>
+          </AuthGate>
         </Space>
       )
     }
@@ -275,15 +289,17 @@ export default function UsersPage() {
             ]}
           />
         </Space>
-        <Button
-          type="primary"
-          onClick={() => {
-            setEditing(null);
-            setFormVisible(true);
-          }}
-        >
-          新建用户
-        </Button>
+        <AuthGate permission="system:user:create">
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditing(null);
+              setFormVisible(true);
+            }}
+          >
+            新建用户
+          </Button>
+        </AuthGate>
       </Space>
 
       <Table

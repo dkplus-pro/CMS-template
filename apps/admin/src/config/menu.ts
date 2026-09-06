@@ -21,7 +21,25 @@ export const sidebarMenus: MenuConfig[] = [
   }
 ];
 
-// 按权限码过滤菜单:叶子要求命中权限码,目录在任一子项可见时保留。
+// 菜单可见判定(最小颗粒度):拥有菜单权限点本身,或该模块下任一 api 权限码
+// (如 system:user:list)即视为可见,不要求完整勾选 menu:system:user。
+export function hasMenuPermission(
+  permission: string | undefined,
+  permissions: string[] | undefined
+): boolean {
+  if (!permission) {
+    return true;
+  }
+  if (!permissions?.length) {
+    return false;
+  }
+  const modulePrefix = permission.replace(/^menu:/, "");
+  return permissions.some(
+    (code) => code === permission || code === modulePrefix || code.startsWith(`${modulePrefix}:`)
+  );
+}
+
+// 按权限码过滤菜单:叶子按最小颗粒度判定,目录在任一子项可见时保留。
 export function filterMenusByPermissions(
   menus: MenuConfig[],
   permissions: string[] | undefined
@@ -35,7 +53,7 @@ export function filterMenusByPermissions(
       }
       continue;
     }
-    if (!menu.permission || permissions?.includes(menu.permission)) {
+    if (hasMenuPermission(menu.permission, permissions)) {
       result.push(menu);
     }
   }

@@ -12,11 +12,12 @@ import {
   Tree
 } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { RoleItem } from "../../../api/generated/cMSAdminAPI.schemas";
 import { PermissionsController, RolesController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
+import AuthGate from "../../../components/auth-gate";
 
 interface RoleFormModalProps {
   visible: boolean;
@@ -101,6 +102,12 @@ interface RolePermissionsModalProps {
 // 权限树:菜单权限点为根节点,API 权限点挂在其所属模块的菜单点下(见 docs/api-pages.md)。
 function RolePermissionsModal({ visible, role, onClose }: RolePermissionsModalProps) {
   const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
+  // 回填:每次打开时以角色已有的权限点初始化勾选。
+  useEffect(() => {
+    if (visible) {
+      setCheckedKeys((role?.permissionIds ?? []).map(String));
+    }
+  }, [visible, role]);
   const queryClient = useQueryClient();
 
   const treeQuery = useQuery({
@@ -220,11 +227,13 @@ export default function RolesPage() {
       dataIndex: "status",
       width: 90,
       render: (_: unknown, record: RoleItem) => (
-        <Switch
-          checked={record.status}
-          disabled={record.isBuiltin}
-          onChange={(enabled) => statusMutation.mutate({ id: record.id, enabled, role: record })}
-        />
+        <AuthGate permission="system:role:update">
+          <Switch
+            checked={record.status}
+            disabled={record.isBuiltin}
+            onChange={(enabled) => statusMutation.mutate({ id: record.id, enabled, role: record })}
+          />
+        </AuthGate>
       )
     },
     {
@@ -268,15 +277,17 @@ export default function RolesPage() {
             setPage(1);
           }}
         />
-        <Button
-          type="primary"
-          onClick={() => {
-            setEditing(null);
-            setFormVisible(true);
-          }}
-        >
-          新建角色
-        </Button>
+        <AuthGate permission="system:role:create">
+          <Button
+            type="primary"
+            onClick={() => {
+              setEditing(null);
+              setFormVisible(true);
+            }}
+          >
+            新建角色
+          </Button>
+        </AuthGate>
       </Space>
 
       <Table

@@ -32,7 +32,15 @@ test("admin uses static permission-filtered menus and generated controller layer
   const menuSource = await readFile(new URL("../src/config/menu.ts", import.meta.url), "utf8");
   assert.match(menuSource, /filterMenusByPermissions/);
   assert.match(menuSource, /"menu:system:user"/);
+  assert.match(menuSource, /hasMenuPermission/);
   assert.doesNotMatch(menuSource, /componentKey/i);
+
+  const authGateSource = await readFile(
+    new URL("../src/components/auth-gate.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(authGateSource, /Tooltip/);
+  assert.match(authGateSource, /usePermission/);
 
   const controllersGen = await readFile(
     new URL("../src/api/controllers.gen.ts", import.meta.url),
