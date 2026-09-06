@@ -1,4 +1,4 @@
-import { Button, Card, Input, Message, Space, Tabs } from "@arco-design/web-react";
+import { Button, Card, Input, Message, Space } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
@@ -6,23 +6,18 @@ import type { ConfigItem } from "../../../api/generated/cMSAdminAPI.schemas";
 import { ConfigsController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
 
-// 系统配置:Tab 按配置组(system / storage)展示,整组读取与保存(通用 KV 表单)。
+// 系统配置:展示站点信息(通用 KV 表单,整组读取与保存)。
+// 存储配置组(storage)是运维项且修改需重启生效,从管理端隐藏(服务端读取逻辑保留);
+// 若规划中解释性文案与消费方闭环后需要开放,再恢复该 Tab(见 docs/mvp-plan.md 阶段 4)。
 export default function ConfigsPage() {
   return (
     <Card>
-      <Tabs destroyOnHide>
-        <Tabs.TabPane title="站点信息" key="system">
-          <ConfigGroupForm group="system" />
-        </Tabs.TabPane>
-        <Tabs.TabPane title="存储配置" key="storage">
-          <ConfigGroupForm group="storage" />
-        </Tabs.TabPane>
-      </Tabs>
+      <ConfigGroupForm group="system" />
     </Card>
   );
 }
 
-function ConfigGroupForm({ group }: { group: "system" | "storage" }) {
+function ConfigGroupForm({ group }: { group: "system" }) {
   const queryClient = useQueryClient();
   const [values, setValues] = useState<Record<string, string>>({});
 

@@ -181,7 +181,7 @@ admin:用户列表页(搜索表格范式)+ 新建/编辑弹窗 + 状态 Switch +
 
 契约变化:`OperationLogItem` 换为上述业务字段(去掉 method/path/statusCode/latencyMs),筛选参数换为 `username/resource/action/status + startTime/endTime`;权限码 `system:log:list` 不变。
 
-server:业务日志表按新字段重建;各 service 在增删改方法落埋点;访问日志改文件输出 + 按天滚动清理;sys_configs、dicts/dict_items 不变;存储配置 MVP 仅保存不生效(阶段 5 消费)。
+server:业务日志表按新字段重建;各 service 在增删改方法落埋点;访问日志改文件输出 + 按天滚动清理;sys_configs、dicts/dict_items 不变;存储配置组由服务端启动时读取(local 目录),**管理端不展示**(运维项,修改需重启,见阶段 4)——后续接入 S3 或需要运行时调整时再开放。
 
 admin:日志页改为业务语义——列:操作人/动作/资源/描述/结果/IP/时间,筛选同步替换;详情抽屉同步;系统设置页与字典管理页不变。
 
