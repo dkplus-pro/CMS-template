@@ -1,3 +1,5 @@
+import type { ListOperationLogsStatus } from "../api/generated/cMSAdminAPI.schemas";
+
 // TanStack Query 的 queryKey 集中定义(规范见 docs/admin.md):
 // 结构为 [模块, 资源, ...参数],与 Controller 模块一一对应,禁止在页面里裸写字符串 key。
 export const queryKeys = {
@@ -24,9 +26,11 @@ export const queryKeys = {
       page: number,
       pageSize: number,
       username: string,
-      ok?: boolean,
+      resource?: string,
+      action?: string,
+      status?: ListOperationLogsStatus,
       range?: [string, string]
-    ) => ["logs", "list", { page, pageSize, username, ok, range }] as const
+    ) => ["logs", "list", { page, pageSize, username, resource, action, status, range }] as const
   },
   configs: {
     group: (group: string) => ["configs", group] as const

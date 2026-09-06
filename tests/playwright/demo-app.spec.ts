@@ -41,9 +41,10 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await page.getByText("角色管理").click();
   await expect(page.getByRole("button", { name: "新建角色" })).toBeVisible();
 
-  // 操作日志:e2e 前置流程已产生登录记录,表格应有数据。
+  // 操作日志(业务):创建/删除用户的动作已有描述条目,不出现 HTTP 路径列。
   await page.getByText("操作日志").click();
-  await expect(page.getByRole("cell", { name: "/auth/login" }).first()).toBeVisible();
+  await expect(page.getByText("创建用户 Bob(bob)").first()).toBeVisible();
+  await expect(page.getByText("user.create").first()).toBeVisible();
 
   // 系统配置:种子站点名称可见。
   await page.getByText("系统配置").click();

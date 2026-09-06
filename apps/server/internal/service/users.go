@@ -10,6 +10,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/cms-template/server/internal/oplog"
 	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/types"
 )
@@ -81,14 +82,26 @@ func (s *UserService) Create(ctx context.Context, username, password, nickname, 
 	if err := repo.CreateUser(ctx, s.db, &user, roleIDs); err != nil {
 		return types.UserItem{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "user.create", Resource: "user", ResourceID: user.Username,
+		Description: "创建用户 " + user.Nickname + "(" + user.Username + ")",
+	}, "")
 	return s.toUserItem(ctx, user)
 }
 
-// Update 编辑昵称/邮箱。
+// Update 编辑昵称/邮箱(记业务日志)。
 func (s *UserService) Update(ctx context.Context, id int64, nickname, email string) (types.UserItem, error) {
+	user, err := repo.GetUserByID(ctx, s.db, id)
+	if err != nil {
+		return types.UserItem{}, err
+	}
 	if err := repo.UpdateUserProfile(ctx, s.db, id, nickname, email); err != nil {
 		return types.UserItem{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "user.update", Resource: "user", ResourceID: user.Username,
+		Description: "编辑用户 " + user.Nickname + "(" + user.Username + ")",
+	}, "")
 	return s.Get(ctx, id)
 }
 
@@ -102,9 +115,24 @@ func (s *UserService) UpdateStatus(ctx context.Context, operatorID, id int64, st
 		return err
 	}
 	if user.IsBuiltin {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "user.updateStatus", Resource: "user", ResourceID: user.Username,
+			Description: "禁用/启用用户失败:内置管理员不可操作",
+		}, "")
 		return ErrBuiltinUser
 	}
-	return repo.UpdateUserStatus(ctx, s.db, id, status)
+	if err := repo.UpdateUserStatus(ctx, s.db, id, status); err != nil {
+		return err
+	}
+	verb := "启用"
+	if !status {
+		verb = "禁用"
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "user.updateStatus", Resource: "user", ResourceID: user.Username,
+		Description: verb + "用户 " + user.Nickname + "(" + user.Username + ")",
+	}, "")
+	return nil
 }
 
 // Delete 删除用户;不可操作自己与内置管理员。
@@ -117,14 +145,36 @@ func (s *UserService) Delete(ctx context.Context, operatorID, id int64) error {
 		return err
 	}
 	if user.IsBuiltin {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "user.delete", Resource: "user", ResourceID: user.Username,
+			Description: "删除用户失败:内置管理员不可删除",
+		}, "")
 		return ErrBuiltinUser
 	}
-	return repo.DeleteUser(ctx, s.db, id)
+	if err := repo.DeleteUser(ctx, s.db, id); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "user.delete", Resource: "user", ResourceID: user.Username,
+		Description: "删除用户 " + user.Nickname + "(" + user.Username + ")",
+	}, "")
+	return nil
 }
 
-// UpdateRoles 分配角色(全量覆盖)。
+// UpdateRoles 分配角色(全量覆盖,记业务日志)。
 func (s *UserService) UpdateRoles(ctx context.Context, id int64, roleIDs []int64) error {
-	return repo.ReplaceUserRoles(ctx, s.db, id, roleIDs)
+	user, err := repo.GetUserByID(ctx, s.db, id)
+	if err != nil {
+		return err
+	}
+	if err := repo.ReplaceUserRoles(ctx, s.db, id, roleIDs); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "user.assignRoles", Resource: "user", ResourceID: user.Username,
+		Description: fmt.Sprintf("为用户 %s(%s) 分配 %d 个角色", user.Nickname, user.Username, len(roleIDs)),
+	}, "")
+	return nil
 }
 
 // PermissionCodes 供权限中间件加载用户权限码(经角色聚合)。

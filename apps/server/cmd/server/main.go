@@ -5,7 +5,7 @@ package main
 import (
 	"context"
 	"errors"
-	"log/slog"
+	"fmt"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,13 +21,21 @@ import (
 )
 
 func main() {
-	logger := slog.New(slog.NewTextHandler(os.Stdout, nil))
-
 	cfg, err := config.Load()
 	if err != nil {
-		logger.Error("load config", "error", err)
+		_, _ = fmt.Fprintln(os.Stderr, "load config:", err)
 		os.Exit(1)
 	}
+
+	// 访问日志双轨:stdout + 按天滚动文件,过期自动清理;业务日志另见 internal/oplog。
+	accessLogger, closeAccessLog, err := httpapi.NewAccessLogger(
+		cfg.AccessLog.Dir, "server", cfg.AccessLog.RetainDays)
+	if err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, "init access log:", err)
+		os.Exit(1)
+	}
+	defer closeAccessLog()
+	logger := accessLogger
 
 	ctx := context.Background()
 
@@ -103,31 +111,15 @@ func main() {
 	loadPermissionCodes := func(ctx context.Context, userID int64) ([]string, error) {
 		return usersService.PermissionCodes(ctx, userID)
 	}
-	operationLog := httpapi.OperationLog(func(ctx context.Context, entry httpapi.OperationLogEntry) {
-		if err := repo.CreateOperationLog(ctx, db, repo.OperationLogEntry{
-			UserID:     entry.UserID,
-			Username:   entry.Username,
-			Method:     entry.Method,
-			Path:       entry.Path,
-			Action:     entry.Action,
-			OK:         entry.OK,
-			StatusCode: entry.StatusCode,
-			Message:    entry.Message,
-			IP:         entry.IP,
-			LatencyMS:  entry.LatencyMS,
-		}); err != nil {
-			logger.Error("write operation log", "error", err)
-		}
-	})
 
 	srv := &http.Server{
 		Addr: cfg.HTTP.Addr,
 		Handler: httpapi.Chain(
 			mux,
+			httpapi.ClientIP(),
 			httpapi.Logging(logger),
 			httpapi.JWTAuth(logger, cfg.JWT.Secret, jwtSkip),
 			httpapi.PermissionCheck(loadPermissionCodes, logger),
-			operationLog,
 			httpapi.Recover(logger),
 		),
 		ReadHeaderTimeout: 5 * time.Second,

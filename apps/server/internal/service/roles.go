@@ -3,9 +3,11 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"gorm.io/gorm"
 
+	"github.com/cms-template/server/internal/oplog"
 	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/types"
 )
@@ -82,6 +84,10 @@ func (s *RoleService) Create(ctx context.Context, code, name, remark string, sta
 	if err := repo.CreateRole(ctx, s.db, &role); err != nil {
 		return types.RoleItem{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "role.create", Resource: "role", ResourceID: code,
+		Description: "创建角色 " + name + "(" + code + ")",
+	}, "")
 	return s.toRoleItem(ctx, role)
 }
 
@@ -98,6 +104,10 @@ func (s *RoleService) Update(ctx context.Context, id int64, code, name, remark s
 	if err := repo.UpdateRole(ctx, s.db, &role); err != nil {
 		return types.RoleItem{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "role.update", Resource: "role", ResourceID: code,
+		Description: "更新角色 " + name + "(" + code + ")",
+	}, "")
 	return s.toRoleItem(ctx, role)
 }
 
@@ -108,6 +118,10 @@ func (s *RoleService) Delete(ctx context.Context, id int64) error {
 		return err
 	}
 	if role.IsBuiltin {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "role.delete", Resource: "role", ResourceID: role.Code,
+			Description: "删除角色失败:内置角色不可删除",
+		}, "")
 		return ErrBuiltinRole
 	}
 	bound, err := repo.CountUsersByRoleID(ctx, s.db, id)
@@ -115,14 +129,26 @@ func (s *RoleService) Delete(ctx context.Context, id int64) error {
 		return err
 	}
 	if bound > 0 {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "role.delete", Resource: "role", ResourceID: role.Code,
+			Description: "删除角色失败:仍有用户绑定",
+		}, "")
 		return ErrRoleInUse
 	}
-	return repo.DeleteRole(ctx, s.db, id)
+	if err := repo.DeleteRole(ctx, s.db, id); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "role.delete", Resource: "role", ResourceID: role.Code,
+		Description: "删除角色 " + role.Name + "(" + role.Code + ")",
+	}, "")
+	return nil
 }
 
-// UpdatePermissions 角色分配权限(全量覆盖,校验权限点存在)。
+// UpdatePermissions 角色分配权限(全量覆盖,校验权限点存在,记业务日志)。
 func (s *RoleService) UpdatePermissions(ctx context.Context, roleID int64, permissionIDs []int64) error {
-	if _, err := repo.GetRoleByID(ctx, s.db, roleID); err != nil {
+	role, err := repo.GetRoleByID(ctx, s.db, roleID)
+	if err != nil {
 		return err
 	}
 	for _, pid := range permissionIDs {
@@ -131,10 +157,21 @@ func (s *RoleService) UpdatePermissions(ctx context.Context, roleID int64, permi
 			return err
 		}
 		if count == 0 {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "role.assignPermissions", Resource: "role", ResourceID: role.Code,
+				Description: fmt.Sprintf("为角色 %s 分配权限失败:包含不存在的权限点", role.Name),
+			}, "")
 			return ErrPermissionInvalid
 		}
 	}
-	return repo.ReplaceRolePermissions(ctx, s.db, roleID, permissionIDs)
+	if err := repo.ReplaceRolePermissions(ctx, s.db, roleID, permissionIDs); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "role.assignPermissions", Resource: "role", ResourceID: role.Code,
+		Description: fmt.Sprintf("为角色 %s(%s) 分配 %d 个权限点", role.Name, role.Code, len(permissionIDs)),
+	}, "")
+	return nil
 }
 
 func (s *RoleService) toRoleItem(ctx context.Context, role repo.Role) (types.RoleItem, error) {

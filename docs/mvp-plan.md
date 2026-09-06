@@ -185,9 +185,9 @@ server:业务日志表按新字段重建;各 service 在增删改方法落埋点
 
 admin:日志页改为业务语义——列:操作人/动作/资源/描述/结果/IP/时间,筛选同步替换;详情抽屉同步;系统设置页与字典管理页不变。
 
-验收:创建/删除用户后,日志页出现"创建用户 bob""删除用户 Bob(bob)"等人话条目;查询操作不产生日志;HTTP 访问日志只在文件里,按天滚动且过期清理。
+验收:创建/删除用户后,日志页出现"创建用户 Bob(bob)""删除用户 Bob(bob)"等人话条目;查询操作不产生日志;HTTP 访问日志只在文件里,按天滚动且过期清理。**本阶段已按修订方案交付并验收**(e2e 断言业务文案,单测覆盖埋点与筛选)。
 
-### 从旧方案回退(代码层,暂不执行)
+### 从旧方案回退(代码层,**已执行**)
 
 - server:删 `httpapi.OperationLog` 中间件与 main 装配(Logging 中间件保留并加文件输出/清理);`operation_logs` 模型改业务字段(action 唯一新索引:`resource + resource_id`);新增 `internal/oplog`(Entry + Record);逐个 service 方法补埋点;登录失败在 auth service 记录;
 - 契约:schema 与筛选参数改后 `pnpm gen:api`;

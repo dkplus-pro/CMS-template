@@ -9,6 +9,7 @@ import (
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
+	"github.com/cms-template/server/internal/oplog"
 	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/types"
 )
@@ -323,18 +324,19 @@ func TestStage4Services(t *testing.T) {
 
 	// 日志:筛选条件生效(先造一条失败记录)。
 	if err := db.Create(&repo.OperationLog{
-		UserID: 1, Username: "admin", Method: "POST", Path: "/x", OK: false, StatusCode: 500, CreatedAt: time.Now(),
+		UserID: 1, Username: "admin", Action: "user.delete", Resource: "user",
+		ResourceID: "1", Description: "删除用户 张三", Status: oplog.StatusFailed, CreatedAt: time.Now(),
 	}).Error; err != nil {
 		t.Fatalf("seed log: %v", err)
 	}
-	if _, total, err := logs.List(ctx, 1, 20, "admin", nil, nil, nil); err != nil || total != 1 {
+	if _, total, err := logs.List(ctx, 1, 20, "admin", "", "", nil, nil, nil); err != nil || total != 1 {
 		t.Fatalf("unexpected logs: %d, %v", total, err)
 	}
-	if _, total, err := logs.List(ctx, 1, 20, "nobody", nil, nil, nil); err != nil || total != 0 {
+	if _, total, err := logs.List(ctx, 1, 20, "nobody", "", "", nil, nil, nil); err != nil || total != 0 {
 		t.Fatalf("expected 0 for unknown user, got %d, %v", total, err)
 	}
-	notOK := false
-	if _, total, err := logs.List(ctx, 1, 20, "", &notOK, nil, nil); err != nil || total != 1 {
+	notOK := "failed"
+	if _, total, err := logs.List(ctx, 1, 20, "", "", "", &notOK, nil, nil); err != nil || total != 1 {
 		t.Fatalf("expected 1 failed log, got %d, %v", total, err)
 	}
 }

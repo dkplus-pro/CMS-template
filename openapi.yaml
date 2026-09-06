@@ -432,10 +432,23 @@ paths:
           schema:
             type: string
           description: 按操作人模糊匹配
-        - name: ok
+        - name: resource
           in: query
           schema:
-            type: boolean
+            type: string
+          description: 资源类型精确匹配,如 user / role
+        - name: action
+          in: query
+          schema:
+            type: string
+          description: 动作精确匹配,如 user.delete
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum:
+              - success
+              - failed
           description: 成功/失败筛选
         - name: startTime
           in: query
@@ -1029,11 +1042,10 @@ components:
       required:
         - id
         - userId
-        - method
-        - path
-        - ok
-        - statusCode
-        - latencyMs
+        - action
+        - resource
+        - description
+        - status
         - createdAt
       properties:
         id:
@@ -1044,22 +1056,24 @@ components:
           format: int64
         username:
           type: string
-        method:
-          type: string
-        path:
-          type: string
+          description: 操作人快照;登录失败记尝试的登录名
         action:
           type: string
-        ok:
-          type: boolean
-        statusCode:
-          type: integer
-        message:
+          description: 资源.动作,如 user.delete
+        resource:
           type: string
+        resourceId:
+          type: string
+        description:
+          type: string
+          description: 人话描述,如"删除用户 张三(zhangsan)"
+        status:
+          type: string
+          enum:
+            - success
+            - failed
         ip:
           type: string
-        latencyMs:
-          type: integer
         createdAt:
           type: string
           format: date-time

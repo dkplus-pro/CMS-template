@@ -12,50 +12,59 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
-import type { OperationLogItem } from "../../../api/generated/cMSAdminAPI.schemas";
+import type {
+  ListOperationLogsStatus,
+  OperationLogItem
+} from "../../../api/generated/cMSAdminAPI.schemas";
 import { LogsController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
 
-// 操作日志:只读查询页(谁/时间/什么接口/成败),详情用抽屉展示。
+// 业务操作日志:只读查询页(谁在什么时间对什么对象做了什么、结果如何),给运营查看。
+// HTTP 访问日志不入库、只写服务器文件(见 docs/mvp-plan.md 阶段 4 修订)。
 export default function LogsPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
   const [username, setUsername] = useState("");
-  const [ok, setOk] = useState<boolean | undefined>(undefined);
+  const [resource, setResource] = useState<string | undefined>(undefined);
+  const [action, setAction] = useState<string>("");
+  const [status, setStatus] = useState<ListOperationLogsStatus | undefined>(undefined);
   const [range, setRange] = useState<[string, string] | undefined>(undefined);
   const [detail, setDetail] = useState<OperationLogItem | null>(null);
 
   const listQuery = useQuery({
-    queryKey: queryKeys.logs.list(page, pageSize, username, ok, range),
+    queryKey: queryKeys.logs.list(page, pageSize, username, resource, action, status, range),
     queryFn: () =>
       LogsController.listOperationLogs({
         page,
         pageSize,
         username: username || undefined,
-        ok,
+        resource,
+        action: action || undefined,
+        status,
         startTime: range?.[0],
         endTime: range?.[1]
       })
   });
 
   const columns = [
-    { title: "ID", dataIndex: "id", width: 80 },
     { title: "操作人", dataIndex: "username", width: 110 },
+    { title: "动作", dataIndex: "action", width: 180 },
     {
-      title: "请求",
-      width: 220,
-      render: (_: unknown, record: OperationLogItem) => `${record.method} ${record.path}`
+      title: "资源",
+      dataIndex: "resource",
+      width: 120,
+      render: (value: string, record: OperationLogItem) =>
+        record.resourceId ? `${value}:${record.resourceId}` : value
     },
+    { title: "描述", dataIndex: "description" },
     {
       title: "结果",
-      dataIndex: "ok",
+      dataIndex: "status",
       width: 90,
-      render: (value: boolean) =>
-        value ? <Tag color="green">成功</Tag> : <Tag color="red">失败</Tag>
+      render: (value: string) =>
+        value === "success" ? <Tag color="green">成功</Tag> : <Tag color="red">失败</Tag>
     },
-    { title: "状态码", dataIndex: "statusCode", width: 90 },
     { title: "IP", dataIndex: "ip", width: 130 },
-    { title: "耗时(ms)", dataIndex: "latencyMs", width: 100 },
     {
       title: "时间",
       dataIndex: "createdAt",
@@ -75,26 +84,45 @@ export default function LogsPage() {
 
   return (
     <Card>
-      <Space style={{ marginBottom: 16 }}>
+      <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search
           placeholder="搜索操作人"
-          style={{ width: 200 }}
+          style={{ width: 180 }}
           onSearch={(value) => {
             setUsername(value);
             setPage(1);
           }}
         />
+        <Input
+          placeholder="动作,如 user.delete"
+          style={{ width: 180 }}
+          allowClear
+          onChange={(value) => setAction(value)}
+        />
         <Select
-          placeholder="结果"
-          style={{ width: 120 }}
+          placeholder="资源"
+          style={{ width: 130 }}
           allowClear
           onChange={(value) => {
-            setOk(value === undefined ? undefined : value === 1);
+            setResource(value);
+            setPage(1);
+          }}
+          options={["user", "role", "config", "dict", "dictEntry"].map((value) => ({
+            label: value,
+            value
+          }))}
+        />
+        <Select
+          placeholder="结果"
+          style={{ width: 110 }}
+          allowClear
+          onChange={(value) => {
+            setStatus(value);
             setPage(1);
           }}
           options={[
-            { label: "成功", value: 1 },
-            { label: "失败", value: 0 }
+            { label: "成功", value: "success" },
+            { label: "失败", value: "failed" }
           ]}
         />
         <DatePicker.RangePicker
@@ -103,7 +131,6 @@ export default function LogsPage() {
           onChange={(values, dateString) => {
             const start = dateString?.[0];
             const end = dateString?.[1];
-            // Arco 第二个参数是格式化字符串;服务端要 RFC3339,统一转 ISO。
             if (start && end) {
               setRange([
                 new Date(String(start)).toISOString(),
@@ -143,14 +170,17 @@ export default function LogsPage() {
         {detail ? (
           <Space direction="vertical" style={{ width: "100%" }} size={12}>
             <DetailRow label="操作人" value={detail.username || "(未登录)"} />
-            <DetailRow label="请求" value={`${detail.method} ${detail.path}`} />
-            {detail.action ? <DetailRow label="操作" value={detail.action} /> : null}
-            <DetailRow label="结果" value={detail.ok ? "成功" : "失败"} />
-            <DetailRow label="状态码" value={String(detail.statusCode)} />
+            <DetailRow label="动作" value={detail.action} />
+            <DetailRow
+              label="资源"
+              value={
+                detail.resourceId ? `${detail.resource}:${detail.resourceId}` : detail.resource
+              }
+            />
+            <DetailRow label="结果" value={detail.status === "success" ? "成功" : "失败"} />
             <DetailRow label="IP" value={detail.ip || "-"} />
-            <DetailRow label="耗时" value={`${detail.latencyMs} ms`} />
             <DetailRow label="时间" value={new Date(detail.createdAt).toLocaleString("zh-CN")} />
-            {detail.message ? <DetailRow label="失败原因" value={detail.message} /> : null}
+            <DetailRow label="描述" value={detail.description} />
           </Space>
         ) : null}
       </Drawer>

@@ -7,6 +7,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"github.com/cms-template/server/internal/oplog"
 	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/types"
 )
@@ -28,15 +29,15 @@ func NewLogService(db *gorm.DB) *LogService {
 	return &LogService{db: db}
 }
 
-// List 操作日志分页。
+// List 业务操作日志分页(查询操作本身不记日志)。
 func (s *LogService) List(
 	ctx context.Context,
 	page, pageSize int,
-	username string,
-	ok *bool,
+	username, resource, action string,
+	status *string,
 	startTime, endTime *time.Time,
 ) ([]types.OperationLogItem, int64, error) {
-	logs, total, err := repo.ListOperationLogs(ctx, s.db, page, pageSize, username, ok, startTime, endTime)
+	logs, total, err := repo.ListOperationLogs(ctx, s.db, page, pageSize, username, resource, action, status, startTime, endTime)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -45,9 +46,9 @@ func (s *LogService) List(
 	for _, log := range logs {
 		items = append(items, types.OperationLogItem{
 			ID: log.ID, UserID: log.UserID, Username: log.Username,
-			Method: log.Method, Path: log.Path, Action: log.Action,
-			OK: log.OK, StatusCode: log.StatusCode, Message: log.Message,
-			IP: log.IP, LatencyMS: log.LatencyMS, CreatedAt: log.CreatedAt,
+			Action: log.Action, Resource: log.Resource, ResourceID: log.ResourceID,
+			Description: log.Description, Status: log.Status,
+			IP: log.IP, CreatedAt: log.CreatedAt,
 		})
 	}
 	return items, total, nil
@@ -92,7 +93,7 @@ func (s *ConfigService) Get(ctx context.Context, group string) ([]types.ConfigIt
 	return items, nil
 }
 
-// Replace 整组更新配置。
+// Replace 整组更新配置(记业务日志)。
 func (s *ConfigService) Replace(ctx context.Context, group string, items []types.ConfigItem, operatorID int64) error {
 	if !ValidConfigGroup(group) {
 		return ErrInvalidConfigGroup
@@ -101,7 +102,16 @@ func (s *ConfigService) Replace(ctx context.Context, group string, items []types
 	for _, item := range items {
 		configs = append(configs, repo.SysConfig{Key: item.Key, Value: item.Value, Remark: item.Remark})
 	}
-	return repo.ReplaceConfigs(ctx, s.db, group, configs, operatorID)
+	if err := repo.ReplaceConfigs(ctx, s.db, group, configs, operatorID); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action:      "config.update",
+		Resource:    "config",
+		ResourceID:  group,
+		Description: "更新配置组 " + group,
+	}, "")
+	return nil
 }
 
 // DictService 字典管理业务。
@@ -140,6 +150,10 @@ func (s *DictService) Create(ctx context.Context, code, name, remark string, sta
 	if err := repo.CreateDict(ctx, s.db, &dict); err != nil {
 		return types.Dict{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "dict.create", Resource: "dict", ResourceID: code,
+		Description: "创建字典 " + name + "(" + code + ")",
+	}, "")
 	return types.Dict{ID: dict.ID, Code: dict.Code, Name: dict.Name, Remark: dict.Remark, Status: dict.Status}, nil
 }
 
@@ -158,15 +172,27 @@ func (s *DictService) Update(ctx context.Context, id int64, code, name, remark s
 	if err := repo.UpdateDict(ctx, s.db, &dict); err != nil {
 		return types.Dict{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "dict.update", Resource: "dict", ResourceID: code,
+		Description: "更新字典 " + name + "(" + code + ")",
+	}, "")
 	return types.Dict{ID: dict.ID, Code: dict.Code, Name: dict.Name, Remark: dict.Remark, Status: dict.Status}, nil
 }
 
-// Delete 删除字典(级联字典项)。
+// Delete 删除字典(级联字典项,记业务日志)。
 func (s *DictService) Delete(ctx context.Context, id int64) error {
-	if _, err := repo.GetDictByID(ctx, s.db, id); err != nil {
+	dict, err := repo.GetDictByID(ctx, s.db, id)
+	if err != nil {
 		return err
 	}
-	return repo.DeleteDict(ctx, s.db, id)
+	if err := repo.DeleteDict(ctx, s.db, id); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "dict.delete", Resource: "dict", ResourceID: dict.Code,
+		Description: "删除字典 " + dict.Name + "(" + dict.Code + ")",
+	}, "")
+	return nil
 }
 
 // ListEntries 字典项列表(按字典编码)。
@@ -201,6 +227,10 @@ func (s *DictService) CreateEntry(ctx context.Context, code, label, value string
 	if err := repo.CreateDictEntry(ctx, s.db, &entry); err != nil {
 		return types.DictEntry{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "dictEntry.create", Resource: "dictEntry", ResourceID: dict.Code,
+		Description: "字典 " + dict.Name + " 新增字典项 " + label + "(" + value + ")",
+	}, "")
 	return toEntryItem(entry), nil
 }
 
@@ -219,15 +249,27 @@ func (s *DictService) UpdateEntry(ctx context.Context, id int64, label, value st
 	if err := repo.UpdateDictEntry(ctx, s.db, &entry); err != nil {
 		return types.DictEntry{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "dictEntry.update", Resource: "dictEntry", ResourceID: value,
+		Description: "更新字典项 " + label + "(" + value + ")",
+	}, "")
 	return toEntryItem(entry), nil
 }
 
-// DeleteEntry 删除字典项。
+// DeleteEntry 删除字典项(记业务日志)。
 func (s *DictService) DeleteEntry(ctx context.Context, id int64) error {
-	if _, err := repo.GetDictEntryByID(ctx, s.db, id); err != nil {
+	entry, err := repo.GetDictEntryByID(ctx, s.db, id)
+	if err != nil {
 		return err
 	}
-	return repo.DeleteDictEntry(ctx, s.db, id)
+	if err := repo.DeleteDictEntry(ctx, s.db, id); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "dictEntry.delete", Resource: "dictEntry", ResourceID: entry.Value,
+		Description: "删除字典项 " + entry.Label + "(" + entry.Value + ")",
+	}, "")
+	return nil
 }
 
 func toEntryItem(entry repo.DictEntry) types.DictEntry {

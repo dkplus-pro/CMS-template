@@ -10,10 +10,17 @@ import (
 
 // Config 服务运行所需的全量配置。
 type Config struct {
-	HTTP     HTTPConfig
-	Database DatabaseConfig
-	Swagger  SwaggerConfig
-	JWT      JWTConfig
+	HTTP      HTTPConfig
+	Database  DatabaseConfig
+	Swagger   SwaggerConfig
+	JWT       JWTConfig
+	AccessLog AccessLogConfig
+}
+
+// AccessLogConfig HTTP 访问日志文件配置(不入库,见 docs/database.md)。
+type AccessLogConfig struct {
+	Dir        string
+	RetainDays int
 }
 
 // HTTPConfig HTTP 监听配置。
@@ -59,6 +66,10 @@ func Load() (Config, error) {
 		JWT: JWTConfig{
 			Secret: envOr("JWT_SECRET", "dev-secret-change-me"),
 			TTL:    time.Duration(envInt("JWT_TTL_HOURS", 2)) * time.Hour,
+		},
+		AccessLog: AccessLogConfig{
+			Dir:        envOr("ACCESS_LOG_DIR", "logs"),
+			RetainDays: envInt("ACCESS_LOG_RETAIN_DAYS", 7),
 		},
 	}
 

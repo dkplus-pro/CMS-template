@@ -18,6 +18,12 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for OperationLogItemStatus.
+const (
+	OperationLogItemStatusFailed  OperationLogItemStatus = "failed"
+	OperationLogItemStatusSuccess OperationLogItemStatus = "success"
+)
+
 // Defines values for PermissionNodeType.
 const (
 	Api  PermissionNodeType = "api"
@@ -40,6 +46,12 @@ const (
 const (
 	Storage UpdateConfigParamsGroup = "storage"
 	System  UpdateConfigParamsGroup = "system"
+)
+
+// Defines values for ListOperationLogsParamsStatus.
+const (
+	ListOperationLogsParamsStatusFailed  ListOperationLogsParamsStatus = "failed"
+	ListOperationLogsParamsStatusSuccess ListOperationLogsParamsStatus = "success"
 )
 
 // ChangePasswordRequest defines model for ChangePasswordRequest.
@@ -133,19 +145,25 @@ type LoginResponse struct {
 
 // OperationLogItem defines model for OperationLogItem.
 type OperationLogItem struct {
-	Action     *string   `json:"action,omitempty"`
-	CreatedAt  time.Time `json:"createdAt"`
-	Id         int64     `json:"id"`
-	Ip         *string   `json:"ip,omitempty"`
-	LatencyMs  int       `json:"latencyMs"`
-	Message    *string   `json:"message,omitempty"`
-	Method     string    `json:"method"`
-	Ok         bool      `json:"ok"`
-	Path       string    `json:"path"`
-	StatusCode int       `json:"statusCode"`
-	UserId     int64     `json:"userId"`
-	Username   *string   `json:"username,omitempty"`
+	// Action 资源.动作,如 user.delete
+	Action    string    `json:"action"`
+	CreatedAt time.Time `json:"createdAt"`
+
+	// Description 人话描述,如"删除用户 张三(zhangsan)"
+	Description string                 `json:"description"`
+	Id          int64                  `json:"id"`
+	Ip          *string                `json:"ip,omitempty"`
+	Resource    string                 `json:"resource"`
+	ResourceId  *string                `json:"resourceId,omitempty"`
+	Status      OperationLogItemStatus `json:"status"`
+	UserId      int64                  `json:"userId"`
+
+	// Username 操作人快照;登录失败记尝试的登录名
+	Username *string `json:"username,omitempty"`
 }
+
+// OperationLogItemStatus defines model for OperationLogItem.Status.
+type OperationLogItemStatus string
 
 // OperationLogListResponse defines model for OperationLogListResponse.
 type OperationLogListResponse struct {
@@ -298,11 +316,20 @@ type ListOperationLogsParams struct {
 	// Username 按操作人模糊匹配
 	Username *string `form:"username,omitempty" json:"username,omitempty"`
 
-	// Ok 成功/失败筛选
-	Ok        *bool      `form:"ok,omitempty" json:"ok,omitempty"`
-	StartTime *time.Time `form:"startTime,omitempty" json:"startTime,omitempty"`
-	EndTime   *time.Time `form:"endTime,omitempty" json:"endTime,omitempty"`
+	// Resource 资源类型精确匹配,如 user / role
+	Resource *string `form:"resource,omitempty" json:"resource,omitempty"`
+
+	// Action 动作精确匹配,如 user.delete
+	Action *string `form:"action,omitempty" json:"action,omitempty"`
+
+	// Status 成功/失败筛选
+	Status    *ListOperationLogsParamsStatus `form:"status,omitempty" json:"status,omitempty"`
+	StartTime *time.Time                     `form:"startTime,omitempty" json:"startTime,omitempty"`
+	EndTime   *time.Time                     `form:"endTime,omitempty" json:"endTime,omitempty"`
 }
+
+// ListOperationLogsParamsStatus defines parameters for ListOperationLogs.
+type ListOperationLogsParamsStatus string
 
 // ListRolesParams defines parameters for ListRoles.
 type ListRolesParams struct {
@@ -899,11 +926,27 @@ func (siw *ServerInterfaceWrapper) ListOperationLogs(w http.ResponseWriter, r *h
 		return
 	}
 
-	// ------------- Optional query parameter "ok" -------------
+	// ------------- Optional query parameter "resource" -------------
 
-	err = runtime.BindQueryParameter("form", true, false, "ok", r.URL.Query(), &params.Ok)
+	err = runtime.BindQueryParameter("form", true, false, "resource", r.URL.Query(), &params.Resource)
 	if err != nil {
-		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "ok", Err: err})
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "resource", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "action" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "action", r.URL.Query(), &params.Action)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "action", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
 		return
 	}
 

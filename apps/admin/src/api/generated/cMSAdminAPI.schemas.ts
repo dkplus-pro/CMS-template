@@ -195,18 +195,27 @@ export interface PermissionNode {
   children: PermissionNode[];
 }
 
+export type OperationLogItemStatus = typeof OperationLogItemStatus[keyof typeof OperationLogItemStatus];
+
+
+export const OperationLogItemStatus = {
+  success: 'success',
+  failed: 'failed',
+} as const;
+
 export interface OperationLogItem {
   id: number;
   userId: number;
+  /** 操作人快照;登录失败记尝试的登录名 */
   username?: string;
-  method: string;
-  path: string;
-  action?: string;
-  ok: boolean;
-  statusCode: number;
-  message?: string;
+  /** 资源.动作,如 user.delete */
+  action: string;
+  resource: string;
+  resourceId?: string;
+  /** 人话描述,如"删除用户 张三(zhangsan)" */
+  description: string;
+  status: OperationLogItemStatus;
   ip?: string;
-  latencyMs: number;
   createdAt: string;
 }
 
@@ -332,12 +341,28 @@ pageSize?: PageSizeParameter;
  */
 username?: string;
 /**
+ * 资源类型精确匹配,如 user / role
+ */
+resource?: string;
+/**
+ * 动作精确匹配,如 user.delete
+ */
+action?: string;
+/**
  * 成功/失败筛选
  */
-ok?: boolean;
+status?: ListOperationLogsStatus;
 startTime?: string;
 endTime?: string;
 };
+
+export type ListOperationLogsStatus = typeof ListOperationLogsStatus[keyof typeof ListOperationLogsStatus];
+
+
+export const ListOperationLogsStatus = {
+  success: 'success',
+  failed: 'failed',
+} as const;
 
 export type ListDictsParams = {
 keyword?: string;

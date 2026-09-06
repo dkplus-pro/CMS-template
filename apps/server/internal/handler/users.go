@@ -208,6 +208,14 @@ func derefBoolDefault(v *bool, fallback bool) bool {
 	return *v
 }
 
+func derefStatus(v *gen.ListOperationLogsParamsStatus) *string {
+	if v == nil {
+		return nil
+	}
+	status := string(*v)
+	return &status
+}
+
 func genOptsString(v string) *string {
 	if v == "" {
 		return nil

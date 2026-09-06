@@ -16,23 +16,29 @@ var ErrDictNotFound = errors.New("dict not found")
 // ErrDictEntryNotFound 字典项不存在。
 var ErrDictEntryNotFound = errors.New("dict entry not found")
 
-// ===== 操作日志查询(只读) =====
+// ===== 操作日志查询(只读,业务日志;方案见 docs/mvp-plan.md 阶段 4 修订) =====
 
-// ListOperationLogs 操作日志分页;username 模糊、ok 精确、时间范围。
+// ListOperationLogs 业务日志分页:username 模糊、resource/action 精确、status 精确、时间范围。
 func ListOperationLogs(
 	ctx context.Context,
 	db *gorm.DB,
 	page, pageSize int,
-	username string,
-	ok *bool,
+	username, resource, action string,
+	status *string,
 	startTime, endTime *time.Time,
 ) ([]OperationLog, int64, error) {
 	query := db.WithContext(ctx).Model(&OperationLog{})
 	if username != "" {
 		query = query.Where("username LIKE ?", "%"+username+"%")
 	}
-	if ok != nil {
-		query = query.Where("ok = ?", *ok)
+	if resource != "" {
+		query = query.Where("resource = ?", resource)
+	}
+	if action != "" {
+		query = query.Where("action = ?", action)
+	}
+	if status != nil {
+		query = query.Where("status = ?", *status)
 	}
 	if startTime != nil {
 		query = query.Where("created_at >= ?", *startTime)

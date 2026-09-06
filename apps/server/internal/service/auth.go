@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/cms-template/server/internal/auth"
+	"github.com/cms-template/server/internal/oplog"
 	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/types"
 )
@@ -35,19 +36,31 @@ func NewAuthService(db *gorm.DB, secret string, ttl time.Duration) *AuthService 
 	return &AuthService{db: db, secret: secret, ttl: ttl}
 }
 
-// Login 校验账号密码,签发 JWT 并记录最后登录时间。
+// Login 校验账号密码,签发 JWT 并记录最后登录时间(含失败的业务日志)。
 func (s *AuthService) Login(ctx context.Context, username, password string) (string, time.Time, types.UserInfo, error) {
 	user, err := repo.GetUserByUsername(ctx, s.db, username)
 	if err != nil {
 		if errors.Is(err, repo.ErrUserNotFound) {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "auth.login", Resource: "user", ResourceID: username,
+				Description: "登录失败(用户名或密码错误)",
+			}, username)
 			return "", time.Time{}, types.UserInfo{}, ErrInvalidCredentials
 		}
 		return "", time.Time{}, types.UserInfo{}, err
 	}
 	if !user.Status {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "auth.login", Resource: "user", ResourceID: username,
+			Description: "登录失败:账号已被禁用",
+		}, username)
 		return "", time.Time{}, types.UserInfo{}, ErrUserDisabled
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(password)); err != nil {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "auth.login", Resource: "user", ResourceID: username,
+			Description: "登录失败(用户名或密码错误)",
+		}, username)
 		return "", time.Time{}, types.UserInfo{}, ErrInvalidCredentials
 	}
 
@@ -63,6 +76,10 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 	if err != nil {
 		return "", time.Time{}, types.UserInfo{}, err
 	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "auth.login", Resource: "user", ResourceID: username,
+		Description: "登录成功",
+	}, username)
 	return token, expiresAt, info, nil
 }
 
@@ -75,20 +92,31 @@ func (s *AuthService) Me(ctx context.Context, userID int64) (types.UserInfo, err
 	return s.buildUserInfo(ctx, user)
 }
 
-// ChangePassword 校验旧密码后更新。
+// ChangePassword 校验旧密码后更新(记业务日志,含失败)。
 func (s *AuthService) ChangePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error {
 	user, err := repo.GetUserByID(ctx, s.db, userID)
 	if err != nil {
 		return err
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(oldPassword)); err != nil {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "user.changePassword", Resource: "user", ResourceID: user.Username,
+			Description: "修改密码失败:旧密码错误",
+		}, "")
 		return ErrWrongOldPassword
 	}
 	hash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
 	if err != nil {
 		return fmt.Errorf("hash new password: %w", err)
 	}
-	return repo.UpdateUserPassword(ctx, s.db, userID, string(hash))
+	if err := repo.UpdateUserPassword(ctx, s.db, userID, string(hash)); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "user.changePassword", Resource: "user", ResourceID: user.Username,
+		Description: "修改密码",
+	}, "")
+	return nil
 }
 
 func (s *AuthService) buildUserInfo(ctx context.Context, user repo.User) (types.UserInfo, error) {

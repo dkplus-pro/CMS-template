@@ -94,20 +94,18 @@ type AuthMenuNode struct {
 	Children     []AuthMenuNode
 }
 
-// OperationLogItem 操作日志条目(只读)。
+// OperationLogItem 业务操作日志条目(只读;字段语义见 docs/database.md)。
 type OperationLogItem struct {
-	ID         int64
-	UserID     int64
-	Username   string
-	Method     string
-	Path       string
-	Action     string
-	OK         bool
-	StatusCode int
-	Message    string
-	IP         string
-	LatencyMS  int64
-	CreatedAt  time.Time
+	ID          int64
+	UserID      int64
+	Username    string
+	Action      string
+	Resource    string
+	ResourceID  string
+	Description string
+	Status      string
+	IP          string
+	CreatedAt   time.Time
 }
 
 // ConfigItem 配置键值条目。

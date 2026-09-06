@@ -66,24 +66,6 @@ type RolePermission struct {
 
 func (RolePermission) TableName() string { return "role_permissions" }
 
-// OperationLog 操作日志,只增不改。
-type OperationLog struct {
-	ID         int64     `gorm:"primaryKey;autoIncrement"`
-	UserID     int64     `gorm:"not null;default:0;index:idx_oplog_user_time,priority:1"`
-	Username   string    `gorm:"size:64"`
-	Method     string    `gorm:"size:8;not null"`
-	Path       string    `gorm:"size:255;not null"`
-	Action     string    `gorm:"size:64"`
-	OK         bool      `gorm:"not null"`
-	StatusCode int       `gorm:"not null"`
-	Message    string    `gorm:"size:255"`
-	IP         string    `gorm:"size:45"`
-	LatencyMS  int64     `gorm:"not null;default:0"`
-	CreatedAt  time.Time `gorm:"not null;index;index:idx_oplog_user_time,priority:2"`
-}
-
-func (OperationLog) TableName() string { return "operation_logs" }
-
 // Timestamps 可复用的创建/更新时间字段。
 type Timestamps struct {
 	CreatedAt time.Time `json:"createdAt"`
