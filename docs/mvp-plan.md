@@ -51,6 +51,7 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 | 4    | 操作日志 · 系统基础配置                      | M    | 2    | 与阶段 3 并行     |
 | 5    | 文件管理(整体可后置)                         | M    | 4    | 独立              |
 | 6    | 对象存储接入(多厂商抽象,先接 COS)            | S    | 5    | 独立              |
+| 7    | 多受众契约拆分(admin / site)                 | S    | —    | 见专项文档        |
 
 规模:S ≈ 1-2 天,M ≈ 3-4 天,L ≈ 5-7 天(单人有效开发时间,仅用于排期参考)。
 
@@ -312,6 +313,12 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 - `driver=local`:行为与阶段 5 一致(e2e 回归通过;playwright 起 server 时显式 `STORAGE_DRIVER=local`,不受本地 `.env.local` 影响);
 - 单测:COS 实现以 httptest 桩覆盖 Save(含流式落盘)/Delete 幂等/Open 404 映射/URL 默认域名与前缀归一化;
 - 密钥纪律:`.env.local` 被 gitignore,仓库只提交 `.env.example` 占位。
+
+## 阶段 7:多受众契约拆分(admin / site)
+
+未来会新增对外网站 app:它消费 admin 配置的内容,Go 服务要同时给对外网站提供公开 API。决策:**按受众拆分契约文件,不拆 Go 服务**——`openapi/admin.yaml`(后台,JWT+RBAC)与 `openapi/site.yaml`(公开只读,路径带 `/site/v1` 前缀),一个二进制挂两条中间件链;拆服务(方案 C)留作信号触发时的廉价期权。
+
+完整执行手册(步骤 A 契约搬家纯重构、步骤 B site 链路与 apps/site 脚手架,含逐文件改法与验收清单)见 [multi-audience-contracts.md](./multi-audience-contracts.md)。**本阶段尚未执行**:步骤 A 可随时做,步骤 B 待对外网站立项。
 
 ## 种子数据
 
