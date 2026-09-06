@@ -21,7 +21,7 @@ test("admin app has visible hello-world content and Modern.js app tools configur
   assert.match(configSource, /appTools\(\)/);
 });
 
-test("admin has a 404 fallback page, dynamic route dispatcher and generated controller layer", async () => {
+test("admin uses static permission-filtered menus and generated controller layer", async () => {
   const notFoundSource = await readFile(
     new URL("../src/components/not-found.tsx", import.meta.url),
     "utf8"
@@ -29,15 +29,10 @@ test("admin has a 404 fallback page, dynamic route dispatcher and generated cont
   assert.match(notFoundSource, /Result/);
   assert.match(notFoundSource, /status="404"/);
 
-  const dispatcherSource = await readFile(new URL("../src/routes/$.tsx", import.meta.url), "utf8");
-  assert.match(dispatcherSource, /componentRegistry/);
-  assert.match(dispatcherSource, /getAuthMenus|useAuthMenus/);
-
-  const registrySource = await readFile(
-    new URL("../src/config/component-registry.tsx", import.meta.url),
-    "utf8"
-  );
-  assert.match(registrySource, /"system\/users": UsersPage/);
+  const menuSource = await readFile(new URL("../src/config/menu.ts", import.meta.url), "utf8");
+  assert.match(menuSource, /filterMenusByPermissions/);
+  assert.match(menuSource, /"menu:system:user"/);
+  assert.doesNotMatch(menuSource, /componentKey/i);
 
   const controllersGen = await readFile(
     new URL("../src/api/controllers.gen.ts", import.meta.url),

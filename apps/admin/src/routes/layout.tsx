@@ -18,8 +18,8 @@ import { useEffect, useState } from "react";
 
 import { AuthController } from "../api/controllers.gen";
 import { queryKeys } from "../api/queryKeys";
+import { filterMenusByPermissions, matchMenuTitle, sidebarMenus } from "../config/menu";
 import { queryClient } from "../config/queryClient";
-import { flattenMenus, useAuthMenus } from "../hooks/use-auth-menus";
 import { SYSTEM_NAME } from "../constants";
 import { useAuthStore } from "../store/auth";
 
@@ -63,18 +63,14 @@ function AppShell() {
     }
   }, [meQuery.data]);
 
-  // 侧边栏与面包屑来自当前用户可见菜单树(动态路由数据源,见 docs/admin.md)。
-  const menusQuery = useAuthMenus();
-  // 受控展开:菜单树加载后展开全部目录(MVP 约定,目录数量少)。
+  // 侧边栏 = 静态菜单声明 × 当前用户权限码过滤(见 docs/admin.md 阶段 3 修订方案)。
+  const visibleMenus = filterMenusByPermissions(sidebarMenus, user?.permissions);
+  // 受控展开:SubMenu 的 defaultOpenKeys 只在挂载时读一次,而权限码异步就绪会导致
+  // 挂载后才出现的 SubMenu 收不起/展不开,因此用受控 openKeys 全量展开目录。
   const [openKeys, setOpenKeys] = useState<string[]>([]);
   useEffect(() => {
-    if (menusQuery.data) {
-      setOpenKeys(
-        (menusQuery.data ?? []).filter((node) => node.children?.length).map((node) => node.path)
-      );
-    }
-  }, [menusQuery.data]);
-
+    setOpenKeys(visibleMenus.filter((node) => node.children?.length).map((node) => node.path));
+  }, [user?.permissions]);
   // 路由守卫:未登录访问业务页跳 /login,已登录访问 /login 跳首页。
   if (isLoginPage) {
     if (token) {
@@ -86,8 +82,7 @@ function AppShell() {
     return <Navigate to="/login" replace />;
   }
 
-  const menuTree = menusQuery.data ?? [];
-  const currentMenu = flattenMenus(menuTree).find((menu) => menu.path === location.pathname);
+  const currentTitle = matchMenuTitle(location.pathname);
 
   const handleUserMenu = async (key: string) => {
     if (key === "password") {
@@ -116,15 +111,15 @@ function AppShell() {
             onClickMenuItem={(key) => navigate(key)}
             style={{ width: "100%" }}
           >
-            {menuTree.map((node) =>
+            {visibleMenus.map((node) =>
               node.children?.length ? (
-                <Menu.SubMenu key={node.path} title={node.name}>
+                <Menu.SubMenu key={node.path} title={node.title}>
                   {node.children.map((child) => (
-                    <Menu.Item key={child.path}>{child.name}</Menu.Item>
+                    <Menu.Item key={child.path}>{child.title}</Menu.Item>
                   ))}
                 </Menu.SubMenu>
               ) : (
-                <Menu.Item key={node.path}>{node.name}</Menu.Item>
+                <Menu.Item key={node.path}>{node.title}</Menu.Item>
               )
             )}
           </Menu>
@@ -133,7 +128,7 @@ function AppShell() {
           <Header className="app-header">
             <Breadcrumb>
               <Breadcrumb.Item>{SYSTEM_NAME}</Breadcrumb.Item>
-              {currentMenu ? <Breadcrumb.Item>{currentMenu.name}</Breadcrumb.Item> : null}
+              {currentTitle ? <Breadcrumb.Item>{currentTitle}</Breadcrumb.Item> : null}
             </Breadcrumb>
             <div className="app-header-right">
               <Dropdown

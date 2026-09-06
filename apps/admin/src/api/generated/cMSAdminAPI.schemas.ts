@@ -195,54 +195,6 @@ export interface PermissionNode {
   children: PermissionNode[];
 }
 
-export interface MenuItem {
-  id: number;
-  parentId: number;
-  name: string;
-  path: string;
-  /** 前端组件白名单 key,目录留空 */
-  componentKey?: string;
-  icon?: string;
-  /** 绑定的菜单权限码,空为不绑定(登录可见) */
-  permissionCode?: string;
-  sort: number;
-  visible: boolean;
-  children: MenuItem[];
-}
-
-export interface MenuUpsertRequest {
-  parentId: number;
-  /**
-     * @minLength 1
-     * @maxLength 64
-     */
-  name: string;
-  /**
-     * @minLength 1
-     * @maxLength 128
-     */
-  path: string;
-  /** @maxLength 64 */
-  componentKey?: string;
-  /** @maxLength 64 */
-  icon?: string;
-  /** @maxLength 128 */
-  permissionCode?: string;
-  sort: number;
-  visible: boolean;
-}
-
-export interface AuthMenuNode {
-  id: number;
-  parentId: number;
-  name: string;
-  path: string;
-  componentKey?: string;
-  icon?: string;
-  sort: number;
-  children: AuthMenuNode[];
-}
-
 export type PageParameter = number;
 
 export type PageSizeParameter = number;

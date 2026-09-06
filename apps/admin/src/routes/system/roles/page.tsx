@@ -14,9 +14,9 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
-import type { RoleItem } from "../../api/generated/cMSAdminAPI.schemas";
-import { PermissionsController, RolesController } from "../../api/controllers.gen";
-import { queryKeys } from "../../api/queryKeys";
+import type { RoleItem } from "../../../api/generated/cMSAdminAPI.schemas";
+import { PermissionsController, RolesController } from "../../../api/controllers.gen";
+import { queryKeys } from "../../../api/queryKeys";
 
 interface RoleFormModalProps {
   visible: boolean;
