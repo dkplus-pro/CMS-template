@@ -6,9 +6,12 @@ const devServerPort = process.env.PORT ? Number.parseInt(process.env.PORT, 10) :
 // 代理目标可被环境变量覆盖(e2e 起独立端口的服务端时使用)。
 const apiProxyTarget = process.env.API_PROXY_TARGET ?? "http://localhost:8080";
 
+// 生产静态资源前缀:后台网页挂在 /admin 下(见 docs/mvp-plan.md 阶段 8);
+// GitHub Pages 演示部署以仓库 basePath 优先(GITHUB_PAGES_BASE_PATH 显式传值 > 自动推断)。
 const githubPagesBasePath = normalizeGitHubPagesBasePath(
   process.env.GITHUB_PAGES_BASE_PATH ?? inferGitHubPagesBasePath()
 );
+const assetPrefix = githubPagesBasePath ?? process.env.ADMIN_ASSET_PREFIX ?? "/admin/";
 
 function inferGitHubPagesBasePath() {
   if (process.env.GITHUB_ACTIONS !== "true" || !process.env.GITHUB_REPOSITORY) {
@@ -37,17 +40,16 @@ export default defineConfig({
     distPath: {
       html: ""
     },
-    ...(githubPagesBasePath ? { assetPrefix: githubPagesBasePath } : {})
+    assetPrefix
   },
   ...(devServerPort ? { server: { port: devServerPort } } : {}),
   dev: {
     server: {
       proxy: {
-        // 开发态把 /api 转发到 Go server 并去掉前缀(端口约定见 docs/mvp-plan.md)。
+        // 契约路径已字面带 /api/admin、/api/site 前缀,开发态原样透传到 Go server(见 docs/mvp-plan.md 阶段 8)。
         "/api": {
           target: apiProxyTarget,
-          changeOrigin: true,
-          pathRewrite: { "^/api": "" }
+          changeOrigin: true
         }
       }
     }

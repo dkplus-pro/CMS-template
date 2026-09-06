@@ -22,57 +22,57 @@ type RoutePermission struct {
 // RoutePermissions API 权限注册表:服务端鉴权的唯一事实源,
 // 启动时由 main 经 repo.UpsertApiPermissions 同步进 permissions 表(type=api)。
 var RoutePermissions = []RoutePermission{
-	{"GET", "/users", "system:user:list", "用户列表", "menu:system:user", "用户管理"},
-	{"POST", "/users", "system:user:create", "创建用户", "menu:system:user", "用户管理"},
-	{"GET", "/users/{id}", "system:user:list", "用户列表", "menu:system:user", "用户管理"},
-	{"PUT", "/users/{id}", "system:user:update", "编辑用户", "menu:system:user", "用户管理"},
-	{"DELETE", "/users/{id}", "system:user:delete", "删除用户", "menu:system:user", "用户管理"},
-	{"PATCH", "/users/{id}/status", "system:user:update", "启用禁用用户", "menu:system:user", "用户管理"},
-	{"PUT", "/users/{id}/roles", "system:user:assign", "分配用户角色", "menu:system:user", "用户管理"},
+	{"GET", "/api/admin/users", "system:user:list", "用户列表", "menu:system:user", "用户管理"},
+	{"POST", "/api/admin/users", "system:user:create", "创建用户", "menu:system:user", "用户管理"},
+	{"GET", "/api/admin/users/{id}", "system:user:list", "用户列表", "menu:system:user", "用户管理"},
+	{"PUT", "/api/admin/users/{id}", "system:user:update", "编辑用户", "menu:system:user", "用户管理"},
+	{"DELETE", "/api/admin/users/{id}", "system:user:delete", "删除用户", "menu:system:user", "用户管理"},
+	{"PATCH", "/api/admin/users/{id}/status", "system:user:update", "启用禁用用户", "menu:system:user", "用户管理"},
+	{"PUT", "/api/admin/users/{id}/roles", "system:user:assign", "分配用户角色", "menu:system:user", "用户管理"},
 
-	{"GET", "/roles", "system:role:list", "角色列表", "menu:system:role", "角色管理"},
-	{"POST", "/roles", "system:role:create", "创建角色", "menu:system:role", "角色管理"},
-	{"GET", "/roles/{id}", "system:role:list", "角色列表", "menu:system:role", "角色管理"},
-	{"PUT", "/roles/{id}", "system:role:update", "编辑角色", "menu:system:role", "角色管理"},
-	{"DELETE", "/roles/{id}", "system:role:delete", "删除角色", "menu:system:role", "角色管理"},
-	{"PUT", "/roles/{id}/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
+	{"GET", "/api/admin/roles", "system:role:list", "角色列表", "menu:system:role", "角色管理"},
+	{"POST", "/api/admin/roles", "system:role:create", "创建角色", "menu:system:role", "角色管理"},
+	{"GET", "/api/admin/roles/{id}", "system:role:list", "角色列表", "menu:system:role", "角色管理"},
+	{"PUT", "/api/admin/roles/{id}", "system:role:update", "编辑角色", "menu:system:role", "角色管理"},
+	{"DELETE", "/api/admin/roles/{id}", "system:role:delete", "删除角色", "menu:system:role", "角色管理"},
+	{"PUT", "/api/admin/roles/{id}/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
 
-	{"GET", "/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
+	{"GET", "/api/admin/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
 
-	{"GET", "/operation-logs", "system:log:list", "操作日志列表", "menu:system:log", "操作日志"},
+	{"GET", "/api/admin/operation-logs", "system:log:list", "操作日志列表", "menu:system:log", "操作日志"},
 
-	{"GET", "/configs/{group}", "system:config:list", "读取配置", "menu:system:config", "系统配置"},
-	{"PUT", "/configs/{group}", "system:config:update", "更新配置", "menu:system:config", "系统配置"},
+	{"GET", "/api/admin/configs/{group}", "system:config:list", "读取配置", "menu:system:config", "系统配置"},
+	{"PUT", "/api/admin/configs/{group}", "system:config:update", "更新配置", "menu:system:config", "系统配置"},
 
-	{"GET", "/dicts", "system:dict:list", "字典列表", "menu:system:dict", "字典管理"},
-	{"POST", "/dicts", "system:dict:create", "创建字典", "menu:system:dict", "字典管理"},
-	{"PUT", "/dicts/{id}", "system:dict:update", "编辑字典", "menu:system:dict", "字典管理"},
-	{"DELETE", "/dicts/{id}", "system:dict:delete", "删除字典", "menu:system:dict", "字典管理"},
-	{"GET", "/dicts/{code}/items", "system:dict:list", "字典项列表", "menu:system:dict", "字典管理"},
-	{"POST", "/dicts/{code}/items", "system:dict:update", "创建字典项", "menu:system:dict", "字典管理"},
-	{"PUT", "/dicts/{code}/items/{itemId}", "system:dict:update", "编辑字典项", "menu:system:dict", "字典管理"},
-	{"DELETE", "/dicts/{code}/items/{itemId}", "system:dict:update", "删除字典项", "menu:system:dict", "字典管理"},
-	{"PATCH", "/dicts/{id}/status", "system:dict:update", "字典上下线", "menu:system:dict", "字典管理"},
-	{"PUT", "/dicts/{id}/entries", "system:dict:update", "覆写字典项", "menu:system:dict", "字典管理"},
+	{"GET", "/api/admin/dicts", "system:dict:list", "字典列表", "menu:system:dict", "字典管理"},
+	{"POST", "/api/admin/dicts", "system:dict:create", "创建字典", "menu:system:dict", "字典管理"},
+	{"PUT", "/api/admin/dicts/{id}", "system:dict:update", "编辑字典", "menu:system:dict", "字典管理"},
+	{"DELETE", "/api/admin/dicts/{id}", "system:dict:delete", "删除字典", "menu:system:dict", "字典管理"},
+	{"GET", "/api/admin/dicts/{code}/items", "system:dict:list", "字典项列表", "menu:system:dict", "字典管理"},
+	{"POST", "/api/admin/dicts/{code}/items", "system:dict:update", "创建字典项", "menu:system:dict", "字典管理"},
+	{"PUT", "/api/admin/dicts/{code}/items/{itemId}", "system:dict:update", "编辑字典项", "menu:system:dict", "字典管理"},
+	{"DELETE", "/api/admin/dicts/{code}/items/{itemId}", "system:dict:update", "删除字典项", "menu:system:dict", "字典管理"},
+	{"PATCH", "/api/admin/dicts/{id}/status", "system:dict:update", "字典上下线", "menu:system:dict", "字典管理"},
+	{"PUT", "/api/admin/dicts/{id}/entries", "system:dict:update", "覆写字典项", "menu:system:dict", "字典管理"},
 
-	{"GET", "/images", "media:image:list", "图片列表", "menu:media:image", "图片管理"},
-	{"POST", "/images", "media:image:upload", "上传图片", "menu:media:image", "图片管理"},
-	{"GET", "/images/{id}", "media:image:list", "图片列表", "menu:media:image", "图片管理"},
-	{"DELETE", "/images/{id}", "media:image:delete", "删除图片", "menu:media:image", "图片管理"},
-	{"GET", "/videos", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
-	{"POST", "/videos", "media:video:upload", "上传视频", "menu:media:video", "视频管理"},
-	{"GET", "/videos/{id}", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
-	{"DELETE", "/videos/{id}", "media:video:delete", "删除视频", "menu:media:video", "视频管理"},
+	{"GET", "/api/admin/images", "media:image:list", "图片列表", "menu:media:image", "图片管理"},
+	{"POST", "/api/admin/images", "media:image:upload", "上传图片", "menu:media:image", "图片管理"},
+	{"GET", "/api/admin/images/{id}", "media:image:list", "图片列表", "menu:media:image", "图片管理"},
+	{"DELETE", "/api/admin/images/{id}", "media:image:delete", "删除图片", "menu:media:image", "图片管理"},
+	{"GET", "/api/admin/videos", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
+	{"POST", "/api/admin/videos", "media:video:upload", "上传视频", "menu:media:video", "视频管理"},
+	{"GET", "/api/admin/videos/{id}", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
+	{"DELETE", "/api/admin/videos/{id}", "media:video:delete", "删除视频", "menu:media:video", "视频管理"},
 }
 
 // MatchRoutePermission 按方法与路径匹配注册表;未命中的接口仅需登录。
 func MatchRoutePermission(method, path string) (string, bool) {
-	pathSegs := strings.Split(strings.Trim(path, "/"), "/")
+	pathSegs := strings.Split(strings.Trim(path, "/api/admin/"), "/api/admin/")
 	for _, rp := range RoutePermissions {
 		if rp.Method != method {
 			continue
 		}
-		patternSegs := strings.Split(strings.Trim(rp.Pattern, "/"), "/")
+		patternSegs := strings.Split(strings.Trim(rp.Pattern, "/api/admin/"), "/api/admin/")
 		if len(patternSegs) != len(pathSegs) {
 			continue
 		}

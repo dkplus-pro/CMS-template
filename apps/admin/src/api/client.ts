@@ -4,24 +4,10 @@ import Axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 import { useAuthStore } from "../store/auth";
 
 // 统一请求客户端(orval axios 客户端的 mutator,见 docs/admin.md):
-// 底层为 axios 实例;baseURL 拼接、token 注入、401 处理、错误提示、{code, message, data} 解包
+// 底层为 axios 实例;契约路径已字面带 /api/admin 前缀(见 docs/mvp-plan.md 阶段 8),
+// 这里不设 baseURL;token 注入、401 处理、错误提示、{code, message, data} 解包
 // 全部只写在这里,生成物不含任何横切逻辑,生成函数拿到的直接是 data 本体。
 // token 的读写委托给 zustand 的 useAuthStore(客户端全局状态,见 src/store/auth.ts)。
-
-const BASE_URL = "/api";
-
-export function getToken(): string | null {
-  return useAuthStore.getState().token;
-}
-
-export function setToken(token: string | null): void {
-  const store = useAuthStore.getState();
-  if (token) {
-    store.setAuth(token, store.user);
-  } else {
-    store.clear();
-  }
-}
 
 function isEnvelope(
   payload: unknown
@@ -29,10 +15,10 @@ function isEnvelope(
   return typeof payload === "object" && payload !== null && "code" in payload && "data" in payload;
 }
 
-const axiosInstance = Axios.create({ baseURL: BASE_URL });
+const axiosInstance = Axios.create();
 
 axiosInstance.interceptors.request.use((config) => {
-  const token = getToken();
+  const token = useAuthStore.getState().token;
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }

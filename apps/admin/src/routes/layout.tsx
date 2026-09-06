@@ -20,7 +20,7 @@ import { AuthController } from "../api/controllers.gen";
 import { queryKeys } from "../api/queryKeys";
 import { filterMenusByPermissions, matchMenuTitle, sidebarMenus } from "../config/menu";
 import { queryClient } from "../config/queryClient";
-import { SYSTEM_NAME } from "../constants";
+import { APP_BASENAME, SYSTEM_NAME } from "../constants";
 import { useAuthStore } from "../store/auth";
 
 import PasswordModal from "../components/password-modal";
@@ -48,7 +48,12 @@ function AppShell() {
   const user = useAuthStore((state) => state.user);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
 
-  const isLoginPage = location.pathname === "/login";
+  // 应用内路径 = 剥离 basename 后的剩余段(URL /admin/{页面} 对应路由 {页面})。
+  // 路由匹配(navigate/menu key/面包屑)全程用应用内路径,basename 由 router 统一叠加。
+  const appPathname = location.pathname.startsWith(APP_BASENAME)
+    ? location.pathname.slice(APP_BASENAME.length) || "/"
+    : location.pathname;
+  const isLoginPage = appPathname === "/login";
 
   const meQuery = useQuery({
     queryKey: queryKeys.auth.me,
@@ -82,7 +87,7 @@ function AppShell() {
     return <Navigate to="/login" replace />;
   }
 
-  const currentTitle = matchMenuTitle(location.pathname);
+  const currentTitle = matchMenuTitle(appPathname);
 
   const handleUserMenu = async (key: string) => {
     if (key === "password") {
@@ -106,7 +111,7 @@ function AppShell() {
         <Sider className="app-sider" width={220}>
           <div className="app-logo">{SYSTEM_NAME}</div>
           <Menu
-            selectedKeys={[location.pathname]}
+            selectedKeys={[appPathname]}
             openKeys={openKeys}
             onClickMenuItem={(key) => navigate(key)}
             style={{ width: "100%" }}

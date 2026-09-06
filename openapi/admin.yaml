@@ -3,7 +3,7 @@ info:
   title: CMS Admin API
   version: 0.2.0
   description: |
-    CMS 管理后台接口契约,前后端唯一事实源。
+    CMS 管理后台接口契约,前后端唯一事实源。所有路径字面带 /api/admin 前缀(网关按此前缀转发)。
 
     修改流程:改本文件 → `pnpm gen:api` 双端生成 → 双端实现。
     生成物(apps/admin/src/api/generated/、apps/server/gen/)禁止手改。
@@ -32,7 +32,7 @@ tags:
 security:
   - bearerAuth: []
 paths:
-  /healthz:
+  /api/admin/healthz:
     get:
       operationId: healthz
       summary: 健康检查
@@ -46,7 +46,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthzResponse"
-  /auth/login:
+  /api/admin/auth/login:
     post:
       operationId: login
       summary: 登录
@@ -78,7 +78,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /auth/logout:
+  /api/admin/auth/logout:
     post:
       operationId: logout
       summary: 退出登录(MVP 为前端清 token,服务端不失效)
@@ -87,7 +87,7 @@ paths:
       responses:
         "204":
           description: 退出成功
-  /auth/me:
+  /api/admin/auth/me:
     get:
       operationId: getMe
       summary: 当前用户信息(含角色与权限码,供动态菜单预留)
@@ -100,7 +100,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/UserInfo"
-  /auth/password:
+  /api/admin/auth/password:
     put:
       operationId: changePassword
       summary: 修改密码(校验旧密码)
@@ -121,7 +121,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /users:
+  /api/admin/users:
     get:
       operationId: listUsers
       summary: 用户列表
@@ -170,7 +170,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /users/{id}:
+  /api/admin/users/{id}:
     get:
       operationId: getUser
       summary: 用户详情
@@ -221,7 +221,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /users/{id}/status:
+  /api/admin/users/{id}/status:
     patch:
       operationId: updateUserStatus
       summary: 启用/禁用用户(不可操作自己)
@@ -244,7 +244,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /users/{id}/roles:
+  /api/admin/users/{id}/roles:
     put:
       operationId: updateUserRoles
       summary: 分配角色(全量覆盖)
@@ -261,7 +261,7 @@ paths:
       responses:
         "204":
           description: 分配成功
-  /roles:
+  /api/admin/roles:
     get:
       operationId: listRoles
       summary: 角色列表
@@ -310,7 +310,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /roles/all:
+  /api/admin/roles/all:
     get:
       operationId: listAllRoles
       summary: 全量角色(分配角色下拉用,仅需登录)
@@ -325,7 +325,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/RoleBrief"
-  /roles/{id}:
+  /api/admin/roles/{id}:
     get:
       operationId: getRole
       summary: 角色详情(含权限点 ID)
@@ -388,7 +388,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /roles/{id}/permissions:
+  /api/admin/roles/{id}/permissions:
     put:
       operationId: updateRolePermissions
       summary: 角色分配权限(全量覆盖)
@@ -405,7 +405,7 @@ paths:
       responses:
         "204":
           description: 分配成功
-  /permissions:
+  /api/admin/permissions:
     get:
       operationId: listPermissions
       summary: 全量权限点树(menu + api)
@@ -420,7 +420,7 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PermissionNode"
-  /operation-logs:
+  /api/admin/operation-logs:
     get:
       operationId: listOperationLogs
       summary: 操作日志分页列表
@@ -469,7 +469,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/OperationLogListResponse"
-  /configs/{group}:
+  /api/admin/configs/{group}:
     get:
       operationId: getConfig
       summary: 读取配置组(目前仅 system;存储配置已迁环境变量,见 docs/mvp-plan.md 阶段 6)
@@ -500,7 +500,7 @@ paths:
       responses:
         "204":
           description: 更新成功
-  /dicts:
+  /api/admin/dicts:
     get:
       operationId: listDicts
       summary: 字典列表(全量,keyword 可选)
@@ -544,7 +544,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /dicts/{id}:
+  /api/admin/dicts/{id}:
     put:
       operationId: updateDict
       summary: 编辑字典
@@ -581,7 +581,7 @@ paths:
       responses:
         "204":
           description: 删除成功
-  /dicts/{id}/status:
+  /api/admin/dicts/{id}/status:
     patch:
       operationId: updateDictStatus
       summary: 字典上下线(启停)
@@ -598,7 +598,7 @@ paths:
       responses:
         "204":
           description: 更新成功
-  /dicts/{id}/entries:
+  /api/admin/dicts/{id}/entries:
     put:
       operationId: replaceDictEntries
       summary: 整组覆写字典项(编辑弹窗一次保存)
@@ -615,7 +615,7 @@ paths:
       responses:
         "204":
           description: 覆写成功
-  /dicts/{code}/items:
+  /api/admin/dicts/{code}/items:
     get:
       operationId: listDictItems
       summary: 某字典的字典项列表
@@ -666,7 +666,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
-  /dicts/{code}/items/{itemId}:
+  /api/admin/dicts/{code}/items/{itemId}:
     put:
       operationId: updateDictItem
       summary: 编辑字典项
@@ -723,7 +723,7 @@ paths:
       responses:
         "204":
           description: 删除成功
-  /images:
+  /api/admin/images:
     post:
       operationId: uploadImage
       summary: 上传图片(校验类型/大小,提取宽高与格式)
@@ -769,7 +769,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ImageListResponse"
-  /images/{id}:
+  /api/admin/images/{id}:
     get:
       operationId: getImage
       summary: 图片详情
@@ -794,7 +794,7 @@ paths:
       responses:
         "204":
           description: 删除成功
-  /videos:
+  /api/admin/videos:
     post:
       operationId: uploadVideo
       summary: 上传视频(meta 预留时长/分辨率)
@@ -840,7 +840,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/VideoListResponse"
-  /videos/{id}:
+  /api/admin/videos/{id}:
     get:
       operationId: getVideo
       summary: 视频详情
@@ -865,7 +865,7 @@ paths:
       responses:
         "204":
           description: 删除成功
-  /files/{id}/content:
+  /api/admin/files/{id}/content:
     get:
       operationId: getFileContent
       summary: 文件内容流(图片预览/视频播放共用;登录即可)

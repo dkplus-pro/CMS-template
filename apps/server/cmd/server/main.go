@@ -129,10 +129,10 @@ func main() {
 	logger.Info("file storage ready", "driver", fileStorage.Driver())
 	mediaService := media.NewService(db, fileStorage)
 
-	// 双受众路由(见 docs/multi-audience-contracts.md 步骤 B4):
-	// 管理链 = 其余全部,维持 JWT + 权限校验;公开链 = /site/v1/*,无鉴权、只读。
-	// swagger 注册在 root mux 上且路径更具体,不经过任何中间件链(jwtSkip 无需再列 swagger)。
-	jwtSkip := httpapi.JWTSkipPaths("/healthz", "/auth/login")
+	// 双受众路由(见 docs/multi-audience-contracts.md 与 docs/mvp-plan.md 阶段 8):
+	// URL 布局:admin 契约路径字面带 /api/admin、site 契约带 /api/site,网关仅按前缀转发。
+	// swagger 注册在 root mux 上且路径更具体,不经过任何中间件链(jwtSkip 无需列 swagger)。
+	jwtSkip := httpapi.JWTSkipPaths("/api/admin/healthz", "/api/admin/auth/login")
 	loadPermissionCodes := func(ctx context.Context, userID int64) ([]string, error) {
 		return usersService.PermissionCodes(ctx, userID)
 	}
@@ -145,13 +145,13 @@ func main() {
 
 	mux := http.NewServeMux()
 	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
-	// 公开链:site 契约路径自带 /site/v1 前缀,Go 1.22 mux 按具体度自动分流(不经过 JWT)。
-	mux.Handle("/site/v1/", httpapi.Chain(siteMux,
+	// 公开链:site 契约路径自带 /api/site 前缀,无鉴权、只读;管理链挂在 /api/admin 下。
+	mux.Handle("/api/site/", httpapi.Chain(siteMux,
 		httpapi.ClientIP(),
 		httpapi.Logging(logger),
 		httpapi.Recover(logger),
 	))
-	mux.Handle("/", httpapi.Chain(adminMux,
+	mux.Handle("/api/admin/", httpapi.Chain(adminMux,
 		httpapi.ClientIP(),
 		httpapi.Logging(logger),
 		httpapi.JWTAuth(logger, cfg.JWT.Secret, jwtSkip),

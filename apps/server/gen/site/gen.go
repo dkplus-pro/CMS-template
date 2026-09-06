@@ -20,7 +20,7 @@ type SiteInfo struct {
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// 站点公开信息(站名、Logo 等,来自 admin 系统配置)
-	// (GET /site/v1/site-info)
+	// (GET /api/site/site-info)
 	GetSiteInfo(w http.ResponseWriter, r *http.Request)
 }
 
@@ -167,7 +167,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
-	m.HandleFunc("GET "+options.BaseURL+"/site/v1/site-info", wrapper.GetSiteInfo)
+	m.HandleFunc("GET "+options.BaseURL+"/api/site/site-info", wrapper.GetSiteInfo)
 
 	return m
 }

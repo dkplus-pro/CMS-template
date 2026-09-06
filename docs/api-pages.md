@@ -4,7 +4,7 @@
 
 ## 通用约定
 
-- **路径前缀**:契约路径不带 `/api` 前缀;admin 请求客户端 `baseURL = /api`,dev 代理把 `/api` rewrite 后转发到 server(8080);
+- **路径前缀**:契约路径字面带前缀(admin 契约全部 `/api/admin`,site 契约 `/api/site`,见 [multi-audience-contracts.md](./multi-audience-contracts.md));dev 代理把 `/api` 原样透传到 server(8080),client.ts 不再设 baseURL;
 - **认证**:`Authorization: Bearer <token>`;标注"免认证"的除外(/healthz、/auth/login、/swagger);
 - **权限码**:标注"登录"表示仅需有效 token,其余按 RBAC 权限码校验(见下方权限点汇总);
 - **分页**:入参 `page`、`pageSize`,返回 `{list, total}`;
@@ -14,71 +14,71 @@
 
 ### 公共(阶段 0:1 个)
 
-| 方法 | 路径     | 说明     | 权限码 |
-| ---- | -------- | -------- | ------ |
-| GET  | /healthz | 健康检查 | 免认证 |
+| 方法 | 路径                         | 说明 | 权限码 |
+| ---- | ---------------------------- | ---- | ------ |
+| GET  | /api/admin/api/admin/healthz |
 
 ### auth 认证与账号(阶段 1:4 个;阶段 3:1 个)
 
-| 方法 | 路径           | 说明                              | 权限码 |
-| ---- | -------------- | --------------------------------- | ------ |
-| POST | /auth/login    | 登录,返回 token、有效期、用户信息 | 免认证 |
-| POST | /auth/logout   | 退出(MVP 前端清 token)            | 登录   |
-| GET  | /auth/me       | 当前用户 + 角色 + 权限码          | 登录   |
-| PUT  | /auth/password | 校验旧密码后修改                  | 登录   |
+| 方法 | 路径                               | 说明 | 权限码 |
+| ---- | ---------------------------------- | ---- | ------ |
+| POST | /api/admin/auth/login              |
+| POST | /api/admin/auth/logout             |
+| GET  | /api/admin/auth/me                 |
+| PUT  | /api/admin/api/admin/auth/password |
 
 ### users 用户(阶段 2:7 个)
 
-| 方法   | 路径               | 说明                                   | 权限码             |
-| ------ | ------------------ | -------------------------------------- | ------------------ |
-| GET    | /users             | 分页;筛选 keyword(用户名/昵称)、status | system:user:list   |
-| POST   | /users             | 新建;含初始密码与角色                  | system:user:create |
-| GET    | /users/{id}        | 详情,含 roleIds                        | system:user:list   |
-| PUT    | /users/{id}        | 编辑基础信息                           | system:user:update |
-| DELETE | /users/{id}        | 删除(不可删自己/内置管理员)            | system:user:delete |
-| PATCH  | /users/{id}/status | 启用/禁用(不可操作自己)                | system:user:update |
-| PUT    | /users/{id}/roles  | 分配角色(全量覆盖)                     | system:user:assign |
+| 方法   | 路径                                   | 说明 | 权限码 |
+| ------ | -------------------------------------- | ---- | ------ |
+| GET    | /api/admin/users                       |
+| POST   | /api/admin/users                       |
+| GET    | /api/admin/users/{id}                  |
+| PUT    | /api/admin/users/{id}                  |
+| DELETE | /api/admin/users/{id}                  |
+| PATCH  | /api/admin/api/admin/users/{id}/status |
+| PUT    | /api/admin/users/{id}/roles            |
 
 ### roles 角色 + permissions 权限点(阶段 2:8 个)
 
-| 方法   | 路径                    | 说明                                        | 权限码             |
-| ------ | ----------------------- | ------------------------------------------- | ------------------ |
-| GET    | /roles                  | 分页;筛选 keyword、status                   | system:role:list   |
-| GET    | /roles/all              | 全量(仅 id/code/name/status),供分配角色下拉 | 登录               |
-| POST   | /roles                  | 新建角色                                    | system:role:create |
-| GET    | /roles/{id}             | 详情                                        | system:role:list   |
-| PUT    | /roles/{id}             | 编辑                                        | system:role:update |
-| DELETE | /roles/{id}             | 删除(仍有用户绑定时 409)                    | system:role:delete |
-| PUT    | /roles/{id}/permissions | 分配权限(permissionIds 全量覆盖)            | system:role:assign |
-| GET    | /permissions            | 全量权限点树(menu + api)                    | system:role:assign |
+| 方法   | 路径                                        | 说明 | 权限码 |
+| ------ | ------------------------------------------- | ---- | ------ |
+| GET    | /api/admin/roles                            |
+| GET    | /api/admin/roles/all                        |
+| POST   | /api/admin/roles                            |
+| GET    | /api/admin/roles/{id}                       |
+| PUT    | /api/admin/roles/{id}                       |
+| DELETE | /api/admin/roles/{id}                       |
+| PUT    | /api/admin/api/admin/roles/{id}/permissions |
+| GET    | /api/admin/permissions                      |
 
 ### operation-logs 业务操作日志(阶段 4:1 个;方案见 mvp-plan.md 阶段 4 修订)
 
-| 方法 | 路径            | 说明                                                                                               | 权限码          |
-| ---- | --------------- | -------------------------------------------------------------------------------------------------- | --------------- |
-| GET  | /operation-logs | 业务日志分页;筛选 username、resource、action、status、startTime/endTime;记录增删改与登录(查询不记) | system:log:list |
+| 方法 | 路径                                | 说明 | 权限码 |
+| ---- | ----------------------------------- | ---- | ------ |
+| GET  | /api/admin/api/admin/operation-logs |
 
 ### configs 系统配置(阶段 4:2 个)
 
-| 方法 | 路径             | 说明                           | 权限码               |
-| ---- | ---------------- | ------------------------------ | -------------------- |
-| GET  | /configs/{group} | 读取配置组(仅 system)          | system:config:list   |
-| PUT  | /configs/{group} | 更新配置组(key-value 整组提交) | system:config:update |
+| 方法 | 路径                                 | 说明 | 权限码 |
+| ---- | ------------------------------------ | ---- | ------ |
+| GET  | /api/admin/api/admin/configs/{group} |
+| PUT  | /api/admin/api/admin/configs/{group} |
 
 ### dicts 字典(阶段 4:10 个)
 
-| 方法   | 路径                         | 说明                             | 权限码             |
-| ------ | ---------------------------- | -------------------------------- | ------------------ |
-| GET    | /dicts                       | 字典列表(全量,带 keyword 可选)   | system:dict:list   |
-| POST   | /dicts                       | 新建字典                         | system:dict:create |
-| PUT    | /dicts/{id}                  | 编辑字典                         | system:dict:update |
-| DELETE | /dicts/{id}                  | 删除字典(级联删字典项)           | system:dict:delete |
-| PATCH  | /dicts/{id}/status           | 字典上下线(启停)                 | system:dict:update |
-| PUT    | /dicts/{id}/entries          | 整组覆写字典项(编辑弹窗一次保存) | system:dict:update |
-| GET    | /dicts/{code}/items          | 某字典的字典项列表               | system:dict:list   |
-| POST   | /dicts/{code}/items          | 新建字典项                       | system:dict:update |
-| PUT    | /dicts/{code}/items/{itemId} | 编辑字典项                       | system:dict:update |
-| DELETE | /dicts/{code}/items/{itemId} | 删除字典项                       | system:dict:update |
+| 方法   | 路径                                             | 说明 | 权限码 |
+| ------ | ------------------------------------------------ | ---- | ------ |
+| GET    | /api/admin/dicts                                 |
+| POST   | /api/admin/dicts                                 |
+| PUT    | /api/admin/dicts/{id}                            |
+| DELETE | /api/admin/dicts/{id}                            |
+| PATCH  | /api/admin/dicts/{id}/status                     |
+| PUT    | /api/admin/dicts/{id}/entries                    |
+| GET    | /api/admin/dicts/{code}/items                    |
+| POST   | /api/admin/dicts/{code}/items                    |
+| PUT    | /api/admin/api/admin/dicts/{code}/items/{itemId} |
+| DELETE | /api/admin/api/admin/dicts/{code}/items/{itemId} |
 
 > 字典项不设独立权限码,统一归入 `system:dict:update`(字典管理页内的动作)。
 
@@ -86,17 +86,17 @@
 
 底层为通用文件存储(files + storage 接口),上层按类型化媒体接口暴露;admin 只做图片/视频管理,不做通用文件管理页。音频(/audios)规划预留,本期不落契约。
 
-| 方法   | 路径                | 说明                                       | 权限码             |
-| ------ | ------------------- | ------------------------------------------ | ------------------ |
-| POST   | /images             | multipart 上传图片,提取宽高/格式           | media:image:upload |
-| GET    | /images             | 分页列表(含 meta)                          | media:image:list   |
-| GET    | /images/{id}        | 详情                                       | media:image:list   |
-| DELETE | /images/{id}        | 删除(级联底层文件)                         | media:image:delete |
-| POST   | /videos             | multipart 上传视频(meta 预留时长/分辨率)   | media:video:upload |
-| GET    | /videos             | 分页列表                                   | media:video:list   |
-| GET    | /videos/{id}        | 详情                                       | media:video:list   |
-| DELETE | /videos/{id}        | 删除(级联底层文件)                         | media:video:delete |
-| GET    | /files/{id}/content | 文件内容流(图片预览/视频播放共用;登录即可) | 登录               |
+| 方法   | 路径                                    | 说明 | 权限码 |
+| ------ | --------------------------------------- | ---- | ------ |
+| POST   | /api/admin/images                       |
+| GET    | /api/admin/images                       |
+| GET    | /api/admin/images/{id}                  |
+| DELETE | /api/admin/images/{id}                  |
+| POST   | /api/admin/videos                       |
+| GET    | /api/admin/videos                       |
+| GET    | /api/admin/videos/{id}                  |
+| DELETE | /api/admin/videos/{id}                  |
+| GET    | /api/admin/api/admin/files/{id}/content |
 
 阶段 6(对象存储接入,方案见 mvp-plan.md)对本块的增量,端点与权限码不变:
 
@@ -107,9 +107,9 @@
 
 契约在 `openapi/site.yaml`(与 admin 拆分,方案见 [multi-audience-contracts.md](./multi-audience-contracts.md)):路径自带 `/site/v1` 前缀,**无鉴权**、仅 GET、DTO 按对外裁剪、媒体字段直出 CDN 直链;响应信封约定与 admin 相同。公网网关只放行此前缀,后台路径仅内网。
 
-| 方法 | 路径               | 说明                                       | 权限       |
-| ---- | ------------------ | ------------------------------------------ | ---------- |
-| GET  | /site/v1/site-info | 站点公开信息(站名/Logo,来自 system 配置组) | 公开(匿名) |
+| 方法 | 路径                | 说明                                       | 权限       |
+| ---- | ------------------- | ------------------------------------------ | ---------- |
+| GET  | /api/site/site-info | 站点公开信息(站名/Logo,来自 system 配置组) | 公开(匿名) |
 
 ## 权限点汇总
 

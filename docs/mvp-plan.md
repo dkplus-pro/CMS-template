@@ -321,24 +321,24 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 
 执行记录与完整手册(步骤 A 契约搬家、步骤 B site 链路与脚手架)见 [multi-audience-contracts.md](./multi-audience-contracts.md)。验收:无 token 访问 site 端点 200、admin 端点仍 401;swagger 双契约下拉;`pnpm verify` 全绿。后续对外端点按该文档"site 契约维护规则"累加,破坏性变更升 `/site/v2`。
 
-## 阶段 8:URL 布局(网页 /admin、API /api/admin + /api/site;方案,**未执行**)
+## 阶段 8:URL 布局(网页 /admin、API /api/admin + /api/site;**已交付并验收**)
 
 统一管理网页与 API 的 URL 空间,目标布局:
 
-| 用途     | URL                                   | 承载                      |
-| -------- | ------------------------------------- | ------------------------- |
-| 对外网页 | `https://example.com/...`             | apps/site(未来真实网站)   |
-| 后台网页 | `https://example.com/admin/...`       | apps/admin(SPA basename)  |
-| 后台 API | `https://example.com/api/admin/...`   | admin 契约全部端点        |
-| 对外 API | `https://example.com/api/site/v1/...` | site 契约(保留 v1 版本位) |
-| Swagger  | `/swagger`(仅内网/可关)               | 根级,不进 API 前缀        |
+| 用途     | URL                                 | 承载                     |
+| -------- | ----------------------------------- | ------------------------ |
+| 对外网页 | `https://example.com/...`           | apps/site(未来真实网站)  |
+| 后台网页 | `https://example.com/admin/...`     | apps/admin(SPA basename) |
+| 后台 API | `https://example.com/api/admin/...` | admin 契约全部端点       |
+| 对外 API | `https://example.com/api/site/...`  | site 契约(严格无版本位)  |
+| Swagger  | `/swagger`(仅内网/可关)             | 根级,不进 API 前缀       |
 
-### 决策
+### 决策(执行确认)
 
-1. **API 前缀写进契约(字面),不做挂载期改写**:契约即部署真相——swagger 展示的就是生产路径;dev 代理从"rewrite 去前缀"简化为纯透传;网关规则退化为按前缀转发。admin.yaml 全部端点统一加 `/api/admin` 前缀(机械替换),site.yaml `/site/v1/*` → `/api/site/v1/*`(阶段 7 的 `/site/v1` 约定自此修订)。
-2. **site 保留版本位**(`/api/site/v1`):"破坏性变更升 v2"的承诺需要版本位;若要严格 `/api/site/` 无版本,契约路径少一级即可(不推荐)。
+1. **API 前缀写进契约(字面),不做挂载期改写**:契约即部署真相——swagger 展示的就是生产路径;dev 代理从"rewrite 去前缀"简化为纯透传;网关规则退化为按前缀转发。admin.yaml 全部端点统一加 `/api/admin` 前缀(机械替换),site.yaml `/site/v1/*` → `/api/site/*`(阶段 7 的 `/site/v1` 约定自此修订)。
+2. **site 严格无版本位**(用户确认):`/api/site/...` 不保留 v1;site 契约维护规则同步改为"只加不删,破坏性变更整体协商"。
 3. **healthz 留在 admin 契约**,路径变 `/api/admin/healthz`(LB 探活打这个路径;`/swagger` 保持根级运维端点)。site 契约如需探活另行声明,不复用 admin 的。
-4. **网页侧 = SPA basename + 网关静态路由**:admin 的 Modern.js 配置 router basename `/admin`(**执行时核实官方字段**,预期 `runtime.router.basename`;不支持则退回网关把 `/admin/*` rewrite 到根——dev/prod 必须一致,否则硬编码路径在 dev 404);生产构建 `assetPrefix=/admin/`。basename 用 env 注入,GitHub Pages 演示部署用仓库名 basePath 覆盖(与现有 `GITHUB_PAGES_BASE_PATH` 逻辑兼容)。
+4. **网页侧 = SPA basename + 网关静态路由**:已核实 Modern.js 用 `defineRuntimeConfig({ router: { basename } })`(`src/runtime.config.ts`,basename 与 `src/constants` 的 `APP_BASENAME` 同源);layout 统一以"剥离 basename 的应用内路径"做登录判断/面包屑/菜单高亮(替代 implement 前的 `location.pathname === "/login"` 直比);生产构建 `assetPrefix=/admin/`(env 可覆盖,GitHub Pages 仓库 basePath 优先)。
 5. **网关为唯一路由真相表**(生产 nginx 示例,执行后放 docs):
 
    ```nginx
@@ -354,7 +354,7 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 
 **契约**(机械):
 
-- `openapi/admin.yaml`:所有 paths 键加 `/api/admin` 前缀(含 `/healthz`、`/auth/login`、`/files/{id}/content`);`openapi/site.yaml`:`/site/v1` → `/api/site/v1`;两份 info.description 的前缀约定同步。
+- `openapi/admin.yaml`:所有 paths 键加 `/api/admin` 前缀(含 `/healthz`、`/auth/login`、`/files/{id}/content`);`openapi/site.yaml`:`/site/v1` → `/api/site`(无版本位);两份 info.description 的前缀约定同步。
 - `pnpm gen:api` 后 server 路由、admin/site 客户端路径自动带前缀。
 
 **server**:
@@ -365,10 +365,10 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 
 **admin app**:
 
-- `src/api/client.ts`:`BASE_URL = "/api"` 删除(契约路径已自带 `/api/admin`);
+- `src/api/client.ts`:`BASE_URL = "/api"` 删除(契约路径已自带 `/api/admin`),取消无外部消费者的 `getToken`/`setToken` 导出;
 - `src/hooks/use-file-url.ts`:硬编码 `/api/files/...` → `/api/admin/files/...`;
-- `modern.config.ts`:dev proxy 去掉 `pathRewrite`(`/api` 原样透传到 server,与生产一致);生产 `assetPrefix=/admin/`(env 注入,与 GitHub Pages 规则写明优先级);
-- 路由 basename + **防呆**:`layout.tsx` 的 `location.pathname === "/login"` 在 basename 下会失效(实际为 `/admin/login`),改为 `useMatch("/login")`(router 匹配自动剥 basename);`navigate("/login")` 等编程式跳转由 basename 自动叠加,无需改;
+- `modern.config.ts`:dev proxy 去掉 `pathRewrite`(`/api` 原样透传到 server,与生产一致);生产 `assetPrefix=/admin/`(env `ADMIN_ASSET_PREFIX` 可覆盖,GitHub Pages 仓库 basePath 优先);
+- 路由 basename:新增 `src/runtime.config.ts`(`defineRuntimeConfig` 的 `router.basename`,与 `src/constants` 的 `APP_BASENAME` 同源);**防呆**:`layout.tsx` 以剥离 basename 后的 `appPathname` 统一做登录页判断/面包屑/侧边栏高亮(`location.pathname === "/login"` 直比在 basename 下失效);`navigate("/login")` 等编程式跳转由 basename 自动叠加,无需改;
 - `config/menu.ts` 菜单 key 为应用内路径,basename 自动叠加,无需改。
 
 **e2e / 工具链**:
@@ -376,21 +376,20 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 - `playwright.config.ts`:健康检查 URL → `/api/admin/healthz`;e2e spec 的 `page.goto("/")` 改为 `/admin/`,断言 URL 同步;
 - e2e admin webServer 仍用 `API_PROXY_TARGET` 指向 Go server,代理改透传后行为不变。
 
-**docs**:本阶段记录;api-pages 通用约定的"路径前缀"一节重写(接口表批量加前缀,机械);multi-audience-contracts.md 的前缀表述 `/site/v1` → `/api/site/v1`(加修订记录);development.md / server.md / README 的代理与路径表述;dev 端口约定补 site=8082(预留)。
+**docs**:api-pages 通用约定的"路径前缀"一节重写、接口表批量加前缀(机械);multi-audience-contracts.md 的前缀表述 `/site/v1` → `/api/site`(无版本位,加修订记录);README/AGENTS 无前缀依赖,无需改。
 
 ### 风险与防呆
 
 - 权限注册表漏加前缀 → 全量 403:验收首条即登录后调 `/api/admin/users`;
 - dev 代理 rewrite 残留 → 404;
-- basename 下 `/login` 硬比较失效 → 用 `useMatch` 替换;
+- basename 下 `/login` 硬比较失效 → 用剥离 basename 的应用内路径判断;
 - 老的 `/api/*` 无 `/admin` URL 直接废弃(一方消费者,无兼容负担),返回 404。
 
-### 验收
+### 验收(**已通过**)
 
-- 无 token:`/api/site/v1/site-info` 200、`/api/admin/users` 401、`/users` 404(老路径);
+- 冒烟:无 token `/api/site/site-info` 200、`/api/admin/healthz` 200、`/api/admin/users` 401、登录后 200;老路径 `/users`、`/site/v1/site-info` 均 404;`/swagger/admin.yaml`、`/swagger/site.yaml` 匿名 200;
 - 登录后 admin 全功能走 `/api/admin/*`,swagger 显示真实前缀路径;dev 代理为纯透传;
-- admin 以 `/admin` basename 运行:直接访问 `/admin/login` 正常、路由守卫跳转正确、菜单跳转正确;
-- `pnpm verify` 全绿(e2e 经 `/admin` 跑通)。
+- admin 以 `/admin` basename 运行:e2e 经 `/admin` 完成全部流程(goto `/admin`、守卫跳转、菜单跳转、播放/上传),`pnpm verify` 全绿。
 
 ## 种子数据
 

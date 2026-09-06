@@ -52,7 +52,8 @@ test("admin uses static permission-filtered menus and generated controller layer
 test("admin app config supports repository-scoped GitHub Pages paths", () => {
   assert.match(configSource, /GITHUB_PAGES_BASE_PATH/);
   assert.match(configSource, /GITHUB_REPOSITORY/);
-  assert.match(configSource, /assetPrefix: githubPagesBasePath/);
+  assert.match(configSource, /assetPrefix/);
+  assert.match(configSource, /ADMIN_ASSET_PREFIX/);
   assert.match(configSource, /server: { port: devServerPort }/);
   assert.match(configSource, /outputStructure: "flat"/);
   assert.match(configSource, /html: ""/);
@@ -69,10 +70,11 @@ test("stage 0 wires openapi contract pipeline and dev proxy to the go server", a
   assert.ok(packageJson.dependencies.lodash, "lodash required");
 
   const clientSource = await readFile(new URL("../src/api/client.ts", import.meta.url), "utf8");
-  assert.match(clientSource, /BASE_URL/);
+  // 契约路径字面带 /api/admin 前缀(阶段 8),客户端不再设 baseURL:无 BASE_URL 常量、Axios.create() 不带配置。
+  assert.doesNotMatch(clientSource, /BASE_URL/);
+  assert.match(clientSource, /Axios\.create\(\)/);
   assert.match(clientSource, /Authorization/);
   assert.match(clientSource, /export function customInstance/);
-  assert.match(clientSource, /Axios\.create/);
 
   assert.ok(packageJson.dependencies.zustand, "zustand required");
 
@@ -88,11 +90,20 @@ test("stage 0 wires openapi contract pipeline and dev proxy to the go server", a
 
   const layoutSource = await readFile(new URL("../src/routes/layout.tsx", import.meta.url), "utf8");
   assert.match(layoutSource, /QueryClientProvider/);
+  assert.match(layoutSource, /APP_BASENAME/);
+
+  const runtimeConfigSource = await readFile(
+    new URL("../src/runtime.config.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(runtimeConfigSource, /defineRuntimeConfig/);
+  assert.match(runtimeConfigSource, /basename: APP_BASENAME/);
 
   const configSource = await readFile(new URL("../modern.config.ts", import.meta.url), "utf8");
   assert.match(configSource, /proxy: \{/);
   assert.match(configSource, /API_PROXY_TARGET/);
-  assert.match(configSource, /pathRewrite: \{ "\^\/api": "" \}/);
+  // 阶段 8:dev 代理原样透传,不再 pathRewrite。
+  assert.doesNotMatch(configSource, /pathRewrite/);
 
   const generatedHealthz = await readFile(
     new URL("../src/api/generated/system/system.ts", import.meta.url),
@@ -100,4 +111,12 @@ test("stage 0 wires openapi contract pipeline and dev proxy to the go server", a
   );
   assert.match(generatedHealthz, /export const getSystem/);
   assert.match(generatedHealthz, /customInstance<HealthzResponse>/);
+  assert.match(generatedHealthz, /\/api\/admin\/healthz/);
+
+  // 媒体内容端点为契约前缀路径(useFileURL 直取,见阶段 8)。
+  const fileUrlHook = await readFile(
+    new URL("../src/hooks/use-file-url.ts", import.meta.url),
+    "utf8"
+  );
+  assert.match(fileUrlHook, /\/api\/admin\/files\//);
 });

@@ -7,8 +7,7 @@
 - **admin API** 与 **site API** 是两个受众:认证不同(JWT+RBAC vs 匿名公开)、迭代速度不同(快 vs 稳定版本化)、缓存策略不同(无缓存 vs CDN 友好)、DTO 详略不同(全字段 vs 裁剪)。受众不同 = 契约文件不同;
 - 两受众读同一份数据、同一个 repo 层,**一个 Go 二进制**同时挂载两套路由,各自挂各自的中间件链;
 - **不拆服务**:独立扩容/团队分拆等信号出现前,拆服务只增加运维成本。契约先分开,未来真拆服务时是纯搬运(见文末"何时升级为多服务");
-- admin 契约路径维持无前缀(admin 客户端自带 `/api` baseURL,dev 代理 rewrite);**site 契约路径字面带 `/site/v1` 前缀**(公开 API 自描述、版本化,公网网关按此前缀放行)。
-- **修订预告(mvp-plan 阶段 8,未执行)**:URL 布局统一后,admin 契约路径将字面带 `/api/admin` 前缀、site 契约由 `/site/v1` 改为 `/api/site/v1`,admin 客户端 baseURL 与 dev 代理 rewrite 随之取消;本文"维护规则"中的路径前缀届时以阶段 8 方案为准。
+- admin 契约路径字面带 `/api/admin` 前缀(admin 客户端不设 baseURL,dev 代理原样透传);**site 契约路径字面带 `/api/site` 前缀(严格无版本位,公开 API 自描述,公网网关按此前缀放行)**——两条前缀均为 mvp-plan 阶段 8(URL 布局)执行后的最终形态,admin 侧在阶段 7 交付时为无前缀(`/api` baseURL + rewrite),已在阶段 8 修订。
 
 ## 执行总览
 
@@ -265,7 +264,7 @@ srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: mux, ReadHeaderTimeout: 5 * ti
 
 1. 新端点先问受众:进 `admin.yaml` 还是 `site.yaml`;**同一操作禁止在两份契约重复定义**(对外需要的 admin 能力,按对外 DTO 在 site.yaml 重新声明,不互相 $ref);
 2. 权限码只属于 admin 契约与 RoutePermissions;site 无权限概念,公开边界靠"只读 + 网关放行前缀";
-3. site 契约变更视同对外承诺:只加不删,破坏性变更升 `/site/v2`;
+3. site 契约变更视同对外承诺:**只加不删**;阶段 8 起 site 严格无版本位(`/api/site/...`),出现必须破坏的变更时整体协商替换前缀;
 4. `docs/api-pages.md` 按受众分章节维护;`AGENTS.md` 契约工作流条目指向本文。
 
 ## 何时升级为多服务(方案 C)

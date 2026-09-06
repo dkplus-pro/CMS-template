@@ -1,8 +1,9 @@
 import { expect, test } from "@playwright/test";
 
 test("admin requires login, then renders the landing page", async ({ page }) => {
-  // 未登录访问业务页被守卫重定向到登录页。
-  await page.goto("/");
+  // 后台网页整体挂在 /admin 下(basename,见 docs/mvp-plan.md 阶段 8)。
+  // 未登录访问业务页被守卫重定向到登录页(/admin/login)。
+  await page.goto("/admin");
   await expect(page.getByRole("heading", { name: "CMS 管理后台" })).toBeVisible();
 
   // 错误口令被拒绝且停留在登录页。
@@ -22,7 +23,7 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await expect(page.getByText("管理员")).toBeVisible();
 
   // 兜底 404 页(arco Result 风格),返回首页可用。
-  await page.goto("/no-such-page");
+  await page.goto("/admin/no-such-page");
   await expect(page.getByText("抱歉,您访问的页面不存在")).toBeVisible();
   await page.getByRole("button", { name: "返回首页" }).click();
   await expect(page.getByRole("heading", { name: /hello from the admin app/i })).toBeVisible();
