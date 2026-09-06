@@ -40,6 +40,7 @@ pnpm + Turborepo monorepo,两个应用:
 ### server(详见 [docs/server.md](docs/server.md))
 
 11. 分层单向依赖:`handler → service → repo`;handler 薄、service 厚、repo 只管存取;
+    11a. **日志双轨**:HTTP 访问日志只写 slog + 按天滚动文件(`logs/`,按 `ACCESS_LOG_RETAIN_DAYS` 清理),不入库、不查询;业务操作日志由 service 层在增删改与登录处显式埋点(`oplog.Record`,action 形如 `user.delete`,description 写人话,失败也记),查询接口只暴露业务日志;
 12. `main.go` 只做装配;单文件超约 400 行按资源拆分;
 13. handler 实现 oapi-codegen 生成的 `ServerInterface`,一个资源一个文件;
 14. server 通过自身 `package.json` 的 `dev`/`gen:api` 脚本接入 turbo,保证根命令可用。

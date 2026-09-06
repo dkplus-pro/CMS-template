@@ -81,24 +81,28 @@
 | id                      | PK    |                                                     |
 | role_id / permission_id | int64 | UNIQUE(role_id, permission_id);INDEX(permission_id) |
 
-### operation_logs — 操作日志(只增)
+### operation_logs — 业务操作日志(只增;方案见 mvp-plan.md 阶段 4 修订)
 
-| 字段        | 类型         | 说明                                         |
-| ----------- | ------------ | -------------------------------------------- |
-| id          | PK           |                                              |
-| user_id     | int64        | 0 = 未登录(如登录失败)                       |
-| username    | VARCHAR(64)  | 冗余快照,用户删除后仍可读                    |
-| method      | VARCHAR(8)   | GET/POST/…                                   |
-| path        | VARCHAR(255) | 实际请求路径                                 |
-| action      | VARCHAR(64)  | 操作名,来自路由注册表(与权限码同源)          |
-| ok          | bool         | 成功 / 失败                                  |
-| status_code | int          | 响应码                                       |
-| message     | VARCHAR(255) | 失败原因摘要,成功留空                        |
-| ip          | VARCHAR(45)  | 兼容 IPv6                                    |
-| latency_ms  | int          |                                              |
-| created_at  |              | INDEX(created_at);INDEX(user_id, created_at) |
+记录"谁在什么时间对什么对象做了什么、结果如何",给运营看;由 service 层在增删改与登录处显式埋点(查询不记),HTTP 访问日志不入库(见下节)。
 
-保留策略:配置保留天数,定时任务清理(MVP 后置,但字段按只增设计,清理即 DELETE)。
+| 字段        | 类型         | 说明                                                                      |
+| ----------- | ------------ | ------------------------------------------------------------------------- |
+| id          | PK           |                                                                           |
+| user_id     | int64        | 0 = 未登录(如登录失败尝试)                                                |
+| username    | VARCHAR(64)  | 冗余快照,用户删除后仍可读;登录失败记尝试的登录名                          |
+| action      | VARCHAR(64)  | `资源.动作`,如 user.delete / role.assignPermissions                       |
+| resource    | VARCHAR(64)  | 资源类型,如 user / role / config / dictEntry                              |
+| resource_id | VARCHAR(64)  | 资源标识,统一字符串(数字 id 或 group 名)                                  |
+| description | VARCHAR(255) | 人话描述,含对象名,如"删除用户 张三(zhangsan)"                             |
+| status      | VARCHAR(16)  | success / failed                                                          |
+| ip          | VARCHAR(45)  | 兼容 IPv6                                                                 |
+| created_at  |              | INDEX(created_at);INDEX(user_id, created_at);INDEX(resource, resource_id) |
+
+保留策略:业务日志是审计数据,**长期保留**,MVP 不做清理。
+
+### HTTP 访问日志(开发用,不入库)
+
+方法/路径/状态码/耗时这类请求级日志只服务开发排查:以 `slog` 结构化输出到 stdout,并写入按天滚动的文件 `apps/server/logs/server-YYYY-MM-DD.log`;启动时删除超过保留天数(`ACCESS_LOG_RETAIN_DAYS`,默认 7)的旧文件。无查询接口、无表;`logs/` 目录加入 .gitignore。
 
 ### files — 文件
 

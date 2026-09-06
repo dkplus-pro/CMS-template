@@ -52,11 +52,11 @@
 | PUT    | /roles/{id}/permissions | 分配权限(permissionIds 全量覆盖)            | system:role:assign |
 | GET    | /permissions            | 全量权限点树(menu + api)                    | system:role:assign |
 
-### operation-logs 操作日志(阶段 4:1 个)
+### operation-logs 业务操作日志(阶段 4:1 个;方案见 mvp-plan.md 阶段 4 修订)
 
-| 方法 | 路径            | 说明                                      | 权限码          |
-| ---- | --------------- | ----------------------------------------- | --------------- |
-| GET  | /operation-logs | 分页;筛选 username、ok、startTime/endTime | system:log:list |
+| 方法 | 路径            | 说明                                                                                               | 权限码          |
+| ---- | --------------- | -------------------------------------------------------------------------------------------------- | --------------- |
+| GET  | /operation-logs | 业务日志分页;筛选 username、resource、action、status、startTime/endTime;记录增删改与登录(查询不记) | system:log:list |
 
 ### configs 系统配置(阶段 4:2 个)
 
@@ -98,16 +98,16 @@
 
 ## 页面清单(9 个业务页 + 登录页)
 
-| 路由            | 页面         | 阶段      | 页面内弹窗/子组件                        | 依赖接口                  |
-| --------------- | ------------ | --------- | ---------------------------------------- | ------------------------- |
-| /login          | 登录页       | 1         | —                                        | auth/login                |
-| /               | 欢迎页(占位) | 0         | —                                        | —                         |
-| /system/users   | 用户管理     | 2         | 新建/编辑弹窗、分配角色弹窗、状态 Switch | users 全部 7 个           |
-| /system/roles   | 角色管理     | 2         | 新建/编辑弹窗、分配权限弹窗(Tree)        | roles 7 个 + /permissions |
-| /system/logs    | 操作日志     | 4         | 详情抽屉                                 | operation-logs            |
-| /system/configs | 系统设置     | 4         | Tab:站点信息 / 存储配置                  | configs 2 个              |
-| /system/dicts   | 字典管理     | 4         | 字典表单弹窗、字典项表单弹窗(左右布局)   | dicts 8 个                |
-| /system/files   | 文件管理     | 5(可后置) | 上传弹窗、图片预览                       | files 5 个                |
+| 路由            | 页面           | 阶段      | 页面内弹窗/子组件                              | 依赖接口                  |
+| --------------- | -------------- | --------- | ---------------------------------------------- | ------------------------- |
+| /login          | 登录页         | 1         | —                                              | auth/login                |
+| /               | 欢迎页(占位)   | 0         | —                                              | —                         |
+| /system/users   | 用户管理       | 2         | 新建/编辑弹窗、分配角色弹窗、状态 Switch       | users 全部 7 个           |
+| /system/roles   | 角色管理       | 2         | 新建/编辑弹窗、分配权限弹窗(Tree)              | roles 7 个 + /permissions |
+| /system/logs    | 操作日志(业务) | 4         | 详情抽屉;列:操作人/动作/资源/描述/结果/IP/时间 | operation-logs            |
+| /system/configs | 系统设置       | 4         | Tab:站点信息 / 存储配置                        | configs 2 个              |
+| /system/dicts   | 字典管理       | 4         | 字典表单弹窗、字典项表单弹窗(左右布局)         | dicts 8 个                |
+| /system/files   | 文件管理       | 5(可后置) | 上传弹窗、图片预览                             | files 5 个                |
 
 全局件(不算独立页面):布局壳(侧边栏/顶栏/面包屑,阶段 0)、修改密码弹窗(阶段 1)、404 兜底路由与 403 无权限提示块(阶段 0/2)。
 

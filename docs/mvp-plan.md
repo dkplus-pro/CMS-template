@@ -141,17 +141,57 @@ admin:用户列表页(搜索表格范式)+ 新建/编辑弹窗 + 状态 Switch +
 
 ## 阶段 4:操作日志 · 系统基础配置(可与阶段 3 并行)
 
+> **操作日志方案修订**:已交付版本把 HTTP 访问日志(方法/路径/状态码/耗时)入库展示,那是给开发 debug 用的,对运营没有意义。本系统使用方是非技术运营人员,修订为**双轨日志**:
+>
+> - **HTTP 访问日志(开发用)**:不再入库,`slog` 结构化输出到 stdout + 按天滚动的日志文件(`logs/server-YYYY-MM-DD.log`),启动时清理超过保留天数(`ACCESS_LOG_RETAIN_DAYS`,默认 7 天)的旧文件;无查询接口,排查问题时看服务器文件。
+> - **业务操作日志(运营用)**:记录"谁在什么时间对什么对象做了什么、结果如何",入库长期保留(审计数据,MVP 不清理),日志页只展示这一种。
+
+### 业务操作日志(修订后)
+
+记录载荷(一条 = 一次业务动作):
+
+```json
+{
+  "user_id": 1,
+  "username": "admin",
+  "action": "user.delete",
+  "resource": "user",
+  "resource_id": "123",
+  "description": "删除用户 张三(zhangsan)",
+  "status": "success",
+  "ip": "192.168.1.10",
+  "created_at": "2026-09-06T12:30:00Z"
+}
+```
+
+- **埋点方式:service 层显式记录**,不再用 HTTP 中间件自动抓——中间件只有请求信息,拿不到"张三"这类业务上下文,而 `description` 是给运营看的人话,必须写进业务代码;封装 `oplog.Record(ctx, db, Entry{...})` 供各 service 调用(操作人 ID/用户名/IP 从 context 的 claims 传递);
+- **记录范围:增删改 + 登录,查询一律不记**。覆盖:登录(含失败)、修改密码、用户增删改/启停/分配角色、角色增删改/分配权限、配置组更新、字典与字典项增删改;阶段 5 补文件上传/删除;
+- **action 命名**:`资源.动作`(如 `user.delete`、`user.assignRoles`、`role.assignPermissions`、`config.update`、`dictEntry.create`),集中登记在一个映射里与 description 模板对应,避免散落字符串;
+- **失败也记**:业务校验失败(409/403/400 哨兵错误)记 `status=failed`,description 含原因摘要(如"删除角色 ops 失败:仍有用户绑定");意外 500 不记业务日志(归访问日志);
+- **resource_id 统一字符串**,兼容非数字资源(如配置组用 group 名);
+- 登录失败(`user_id=0`,username 记尝试的登录名)保留记录,便于发现撞库尝试。
+
+### 接口(修订后)
+
 | 方法                      | 路径                                           | 说明                                                        |
 | ------------------------- | ---------------------------------------------- | ----------------------------------------------------------- |
-| GET                       | /operation-logs                                | 分页 + 用户/成功失败/时间范围筛选                           |
+| GET                       | /operation-logs                                | 业务日志分页;筛选 操作人/资源/动作/成败/时间范围            |
 | GET / PUT                 | /configs/{group}                               | 读取/更新配置组(system: 站名、Logo URL;storage: 驱动与参数) |
 | GET / POST / PUT / DELETE | /dicts、/dicts/{code}/items、/dicts/items/{id} | 字典与字典项 CRUD                                           |
 
-server:日志查询补齐筛选;sys_configs、dicts/dict_items 表;配置变更写操作日志;存储配置 MVP 仅保存不生效(阶段 5 消费)。
+契约变化:`OperationLogItem` 换为上述业务字段(去掉 method/path/statusCode/latencyMs),筛选参数换为 `username/resource/action/status + startTime/endTime`;权限码 `system:log:list` 不变。
 
-admin:日志查询页(只读列表 + 详情抽屉);系统设置页(站点信息表单,Logo 先用 URL 输入);字典管理页(左字典列表、右字典项)。
+server:业务日志表按新字段重建;各 service 在增删改方法落埋点;访问日志改文件输出 + 按天滚动清理;sys_configs、dicts/dict_items 不变;存储配置 MVP 仅保存不生效(阶段 5 消费)。
 
-验收:任意写操作可在日志页检索到操作人/时间/接口/结果;改站名后 admin 布局标题同步。
+admin:日志页改为业务语义——列:操作人/动作/资源/描述/结果/IP/时间,筛选同步替换;详情抽屉同步;系统设置页与字典管理页不变。
+
+验收:创建/删除用户后,日志页出现"创建用户 bob""删除用户 Bob(bob)"等人话条目;查询操作不产生日志;HTTP 访问日志只在文件里,按天滚动且过期清理。
+
+### 从旧方案回退(代码层,暂不执行)
+
+- server:删 `httpapi.OperationLog` 中间件与 main 装配(Logging 中间件保留并加文件输出/清理);`operation_logs` 模型改业务字段(action 唯一新索引:`resource + resource_id`);新增 `internal/oplog`(Entry + Record);逐个 service 方法补埋点;登录失败在 auth service 记录;
+- 契约:schema 与筛选参数改后 `pnpm gen:api`;
+- admin:日志页列/筛选/抽屉替换;e2e 断言改为业务文案(如删除用户后出现对应 description)。
 
 ## 阶段 5:文件管理(整体可后置)
 
