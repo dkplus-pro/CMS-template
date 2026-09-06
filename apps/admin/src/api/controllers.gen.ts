@@ -2,7 +2,13 @@
 // 绑定层:把 orval 按 tag 生成的工厂函数实例化为单例,页面统一 XxxController.xxx() 调用。
 
 import { getAuth } from "./generated/auth/auth";
+import { getPermissions } from "./generated/permissions/permissions";
+import { getRoles } from "./generated/roles/roles";
 import { getSystem } from "./generated/system/system";
+import { getUsers } from "./generated/users/users";
 
 export const AuthController = getAuth();
+export const PermissionsController = getPermissions();
+export const RolesController = getRoles();
 export const SystemController = getSystem();
+export const UsersController = getUsers();

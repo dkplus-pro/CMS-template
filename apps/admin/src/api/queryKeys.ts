@@ -6,5 +6,17 @@ export const queryKeys = {
   },
   system: {
     healthz: ["system", "healthz"] as const
+  },
+  users: {
+    list: (page: number, pageSize: number, keyword: string, status?: boolean) =>
+      ["users", "list", { page, pageSize, keyword, status }] as const
+  },
+  roles: {
+    list: (page: number, pageSize: number, keyword: string, status?: boolean) =>
+      ["roles", "list", { page, pageSize, keyword, status }] as const,
+    all: ["roles", "all"] as const
+  },
+  permissions: {
+    tree: ["permissions", "tree"] as const
   }
 };

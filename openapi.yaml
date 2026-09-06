@@ -15,6 +15,12 @@ tags:
     description: 系统公共接口
   - name: auth
     description: 认证与账号
+  - name: users
+    description: 用户管理
+  - name: roles
+    description: 角色管理
+  - name: permissions
+    description: 权限点
 security:
   - bearerAuth: []
 paths:
@@ -107,7 +113,329 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /users:
+    get:
+      operationId: listUsers
+      summary: 用户列表
+      tags:
+        - users
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: 按用户名/昵称模糊匹配
+        - name: status
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: 用户分页列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserListResponse"
+    post:
+      operationId: createUser
+      summary: 新建用户
+      tags:
+        - users
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserCreateRequest"
+      responses:
+        "200":
+          description: 新建后的用户
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserItem"
+        "409":
+          description: 用户名已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /users/{id}:
+    get:
+      operationId: getUser
+      summary: 用户详情
+      tags:
+        - users
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: 用户详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserItem"
+    put:
+      operationId: updateUser
+      summary: 编辑用户基础信息
+      tags:
+        - users
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UserUpdateRequest"
+      responses:
+        "200":
+          description: 更新后的用户
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserItem"
+    delete:
+      operationId: deleteUser
+      summary: 删除用户(不可删自己与内置管理员)
+      tags:
+        - users
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: 删除成功
+        "403":
+          description: 不可操作自己或内置管理员
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /users/{id}/status:
+    patch:
+      operationId: updateUserStatus
+      summary: 启用/禁用用户(不可操作自己)
+      tags:
+        - users
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StatusRequest"
+      responses:
+        "204":
+          description: 更新成功
+        "403":
+          description: 不可操作自己
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /users/{id}/roles:
+    put:
+      operationId: updateUserRoles
+      summary: 分配角色(全量覆盖)
+      tags:
+        - users
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleIdsRequest"
+      responses:
+        "204":
+          description: 分配成功
+  /roles:
+    get:
+      operationId: listRoles
+      summary: 角色列表
+      tags:
+        - roles
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+        - name: keyword
+          in: query
+          schema:
+            type: string
+          description: 按角色名/编码模糊匹配
+        - name: status
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: 角色分页列表
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleListResponse"
+    post:
+      operationId: createRole
+      summary: 新建角色
+      tags:
+        - roles
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRequest"
+      responses:
+        "200":
+          description: 新建后的角色
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleItem"
+        "409":
+          description: 角色编码已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /roles/all:
+    get:
+      operationId: listAllRoles
+      summary: 全量角色(分配角色下拉用,仅需登录)
+      tags:
+        - roles
+      responses:
+        "200":
+          description: 全量角色
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/RoleBrief"
+  /roles/{id}:
+    get:
+      operationId: getRole
+      summary: 角色详情(含权限点 ID)
+      tags:
+        - roles
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: 角色详情
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleItem"
+    put:
+      operationId: updateRole
+      summary: 编辑角色
+      tags:
+        - roles
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RoleRequest"
+      responses:
+        "200":
+          description: 更新后的角色
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RoleItem"
+        "403":
+          description: 内置角色不可修改编码
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteRole
+      summary: 删除角色(仍有用户绑定时拒绝)
+      tags:
+        - roles
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: 删除成功
+        "403":
+          description: 内置角色不可删除
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 角色仍有用户绑定
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /roles/{id}/permissions:
+    put:
+      operationId: updateRolePermissions
+      summary: 角色分配权限(全量覆盖)
+      tags:
+        - roles
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PermissionIdsRequest"
+      responses:
+        "204":
+          description: 分配成功
+  /permissions:
+    get:
+      operationId: listPermissions
+      summary: 全量权限点树(menu + api)
+      tags:
+        - permissions
+      responses:
+        "200":
+          description: 权限点树
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/PermissionNode"
 components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      schema:
+        type: integer
+        format: int64
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PageSize:
+      name: pageSize
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
   securitySchemes:
     bearerAuth:
       type: http
@@ -228,3 +556,220 @@ components:
           description: 权限码列表(阶段 2/3 填充)
           items:
             type: string
+    UserItem:
+      type: object
+      required:
+        - id
+        - username
+        - nickname
+        - status
+        - roleIds
+      properties:
+        id:
+          type: integer
+          format: int64
+        username:
+          type: string
+        nickname:
+          type: string
+        email:
+          type: string
+        status:
+          type: boolean
+        isBuiltin:
+          type: boolean
+          description: 内置管理员,不可删除/禁用
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+        roleIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+    UserListResponse:
+      type: object
+      required:
+        - list
+        - total
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/UserItem"
+        total:
+          type: integer
+    UserCreateRequest:
+      type: object
+      required:
+        - username
+        - password
+      properties:
+        username:
+          type: string
+          minLength: 1
+          maxLength: 64
+        password:
+          type: string
+          minLength: 6
+          maxLength: 64
+        nickname:
+          type: string
+          maxLength: 64
+        email:
+          type: string
+          maxLength: 128
+        status:
+          type: boolean
+          default: true
+        roleIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+    UserUpdateRequest:
+      type: object
+      required:
+        - nickname
+      properties:
+        nickname:
+          type: string
+          maxLength: 64
+        email:
+          type: string
+          maxLength: 128
+    StatusRequest:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: boolean
+    RoleIdsRequest:
+      type: object
+      required:
+        - roleIds
+      properties:
+        roleIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+    RoleItem:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - status
+        - isBuiltin
+        - permissionIds
+      properties:
+        id:
+          type: integer
+          format: int64
+        code:
+          type: string
+        name:
+          type: string
+        remark:
+          type: string
+        status:
+          type: boolean
+        isBuiltin:
+          type: boolean
+        permissionIds:
+          type: array
+          description: 角色拥有的权限点 ID
+          items:
+            type: integer
+            format: int64
+    RoleListResponse:
+      type: object
+      required:
+        - list
+        - total
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/RoleItem"
+        total:
+          type: integer
+    RoleBrief:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - status
+      properties:
+        id:
+          type: integer
+          format: int64
+        code:
+          type: string
+        name:
+          type: string
+        status:
+          type: boolean
+    RoleRequest:
+      type: object
+      required:
+        - code
+        - name
+      properties:
+        code:
+          type: string
+          minLength: 1
+          maxLength: 64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        remark:
+          type: string
+          maxLength: 255
+        status:
+          type: boolean
+          default: true
+    PermissionIdsRequest:
+      type: object
+      required:
+        - permissionIds
+      properties:
+        permissionIds:
+          type: array
+          items:
+            type: integer
+            format: int64
+    PermissionNode:
+      type: object
+      required:
+        - id
+        - code
+        - name
+        - type
+        - parentId
+        - children
+      properties:
+        id:
+          type: integer
+          format: int64
+        code:
+          type: string
+        name:
+          type: string
+        type:
+          type: string
+          enum:
+            - menu
+            - api
+        parentId:
+          type: integer
+          format: int64
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/PermissionNode"

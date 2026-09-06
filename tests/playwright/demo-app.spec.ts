@@ -27,8 +27,22 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await page.getByRole("button", { name: "返回首页" }).click();
   await expect(page.getByRole("heading", { name: /hello from the admin app/i })).toBeVisible();
 
+  // 用户管理:列表加载种子管理员,新建用户成功后出现在表格中。
+  await page.getByText("用户管理").click();
+  await expect(page.getByRole("cell", { name: "admin", exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "新建用户" }).click();
+  await page.getByPlaceholder("登录名").fill("bob");
+  await page.getByPlaceholder("初始密码").fill("bob-123456");
+  await page.getByPlaceholder("显示名", { exact: true }).nth(0).fill("Bob");
+  await page.getByRole("button", { name: "确定" }).click();
+  await expect(page.getByRole("cell", { name: "bob", exact: true })).toBeVisible();
+
+  // 角色管理页面可达。
+  await page.getByText("角色管理").click();
+  await expect(page.getByRole("button", { name: "新建角色" })).toBeVisible();
+
   // 退出登录回到登录页。
-  await page.getByText("管理员").click();
+  await page.getByText("管理员", { exact: true }).click();
   await page.getByText("退出登录").click();
   await expect(page.getByRole("heading", { name: "CMS 管理后台" })).toBeVisible();
 });

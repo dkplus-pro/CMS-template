@@ -13,6 +13,7 @@ type User struct {
 	Nickname     string     `gorm:"size:64" json:"nickname"`
 	Email        string     `gorm:"size:128" json:"email"`
 	Status       bool       `gorm:"not null;default:true" json:"status"`
+	IsBuiltin    bool       `gorm:"not null;default:false" json:"isBuiltin"`
 	LastLoginAt  *time.Time `json:"lastLoginAt"`
 	CreatedAt    time.Time  `json:"createdAt"`
 	UpdatedAt    time.Time  `json:"updatedAt"`

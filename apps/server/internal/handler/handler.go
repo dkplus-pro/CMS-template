@@ -11,13 +11,22 @@ import (
 
 // Handler 承载全部 HTTP 处理器,依赖通过构造函数注入。
 type Handler struct {
-	logger *slog.Logger
-	auth   *service.AuthService
+	logger      *slog.Logger
+	auth        *service.AuthService
+	users       *service.UserService
+	roles       *service.RoleService
+	permissions *service.PermissionService
 }
 
 // New 装配 Handler。
-func New(logger *slog.Logger, auth *service.AuthService) *Handler {
-	return &Handler{logger: logger, auth: auth}
+func New(
+	logger *slog.Logger,
+	auth *service.AuthService,
+	users *service.UserService,
+	roles *service.RoleService,
+	permissions *service.PermissionService,
+) *Handler {
+	return &Handler{logger: logger, auth: auth, users: users, roles: roles, permissions: permissions}
 }
 
 // 编译期保证 Handler 实现了契约生成的全部接口;新增接口后此处会立即报错。

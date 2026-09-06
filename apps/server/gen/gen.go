@@ -10,10 +10,18 @@ import (
 	"fmt"
 	"net/http"
 	"time"
+
+	"github.com/oapi-codegen/runtime"
 )
 
 const (
 	BearerAuthScopes = "bearerAuth.Scopes"
+)
+
+// Defines values for PermissionNodeType.
+const (
+	Api  PermissionNodeType = "api"
+	Menu PermissionNodeType = "menu"
 )
 
 // ChangePasswordRequest defines model for ChangePasswordRequest.
@@ -50,6 +58,79 @@ type LoginResponse struct {
 	User      UserInfo  `json:"user"`
 }
 
+// PermissionIdsRequest defines model for PermissionIdsRequest.
+type PermissionIdsRequest struct {
+	PermissionIds []int64 `json:"permissionIds"`
+}
+
+// PermissionNode defines model for PermissionNode.
+type PermissionNode struct {
+	Children []PermissionNode   `json:"children"`
+	Code     string             `json:"code"`
+	Id       int64              `json:"id"`
+	Name     string             `json:"name"`
+	ParentId int64              `json:"parentId"`
+	Type     PermissionNodeType `json:"type"`
+}
+
+// PermissionNodeType defines model for PermissionNode.Type.
+type PermissionNodeType string
+
+// RoleBrief defines model for RoleBrief.
+type RoleBrief struct {
+	Code   string `json:"code"`
+	Id     int64  `json:"id"`
+	Name   string `json:"name"`
+	Status bool   `json:"status"`
+}
+
+// RoleIdsRequest defines model for RoleIdsRequest.
+type RoleIdsRequest struct {
+	RoleIds []int64 `json:"roleIds"`
+}
+
+// RoleItem defines model for RoleItem.
+type RoleItem struct {
+	Code      string `json:"code"`
+	Id        int64  `json:"id"`
+	IsBuiltin bool   `json:"isBuiltin"`
+	Name      string `json:"name"`
+
+	// PermissionIds 角色拥有的权限点 ID
+	PermissionIds []int64 `json:"permissionIds"`
+	Remark        *string `json:"remark,omitempty"`
+	Status        bool    `json:"status"`
+}
+
+// RoleListResponse defines model for RoleListResponse.
+type RoleListResponse struct {
+	List  []RoleItem `json:"list"`
+	Total int        `json:"total"`
+}
+
+// RoleRequest defines model for RoleRequest.
+type RoleRequest struct {
+	Code   string  `json:"code"`
+	Name   string  `json:"name"`
+	Remark *string `json:"remark,omitempty"`
+	Status *bool   `json:"status,omitempty"`
+}
+
+// StatusRequest defines model for StatusRequest.
+type StatusRequest struct {
+	Status bool `json:"status"`
+}
+
+// UserCreateRequest defines model for UserCreateRequest.
+type UserCreateRequest struct {
+	Email    *string  `json:"email,omitempty"`
+	Nickname *string  `json:"nickname,omitempty"`
+	Password string   `json:"password"`
+	RoleIds  *[]int64 `json:"roleIds,omitempty"`
+	Status   *bool    `json:"status,omitempty"`
+	Username string   `json:"username"`
+}
+
 // UserInfo defines model for UserInfo.
 type UserInfo struct {
 	Email    *string `json:"email,omitempty"`
@@ -65,11 +146,87 @@ type UserInfo struct {
 	Username string   `json:"username"`
 }
 
+// UserItem defines model for UserItem.
+type UserItem struct {
+	Email *string `json:"email,omitempty"`
+	Id    int64   `json:"id"`
+
+	// IsBuiltin 内置管理员,不可删除/禁用
+	IsBuiltin   *bool      `json:"isBuiltin,omitempty"`
+	LastLoginAt *time.Time `json:"lastLoginAt"`
+	Nickname    string     `json:"nickname"`
+	RoleIds     []int64    `json:"roleIds"`
+	Status      bool       `json:"status"`
+	Username    string     `json:"username"`
+}
+
+// UserListResponse defines model for UserListResponse.
+type UserListResponse struct {
+	List  []UserItem `json:"list"`
+	Total int        `json:"total"`
+}
+
+// UserUpdateRequest defines model for UserUpdateRequest.
+type UserUpdateRequest struct {
+	Email    *string `json:"email,omitempty"`
+	Nickname string  `json:"nickname"`
+}
+
+// Id defines model for Id.
+type Id = int64
+
+// Page defines model for Page.
+type Page = int
+
+// PageSize defines model for PageSize.
+type PageSize = int
+
+// ListRolesParams defines parameters for ListRoles.
+type ListRolesParams struct {
+	Page     *Page     `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *PageSize `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// Keyword 按角色名/编码模糊匹配
+	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Status  *bool   `form:"status,omitempty" json:"status,omitempty"`
+}
+
+// ListUsersParams defines parameters for ListUsers.
+type ListUsersParams struct {
+	Page     *Page     `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *PageSize `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// Keyword 按用户名/昵称模糊匹配
+	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+	Status  *bool   `form:"status,omitempty" json:"status,omitempty"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
 // ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
 type ChangePasswordJSONRequestBody = ChangePasswordRequest
+
+// CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
+type CreateRoleJSONRequestBody = RoleRequest
+
+// UpdateRoleJSONRequestBody defines body for UpdateRole for application/json ContentType.
+type UpdateRoleJSONRequestBody = RoleRequest
+
+// UpdateRolePermissionsJSONRequestBody defines body for UpdateRolePermissions for application/json ContentType.
+type UpdateRolePermissionsJSONRequestBody = PermissionIdsRequest
+
+// CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
+type CreateUserJSONRequestBody = UserCreateRequest
+
+// UpdateUserJSONRequestBody defines body for UpdateUser for application/json ContentType.
+type UpdateUserJSONRequestBody = UserUpdateRequest
+
+// UpdateUserRolesJSONRequestBody defines body for UpdateUserRoles for application/json ContentType.
+type UpdateUserRolesJSONRequestBody = RoleIdsRequest
+
+// UpdateUserStatusJSONRequestBody defines body for UpdateUserStatus for application/json ContentType.
+type UpdateUserStatusJSONRequestBody = StatusRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -88,6 +245,51 @@ type ServerInterface interface {
 	// 健康检查
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
+	// 全量权限点树(menu + api)
+	// (GET /permissions)
+	ListPermissions(w http.ResponseWriter, r *http.Request)
+	// 角色列表
+	// (GET /roles)
+	ListRoles(w http.ResponseWriter, r *http.Request, params ListRolesParams)
+	// 新建角色
+	// (POST /roles)
+	CreateRole(w http.ResponseWriter, r *http.Request)
+	// 全量角色(分配角色下拉用,仅需登录)
+	// (GET /roles/all)
+	ListAllRoles(w http.ResponseWriter, r *http.Request)
+	// 删除角色(仍有用户绑定时拒绝)
+	// (DELETE /roles/{id})
+	DeleteRole(w http.ResponseWriter, r *http.Request, id Id)
+	// 角色详情(含权限点 ID)
+	// (GET /roles/{id})
+	GetRole(w http.ResponseWriter, r *http.Request, id Id)
+	// 编辑角色
+	// (PUT /roles/{id})
+	UpdateRole(w http.ResponseWriter, r *http.Request, id Id)
+	// 角色分配权限(全量覆盖)
+	// (PUT /roles/{id}/permissions)
+	UpdateRolePermissions(w http.ResponseWriter, r *http.Request, id Id)
+	// 用户列表
+	// (GET /users)
+	ListUsers(w http.ResponseWriter, r *http.Request, params ListUsersParams)
+	// 新建用户
+	// (POST /users)
+	CreateUser(w http.ResponseWriter, r *http.Request)
+	// 删除用户(不可删自己与内置管理员)
+	// (DELETE /users/{id})
+	DeleteUser(w http.ResponseWriter, r *http.Request, id Id)
+	// 用户详情
+	// (GET /users/{id})
+	GetUser(w http.ResponseWriter, r *http.Request, id Id)
+	// 编辑用户基础信息
+	// (PUT /users/{id})
+	UpdateUser(w http.ResponseWriter, r *http.Request, id Id)
+	// 分配角色(全量覆盖)
+	// (PUT /users/{id}/roles)
+	UpdateUserRoles(w http.ResponseWriter, r *http.Request, id Id)
+	// 启用/禁用用户(不可操作自己)
+	// (PATCH /users/{id}/status)
+	UpdateUserStatus(w http.ResponseWriter, r *http.Request, id Id)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -178,6 +380,479 @@ func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Healthz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListPermissions operation middleware
+func (siw *ServerInterfaceWrapper) ListPermissions(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListPermissions(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListRoles operation middleware
+func (siw *ServerInterfaceWrapper) ListRoles(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListRolesParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", r.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "keyword", r.URL.Query(), &params.Keyword)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "keyword", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListRoles(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateRole operation middleware
+func (siw *ServerInterfaceWrapper) CreateRole(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateRole(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListAllRoles operation middleware
+func (siw *ServerInterfaceWrapper) ListAllRoles(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListAllRoles(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteRole operation middleware
+func (siw *ServerInterfaceWrapper) DeleteRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteRole(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetRole operation middleware
+func (siw *ServerInterfaceWrapper) GetRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetRole(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRole operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRole(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRole(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateRolePermissions operation middleware
+func (siw *ServerInterfaceWrapper) UpdateRolePermissions(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateRolePermissions(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListUsers operation middleware
+func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListUsersParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", r.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "keyword" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "keyword", r.URL.Query(), &params.Keyword)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "keyword", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "status" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "status", r.URL.Query(), &params.Status)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "status", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListUsers(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateUser operation middleware
+func (siw *ServerInterfaceWrapper) CreateUser(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateUser(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteUser operation middleware
+func (siw *ServerInterfaceWrapper) DeleteUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteUser(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUser operation middleware
+func (siw *ServerInterfaceWrapper) GetUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUser(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateUser operation middleware
+func (siw *ServerInterfaceWrapper) UpdateUser(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateUser(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateUserRoles operation middleware
+func (siw *ServerInterfaceWrapper) UpdateUserRoles(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateUserRoles(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateUserStatus operation middleware
+func (siw *ServerInterfaceWrapper) UpdateUserStatus(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateUserStatus(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -312,6 +987,21 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/auth/me", wrapper.GetMe)
 	m.HandleFunc("PUT "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.Healthz)
+	m.HandleFunc("GET "+options.BaseURL+"/permissions", wrapper.ListPermissions)
+	m.HandleFunc("GET "+options.BaseURL+"/roles", wrapper.ListRoles)
+	m.HandleFunc("POST "+options.BaseURL+"/roles", wrapper.CreateRole)
+	m.HandleFunc("GET "+options.BaseURL+"/roles/all", wrapper.ListAllRoles)
+	m.HandleFunc("DELETE "+options.BaseURL+"/roles/{id}", wrapper.DeleteRole)
+	m.HandleFunc("GET "+options.BaseURL+"/roles/{id}", wrapper.GetRole)
+	m.HandleFunc("PUT "+options.BaseURL+"/roles/{id}", wrapper.UpdateRole)
+	m.HandleFunc("PUT "+options.BaseURL+"/roles/{id}/permissions", wrapper.UpdateRolePermissions)
+	m.HandleFunc("GET "+options.BaseURL+"/users", wrapper.ListUsers)
+	m.HandleFunc("POST "+options.BaseURL+"/users", wrapper.CreateUser)
+	m.HandleFunc("DELETE "+options.BaseURL+"/users/{id}", wrapper.DeleteUser)
+	m.HandleFunc("GET "+options.BaseURL+"/users/{id}", wrapper.GetUser)
+	m.HandleFunc("PUT "+options.BaseURL+"/users/{id}", wrapper.UpdateUser)
+	m.HandleFunc("PUT "+options.BaseURL+"/users/{id}/roles", wrapper.UpdateUserRoles)
+	m.HandleFunc("PATCH "+options.BaseURL+"/users/{id}/status", wrapper.UpdateUserStatus)
 
 	return m
 }

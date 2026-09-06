@@ -4,7 +4,11 @@ export interface MenuConfig {
   title: string;
 }
 
-export const sidebarMenus: MenuConfig[] = [{ path: "/", title: "欢迎页" }];
+export const sidebarMenus: MenuConfig[] = [
+  { path: "/", title: "欢迎页" },
+  { path: "/system/users", title: "用户管理" },
+  { path: "/system/roles", title: "角色管理" }
+];
 
 // 按当前路径匹配选中菜单,未命中返回 null(如 404 页)。
 export function matchSelectedKey(pathname: string): string | null {

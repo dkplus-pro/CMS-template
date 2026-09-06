@@ -83,3 +83,153 @@ export interface ChangePasswordRequest {
   newPassword: string;
 }
 
+export interface UserItem {
+  id: number;
+  username: string;
+  nickname: string;
+  email?: string;
+  status: boolean;
+  /** 内置管理员,不可删除/禁用 */
+  isBuiltin?: boolean;
+  /** @nullable */
+  lastLoginAt?: string | null;
+  roleIds: number[];
+}
+
+export interface UserListResponse {
+  list: UserItem[];
+  total: number;
+}
+
+export interface UserCreateRequest {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  username: string;
+  /**
+     * @minLength 6
+     * @maxLength 64
+     */
+  password: string;
+  /** @maxLength 64 */
+  nickname?: string;
+  /** @maxLength 128 */
+  email?: string;
+  status?: boolean;
+  roleIds?: number[];
+}
+
+export interface UserUpdateRequest {
+  /** @maxLength 64 */
+  nickname: string;
+  /** @maxLength 128 */
+  email?: string;
+}
+
+export interface StatusRequest {
+  status: boolean;
+}
+
+export interface RoleIdsRequest {
+  roleIds: number[];
+}
+
+export interface RoleItem {
+  id: number;
+  code: string;
+  name: string;
+  remark?: string;
+  status: boolean;
+  isBuiltin: boolean;
+  /** 角色拥有的权限点 ID */
+  permissionIds: number[];
+}
+
+export interface RoleListResponse {
+  list: RoleItem[];
+  total: number;
+}
+
+export interface RoleBrief {
+  id: number;
+  code: string;
+  name: string;
+  status: boolean;
+}
+
+export interface RoleRequest {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  code: string;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  name: string;
+  /** @maxLength 255 */
+  remark?: string;
+  status?: boolean;
+}
+
+export interface PermissionIdsRequest {
+  permissionIds: number[];
+}
+
+export type PermissionNodeType = typeof PermissionNodeType[keyof typeof PermissionNodeType];
+
+
+export const PermissionNodeType = {
+  menu: 'menu',
+  api: 'api',
+} as const;
+
+export interface PermissionNode {
+  id: number;
+  code: string;
+  name: string;
+  type: PermissionNodeType;
+  parentId: number;
+  children: PermissionNode[];
+}
+
+export type PageParameter = number;
+
+export type PageSizeParameter = number;
+
+export type ListUsersParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: PageSizeParameter;
+/**
+ * 按用户名/昵称模糊匹配
+ */
+keyword?: string;
+status?: boolean;
+};
+
+export type ListRolesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: PageSizeParameter;
+/**
+ * 按角色名/编码模糊匹配
+ */
+keyword?: string;
+status?: boolean;
+};
+
