@@ -32,3 +32,49 @@ func CreateOperationLog(ctx context.Context, db *gorm.DB, log OperationLog) erro
 	}
 	return nil
 }
+
+func ListOperationLogs(
+	ctx context.Context,
+	db *gorm.DB,
+	page, pageSize int,
+	username, resource, action string,
+	status *string,
+	startTime, endTime *time.Time,
+) ([]OperationLog, int64, error) {
+	query := db.WithContext(ctx).Model(&OperationLog{})
+	if username != "" {
+		query = query.Where("username LIKE ?", "%"+username+"%")
+	}
+	if resource != "" {
+		query = query.Where("resource = ?", resource)
+	}
+	if action != "" {
+		query = query.Where("action = ?", action)
+	}
+	if status != nil {
+		query = query.Where("status = ?", *status)
+	}
+	if startTime != nil {
+		query = query.Where("created_at >= ?", *startTime)
+	}
+	if endTime != nil {
+		query = query.Where("created_at < ?", endTime.Add(time.Millisecond))
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, fmt.Errorf("count operation logs: %w", err)
+	}
+
+	var logs []OperationLog
+	if err := query.Order("id DESC").
+		Limit(pageSize).Offset((page - 1) * pageSize).
+		Find(&logs).Error; err != nil {
+		return nil, 0, fmt.Errorf("list operation logs: %w", err)
+	}
+	return logs, total, nil
+}
+
+// ===== 系统配置 =====
+
+// ListConfigsByGroup 配置组键值列表(按 key 排序)。

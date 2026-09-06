@@ -49,6 +49,7 @@ tests/                 仓库级测试(jest / playwright)
 ## 通用规范
 
 - 代码风格交给仓库统一配置(prettier / eslint / gofmt),不做口头约定;
+- **命名语义化**:文件与符号名必须表达其职责(按资源或领域,如 `users.go`、`auth.ts`、`use-file-url.ts`),**禁止 `stage4`、`temp`、`new`、`copy`、`utils2` 这类过程性/序号命名**;新增功能放在既有资源文件中,文件过大时按资源拆分而不是按开发阶段拆分;
 - 提交信息遵循 Conventional Commits(commitlint 已配置);
 - 单文件不宜过长:admin 侧约 300 行、server 侧约 400 行触顶即拆分,主入口文件永远保持"只做装配"的简单形态;
 - 优先复用再新建:改代码前先看 `src/components`、`src/hooks`、`internal/` 里是否已有可复用的实现。

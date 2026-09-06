@@ -11,16 +11,6 @@ import (
 	"github.com/cms-template/server/internal/types"
 )
 
-// toGenConfigItem 领域模型 → 契约生成物。
-func toGenConfigItem(item types.ConfigItem) gen.ConfigItem {
-	return gen.ConfigItem{
-		Key:    item.Key,
-		Value:  item.Value,
-		Remark: genOptsString(item.Remark),
-	}
-}
-
-// toGenDict 领域模型 → 契约生成物。
 func toGenDict(dict types.Dict) gen.Dict {
 	return gen.Dict{
 		Id:     dict.ID,
@@ -43,52 +33,7 @@ func toGenDictEntry(entry types.DictEntry) gen.DictEntry {
 }
 
 // GetConfig GET /configs/{group}。
-func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request, group gen.GetConfigParamsGroup) {
-	items, err := h.configs.Get(r.Context(), string(group))
-	switch {
-	case errors.Is(err, service.ErrInvalidConfigGroup):
-		httpapi.WriteError(w, http.StatusBadRequest, "非法配置组")
-		return
-	case err != nil:
-		h.logger.Error("get config", "error", err)
-		httpapi.WriteError(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
 
-	list := make([]gen.ConfigItem, 0, len(items))
-	for _, item := range items {
-		list = append(list, toGenConfigItem(item))
-	}
-	httpapi.WriteJSON(w, http.StatusOK, gen.ConfigGroupResponse{Group: string(group), Items: list})
-}
-
-// UpdateConfig PUT /configs/{group}。
-func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request, group gen.UpdateConfigParamsGroup) {
-	var req gen.ConfigUpdateRequest
-	if err := httpapi.DecodeRequest(r, &req); err != nil {
-		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
-		return
-	}
-
-	operatorID, _ := claimsUserID(r)
-	items := make([]types.ConfigItem, 0, len(req.Items))
-	for _, item := range req.Items {
-		items = append(items, types.ConfigItem{Key: item.Key, Value: item.Value, Remark: derefString(item.Remark)})
-	}
-
-	if err := h.configs.Replace(r.Context(), string(group), items, operatorID); err != nil {
-		if errors.Is(err, service.ErrInvalidConfigGroup) {
-			httpapi.WriteError(w, http.StatusBadRequest, "非法配置组")
-			return
-		}
-		h.logger.Error("update config", "error", err)
-		httpapi.WriteError(w, http.StatusInternalServerError, "internal server error")
-		return
-	}
-	httpapi.WriteJSON(w, http.StatusNoContent, nil)
-}
-
-// ListDicts GET /dicts。
 func (h *Handler) ListDicts(w http.ResponseWriter, r *http.Request, params gen.ListDictsParams) {
 	items, err := h.dicts.List(r.Context(), derefString(params.Keyword))
 	if err != nil {
@@ -104,6 +49,7 @@ func (h *Handler) ListDicts(w http.ResponseWriter, r *http.Request, params gen.L
 }
 
 // CreateDict POST /dicts。
+
 func (h *Handler) CreateDict(w http.ResponseWriter, r *http.Request) {
 	var req gen.DictUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
@@ -125,6 +71,7 @@ func (h *Handler) CreateDict(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateDict PUT /dicts/{id}。
+
 func (h *Handler) UpdateDict(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.DictUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
@@ -149,6 +96,7 @@ func (h *Handler) UpdateDict(w http.ResponseWriter, r *http.Request, id gen.Id) 
 }
 
 // DeleteDict DELETE /dicts/{id}。
+
 func (h *Handler) DeleteDict(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	err := h.dicts.Delete(r.Context(), int64(id))
 	switch {
@@ -164,6 +112,7 @@ func (h *Handler) DeleteDict(w http.ResponseWriter, r *http.Request, id gen.Id) 
 }
 
 // ListDictItems GET /dicts/{code}/items。
+
 func (h *Handler) ListDictItems(w http.ResponseWriter, r *http.Request, code string) {
 	items, err := h.dicts.ListEntries(r.Context(), code)
 	if err != nil {
@@ -183,6 +132,7 @@ func (h *Handler) ListDictItems(w http.ResponseWriter, r *http.Request, code str
 }
 
 // CreateDictItem POST /dicts/{code}/items。
+
 func (h *Handler) CreateDictItem(w http.ResponseWriter, r *http.Request, code string) {
 	var req gen.DictEntryUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
@@ -207,6 +157,7 @@ func (h *Handler) CreateDictItem(w http.ResponseWriter, r *http.Request, code st
 }
 
 // UpdateDictItem PUT /dicts/items/{id}。
+
 func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.DictEntryUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
@@ -231,6 +182,7 @@ func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, id gen.
 }
 
 // DeleteDictItem DELETE /dicts/items/{id}。
+
 func (h *Handler) DeleteDictItem(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	err := h.dicts.DeleteEntry(r.Context(), int64(id))
 	switch {
