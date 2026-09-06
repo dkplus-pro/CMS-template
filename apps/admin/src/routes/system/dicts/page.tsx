@@ -11,6 +11,16 @@ import {
   Table,
   Tag
 } from "@arco-design/web-react";
+import {
+  DndContext,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent
+} from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -144,7 +154,6 @@ export default function DictsPage() {
 interface EntryFormValue {
   label: string;
   value: string;
-  sort?: number;
   enabled?: boolean;
 }
 
@@ -168,6 +177,7 @@ function DictFormModal({
   const [form] = Form.useForm<DictFormValues>();
   const queryClient = useQueryClient();
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["dicts"] });
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
 
   const saveMutation = useMutation({
     mutationFn: async (values: DictFormValues) => {
@@ -188,10 +198,11 @@ function DictFormModal({
         dictId = created.id;
       }
       // 字典项整组覆写:编辑保存一次全部;新建时按表单内容写入。
-      const entries = (values.entries ?? []).map((entry) => ({
+      // 排序即拖拽后的数组顺序,提交时按索引赋值。
+      const entries = (values.entries ?? []).map((entry, index) => ({
         label: entry.label,
         value: entry.value,
-        sort: entry.sort ?? 0,
+        sort: index,
         status: entry.enabled ?? true
       }));
       if (dictId) {
@@ -219,7 +230,6 @@ function DictFormModal({
           entries: entries.map((entry) => ({
             label: entry.label,
             value: entry.value,
-            sort: entry.sort,
             enabled: entry.status
           }))
         });
@@ -261,43 +271,54 @@ function DictFormModal({
 
         <Form.Item label="字典项" required>
           <Form.List field="entries">
-            {(fields, { add, remove }) => (
+            {(fields, { add, remove, move }) => (
               <>
-                {fields.map((field, index) => (
-                  <div
-                    key={field.key}
-                    style={{ display: "flex", gap: 8, marginBottom: 8, alignItems: "flex-start" }}
+                {/* 表头,列宽与下方表单行对齐(手柄 / 标签 / 值 / 启用 / 操作) */}
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    marginBottom: 8,
+                    paddingLeft: 30,
+                    color: "#86909c",
+                    fontSize: 12
+                  }}
+                >
+                  <span style={{ width: 120 }}>标签</span>
+                  <span style={{ width: 100 }}>值</span>
+                  <span style={{ width: 56 }}>启用</span>
+                  <span>操作</span>
+                </div>
+
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(event: DragEndEvent) => {
+                    const { active, over } = event;
+                    if (over && active.id !== over.id) {
+                      const oldIndex = fields.findIndex((f) => f.key === active.id);
+                      const newIndex = fields.findIndex((f) => f.key === over.id);
+                      if (oldIndex !== -1 && newIndex !== -1) {
+                        move(oldIndex, newIndex);
+                      }
+                    }
+                  }}
+                >
+                  <SortableContext
+                    items={fields.map((f) => f.key)}
+                    strategy={verticalListSortingStrategy}
                   >
-                    <Form.Item
-                      field={`${field.field}.label`}
-                      rules={[{ required: true, message: "标签必填" }]}
-                      noStyle
-                    >
-                      <Input placeholder="标签,如 启用" style={{ width: 120 }} />
-                    </Form.Item>
-                    <Form.Item
-                      field={`${field.field}.value`}
-                      rules={[{ required: true, message: "值必填" }]}
-                      noStyle
-                    >
-                      <Input placeholder="值,如 1" style={{ width: 100 }} />
-                    </Form.Item>
-                    <Form.Item field={`${field.field}.sort`} noStyle>
-                      <Input placeholder="排序" style={{ width: 80 }} />
-                    </Form.Item>
-                    <Form.Item field={`${field.field}.enabled`} noStyle triggerPropName="checked">
-                      <Switch style={{ marginTop: 4 }} />
-                    </Form.Item>
-                    <Button
-                      size="mini"
-                      status="danger"
-                      onClick={() => remove(index)}
-                      style={{ marginTop: 2 }}
-                    >
-                      删除
-                    </Button>
-                  </div>
-                ))}
+                    {fields.map((field) => (
+                      <SortableEntry
+                        key={field.key}
+                        id={field.key}
+                        name={field.field}
+                        onRemove={() => remove(fields.findIndex((f) => f.key === field.key))}
+                      />
+                    ))}
+                  </SortableContext>
+                </DndContext>
+
                 <Button size="mini" onClick={() => add(emptyEntry())}>
                   + 添加字典项
                 </Button>
@@ -310,6 +331,61 @@ function DictFormModal({
   );
 }
 
+interface SortableEntryProps {
+  id: number;
+  name: string;
+  onRemove: () => void;
+}
+
+// 可拖拽的字典项行:手柄拖拽重排,顺序即提交时的排序(见 Form.List 的 move)。
+function SortableEntry({ id, name, onRemove }: SortableEntryProps) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        display: "flex",
+        gap: 8,
+        marginBottom: 8,
+        alignItems: "flex-start",
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.5 : 1
+      }}
+    >
+      <span
+        {...attributes}
+        {...listeners}
+        style={{
+          cursor: "grab",
+          color: "#86909c",
+          padding: "4px 6px",
+          userSelect: "none",
+          marginTop: 2
+        }}
+        title="拖拽排序"
+      >
+        ⋮⋮
+      </span>
+      <Form.Item field={`${name}.label`} rules={[{ required: true, message: "标签必填" }]} noStyle>
+        <Input placeholder="标签,如 启用" style={{ width: 120 }} />
+      </Form.Item>
+      <Form.Item field={`${name}.value`} rules={[{ required: true, message: "值必填" }]} noStyle>
+        <Input placeholder="值,如 1" style={{ width: 100 }} />
+      </Form.Item>
+      <Form.Item field={`${name}.enabled`} noStyle triggerPropName="checked">
+        <Switch style={{ marginTop: 4 }} />
+      </Form.Item>
+      <Button size="mini" status="danger" onClick={onRemove} style={{ marginTop: 2 }}>
+        删除
+      </Button>
+    </div>
+  );
+}
+
 function emptyEntry(): EntryFormValue {
-  return { label: "", value: "", sort: 0, enabled: true };
+  return { label: "", value: "", enabled: true };
 }
