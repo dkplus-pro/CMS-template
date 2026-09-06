@@ -13,8 +13,10 @@ import (
 	"time"
 
 	gen "github.com/cms-template/server/gen/admin"
+	sitegen "github.com/cms-template/server/gen/site"
 	"github.com/cms-template/server/internal/config"
 	"github.com/cms-template/server/internal/handler"
+	sitehandler "github.com/cms-template/server/internal/handler/site"
 	"github.com/cms-template/server/internal/httpapi"
 	"github.com/cms-template/server/internal/media"
 	"github.com/cms-template/server/internal/repo"
@@ -127,26 +129,39 @@ func main() {
 	logger.Info("file storage ready", "driver", fileStorage.Driver())
 	mediaService := media.NewService(db, fileStorage)
 
-	mux := http.NewServeMux()
-	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
-	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService, logsService, configsService, dictsService, mediaService), mux)
-
-	// spec 端点一并免认证,否则 Swagger UI 匿名拉取契约会被 401(精确匹配见 JWTSkipPaths)。
-	jwtSkip := httpapi.JWTSkipPaths("/healthz", "/swagger", "/swagger/", "/swagger/admin.yaml", "/auth/login")
+	// 双受众路由(见 docs/multi-audience-contracts.md 步骤 B4):
+	// 管理链 = 其余全部,维持 JWT + 权限校验;公开链 = /site/v1/*,无鉴权、只读。
+	// swagger 注册在 root mux 上且路径更具体,不经过任何中间件链(jwtSkip 无需再列 swagger)。
+	jwtSkip := httpapi.JWTSkipPaths("/healthz", "/auth/login")
 	loadPermissionCodes := func(ctx context.Context, userID int64) ([]string, error) {
 		return usersService.PermissionCodes(ctx, userID)
 	}
 
+	adminMux := http.NewServeMux()
+	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService, logsService, configsService, dictsService, mediaService), adminMux)
+
+	siteMux := http.NewServeMux()
+	sitegen.HandlerFromMux(sitehandler.New(logger, configsService), siteMux)
+
+	mux := http.NewServeMux()
+	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
+	// 公开链:site 契约路径自带 /site/v1 前缀,Go 1.22 mux 按具体度自动分流(不经过 JWT)。
+	mux.Handle("/site/v1/", httpapi.Chain(siteMux,
+		httpapi.ClientIP(),
+		httpapi.Logging(logger),
+		httpapi.Recover(logger),
+	))
+	mux.Handle("/", httpapi.Chain(adminMux,
+		httpapi.ClientIP(),
+		httpapi.Logging(logger),
+		httpapi.JWTAuth(logger, cfg.JWT.Secret, jwtSkip),
+		httpapi.PermissionCheck(loadPermissionCodes, logger),
+		httpapi.Recover(logger),
+	))
+
 	srv := &http.Server{
-		Addr: cfg.HTTP.Addr,
-		Handler: httpapi.Chain(
-			mux,
-			httpapi.ClientIP(),
-			httpapi.Logging(logger),
-			httpapi.JWTAuth(logger, cfg.JWT.Secret, jwtSkip),
-			httpapi.PermissionCheck(loadPermissionCodes, logger),
-			httpapi.Recover(logger),
-		),
+		Addr:              cfg.HTTP.Addr,
+		Handler:           mux,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

@@ -7,15 +7,16 @@
 pnpm + Turborepo monorepo,两个应用:
 
 - `apps/admin` — Modern.js + React 19 + Arco Design 管理后台
-- `apps/server` — Go API 服务
+- `apps/server` — Go API 服务(admin 与 site 双受众,见 multi-audience-contracts)
+- `apps/site` — 对外网站 app 脚手架(当前仅 API 客户端,消费 `openapi/site.yaml`)
 
-`openapi/` 目录是前后端唯一接口契约,按受众分文件:当前为 `admin.yaml`,两侧代码均由它生成;对外网站立项后新增 `site.yaml`(多受众方案见 [docs/multi-audience-contracts.md](docs/multi-audience-contracts.md))。
+`openapi/` 目录是前后端唯一接口契约,按受众分文件:`admin.yaml` 供 `apps/admin` 与 server 的 gen/admin,`site.yaml` 供 `apps/site` 与 server 的 gen/site;两侧代码均由对应契约生成。
 当前按 [docs/mvp-plan.md](docs/mvp-plan.md) 分阶段交付管理后台 MVP;新增功能先改 `openapi/` 下对应受众契约落契约,再写实现。
 
 ## 常用命令(仓库根执行)
 
 - `pnpm dev` — 一条命令并行启动 admin + server
-- `pnpm gen:api` — 从 openapi/ 契约生成 admin 类型与 server 接口代码
+- `pnpm gen:api` — 从 openapi/ 契约生成各 app 类型与 server 接口代码
 - `pnpm lint` / `pnpm typecheck` / `pnpm test`
 - `pnpm verify` — 提交前完整校验,改动后必须通过
 

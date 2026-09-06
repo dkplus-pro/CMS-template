@@ -103,6 +103,14 @@
 - Image / Video 响应 schema 增加 `url` 字段(CDN 直链;local 存储为空串),admin 展示优先用 `url`,空串回退 content 端点;
 - `GET /files/{id}/content` 对 `files.url` 非空的记录(OSS)改为 **302 重定向**到 CDN 地址,local 记录维持流式输出(保留 Range)。
 
+## site 对外接口(阶段 7,公开只读)
+
+契约在 `openapi/site.yaml`(与 admin 拆分,方案见 [multi-audience-contracts.md](./multi-audience-contracts.md)):路径自带 `/site/v1` 前缀,**无鉴权**、仅 GET、DTO 按对外裁剪、媒体字段直出 CDN 直链;响应信封约定与 admin 相同。公网网关只放行此前缀,后台路径仅内网。
+
+| 方法 | 路径               | 说明                                       | 权限       |
+| ---- | ------------------ | ------------------------------------------ | ---------- |
+| GET  | /site/v1/site-info | 站点公开信息(站名/Logo,来自 system 配置组) | 公开(匿名) |
+
 ## 权限点汇总
 
 - **api 权限点 27 个**(上表权限码去重):user 5、role 5、menu 4、log 1、config 2、dict 4、media 6;以 server 路由注册表为源,启动时 upsert 进 permissions(type=api);

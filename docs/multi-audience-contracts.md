@@ -11,16 +11,16 @@
 
 ## 执行总览
 
-| 步骤 | 内容                                                             | 时机           | 行为变化       |
-| ---- | ---------------------------------------------------------------- | -------------- | -------------- |
-| A    | 契约搬家:`openapi.yaml` → `openapi/admin.yaml`,全链路引用更新    | 可立即执行     | **零**(纯重构) |
-| B    | 新增 `openapi/site.yaml`、gen/site、公开路由链、apps/site 脚手架 | 对外网站立项时 | 新增公开端点   |
+| 步骤 | 内容                                                             | 时机           | 行为变化       | 状态                     |
+| ---- | ---------------------------------------------------------------- | -------------- | -------------- | ------------------------ |
+| A    | 契约搬家:`openapi.yaml` → `openapi/admin.yaml`,全链路引用更新    | 可立即执行     | **零**(纯重构) | ✅ 已执行(`be0a59b`)     |
+| B    | 新增 `openapi/site.yaml`、gen/site、公开路由链、apps/site 脚手架 | 对外网站立项时 | 新增公开端点   | ✅ 已执行(随阶段 7 交付) |
 
 每步独立验收、独立提交。**不要在做步骤 A 时顺手做 B**。
 
 ---
 
-## 步骤 A:契约搬家(纯重构)
+## 步骤 A:契约搬家(纯重构,**已执行**)
 
 ### A1 移动契约文件
 
@@ -104,11 +104,13 @@ cd apps/server && gofmt -w ./cmd ./internal && go build ./... && go vet ./...
 
 ---
 
-## 步骤 B:site 契约与公开链路(立项时执行)
+## 步骤 B:site 契约与公开链路(**已执行**,随阶段 7 交付)
 
 ### B1 新增对外契约 `openapi/site.yaml`
 
-骨架如下(首个端点即真实需求:对外网站读取站点配置;后续端点按同一约定累加):
+骨架如下(首个端点即真实需求:对外网站读取站点配置;后续端点按同一约定累加)。
+
+**执行时的修正**:响应 schema 直接引用 `SiteInfo`(data 载荷),**不再定义 `SiteInfoResponse` 信封 schema**——信封 `{code,message,data}` 由服务端 `WriteJSON` 统一外包,契约 schema 只描述 data,与 admin 契约同约定;若保留信封 schema 会双重包装。已落盘的契约即示例:
 
 ```yaml
 openapi: 3.0.3
@@ -118,6 +120,7 @@ info:
   description: |
     对外站点公开 API(只读、无鉴权)。路径一律带 /site/v1 前缀,公网网关按此放行。
     响应与 admin 同约定:{code, message, data};错误用 HTTP 状态码 + message。
+    响应 schema 只描述 data 载荷(信封由服务端统一包装)。
     约定:只提供 GET;DTO 按对外需要裁剪(不原样暴露 admin 模型);媒体字段直接给 CDN 直链。
 tags:
   - name: site
@@ -126,33 +129,28 @@ paths:
     get:
       operationId: getSiteInfo
       summary: 站点公开信息(站名、Logo 等,来自 admin 系统配置)
-      tags: [site]
+      tags:
+        - site
       responses:
         "200":
           description: 站点公开信息
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SiteInfoResponse"
+                $ref: "#/components/schemas/SiteInfo"
 components:
   schemas:
     SiteInfo:
       type: object
-      required: [siteName, logoUrl]
+      required:
+        - siteName
+        - logoUrl
       properties:
         siteName:
           type: string
         logoUrl:
           type: string
           description: Logo 图片地址(CDN 直链或空串)
-    SiteInfoResponse:
-      type: object
-      required: [code, message, data]
-      properties:
-        code: { type: integer }
-        message: { type: string }
-        data:
-          $ref: "#/components/schemas/SiteInfo"
 ```
 
 **site 契约维护规则**(后续每个端点都遵守):只写 GET;路径带 `/site/v1` 前缀;不声明 `securitySchemes`(公开);DTO 独立命名(`Site` 前缀),即使与 admin 模型相似也不复用引用——对外字段裁剪是刻意的;媒体 URL 直接用 `files.url` 的 CDN 直链,**不暴露** `/files/{id}/content`(那是 admin 登录态端点)。
@@ -218,7 +216,7 @@ srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: mux, ReadHeaderTimeout: 5 * ti
 - 导入:`sitegen "github.com/cms-template/server/gen/site"`、`sitehandler "github.com/cms-template/server/internal/handler/site"`;
 - Go 1.22 mux 规则:`/site/v1/`(子树)比 `/` 更具体,自动分流,**注册顺序无关**;swagger 注册在 root mux 上且路径更具体,不受 `/` 链影响(不进 JWT 链,与现状一致);
 - **不要**用"JWTSkipPaths 加 /site 前缀"的替代方案(两条链各自独立才是本方案的核心,避免 admin 中间件知道 site 的存在);
-- `jwtSkip`、`loadPermissionCodes` 等现有变量原位保留。
+- `jwtSkip`、`loadPermissionCodes` 原位保留;**swagger 注册在 root mux 上且路径更具体,不经过任何链**,故 skip 列表精简为 `/healthz`、`/auth/login`(无需再列 swagger 路径)。
 
 ### B5 swagger 双契约展示
 
@@ -252,13 +250,13 @@ srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: mux, ReadHeaderTimeout: 5 * ti
 - site GET 端点统一带 `Cache-Control: public, max-age=60`(写在 handler;端点变多后再抽中间件);
 - 限流、WAF 交给网关层,不在本服务内实现(后续需要再议)。
 
-### B8 步骤 B 验收(DoD)
+### B8 步骤 B 验收(DoD,**已通过**)
 
-- [ ] `pnpm gen:api` 生成 gen/site 与 apps/site 的 orval 产物;
-- [ ] 无 token `curl /site/v1/site-info` 返回 200 且含 Cache-Control;无 token `curl /users` 仍 401(admin 链路回归);
-- [ ] `/swagger` 下拉可切换 admin / site 两份契约;
-- [ ] api-pages.md 新增"site 对外接口"章节并登记端点;
-- [ ] `pnpm verify` 全绿;提交信息:`feat: site api contract and public route chain (stage 7)`。
+- [x] `pnpm gen:api` 生成 gen/site 与 apps/site 的 orval 产物(3 workspace 全跑);
+- [x] 冒烟:无 token `GET /site/v1/site-info` 返回 200 且带 `Cache-Control: public, max-age=60`,信封 `{code,data:{siteName,logoUrl},message}`;无 token `GET /users` 仍 401,登录后 200(admin 链路回归);
+- [x] `/swagger` 下拉可切换 admin / site 两份契约(`/swagger/admin.yaml`、`/swagger/site.yaml` 均匿名 200);
+- [x] api-pages.md 新增"site 对外接口"章节并登记端点;
+- [x] `pnpm verify` 全绿;提交信息:`feat: site api contract and public route chain (stage 7)`。
 
 ---
 

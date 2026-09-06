@@ -314,11 +314,11 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 - 单测:COS 实现以 httptest 桩覆盖 Save(含流式落盘)/Delete 幂等/Open 404 映射/URL 默认域名与前缀归一化;
 - 密钥纪律:`.env.local` 被 gitignore,仓库只提交 `.env.example` 占位。
 
-## 阶段 7:多受众契约拆分(admin / site)
+## 阶段 7:多受众契约拆分(admin / site;**已交付并验收**)
 
-未来会新增对外网站 app:它消费 admin 配置的内容,Go 服务要同时给对外网站提供公开 API。决策:**按受众拆分契约文件,不拆 Go 服务**——`openapi/admin.yaml`(后台,JWT+RBAC)与 `openapi/site.yaml`(公开只读,路径带 `/site/v1` 前缀),一个二进制挂两条中间件链;拆服务(方案 C)留作信号触发时的廉价期权。
+对外网站 app 消费 admin 配置的内容,Go 服务要同时提供公开 API。已落地:**按受众拆分契约,不拆 Go 服务**——`openapi/admin.yaml`(后台,JWT+RBAC)与 `openapi/site.yaml`(公开只读,路径带 `/site/v1` 前缀),一个二进制挂两条中间件链;首端点 `GET /site/v1/site-info`(站名/Logo,读 system 配置组,带 `Cache-Control: public, max-age=60`);`apps/site` 为最小 API 客户端脚手架(orval 生成,无鉴权 client)。
 
-完整执行手册(步骤 A 契约搬家纯重构、步骤 B site 链路与 apps/site 脚手架,含逐文件改法与验收清单)见 [multi-audience-contracts.md](./multi-audience-contracts.md)。**本阶段尚未执行**:步骤 A 可随时做,步骤 B 待对外网站立项。
+执行记录与完整手册(步骤 A 契约搬家、步骤 B site 链路与脚手架)见 [multi-audience-contracts.md](./multi-audience-contracts.md)。验收:无 token 访问 site 端点 200、admin 端点仍 401;swagger 双契约下拉;`pnpm verify` 全绿。后续对外端点按该文档"site 契约维护规则"累加,破坏性变更升 `/site/v2`。
 
 ## 种子数据
 

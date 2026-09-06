@@ -45,6 +45,8 @@ type DatabaseConfig struct {
 type SwaggerConfig struct {
 	Enabled  bool
 	SpecPath string
+	// SiteSpecPath 对外站点契约路径;文件缺失时只跳过 site 契约,不影响启动。
+	SiteSpecPath string
 }
 
 // JWTConfig 认证配置(见 docs/mvp-plan.md 认证约定)。
@@ -92,8 +94,9 @@ func Load() (Config, error) {
 			DSN:    envOr("DATABASE_DSN", "data/cms.db"),
 		},
 		Swagger: SwaggerConfig{
-			Enabled:  envBool("SWAGGER_ENABLED", true),
-			SpecPath: envOr("SWAGGER_SPEC_PATH", "../../openapi/admin.yaml"),
+			Enabled:      envBool("SWAGGER_ENABLED", true),
+			SpecPath:     envOr("SWAGGER_SPEC_PATH", "../../openapi/admin.yaml"),
+			SiteSpecPath: envOr("SWAGGER_SITE_SPEC_PATH", "../../openapi/site.yaml"),
 		},
 		JWT: JWTConfig{
 			Secret: envOr("JWT_SECRET", "dev-secret-change-me"),

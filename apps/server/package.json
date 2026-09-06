@@ -7,7 +7,7 @@
     "build": "go build -o bin/server ./cmd/server",
     "clean": "rm -rf bin data",
     "dev": "go run ./cmd/server",
-    "gen:api": "go tool oapi-codegen -config oapi.admin.cfg.yaml ../../openapi/admin.yaml",
+    "gen:api": "go tool oapi-codegen -config oapi.admin.cfg.yaml ../../openapi/admin.yaml && go tool oapi-codegen -config oapi.site.cfg.yaml ../../openapi/site.yaml",
     "lint": "go vet ./...",
     "test": "go test ./..."
   }
