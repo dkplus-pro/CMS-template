@@ -391,6 +391,66 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 - 登录后 admin 全功能走 `/api/admin/*`,swagger 显示真实前缀路径;dev 代理为纯透传;
 - admin 以 `/admin` basename 运行:e2e 经 `/admin` 完成全部流程(goto `/admin`、守卫跳转、菜单跳转、播放/上传),`pnpm verify` 全绿。
 
+### 修补:basename 配置文件名(**待执行**)
+
+**问题**:交付后实测发现 `/admin` 只在"直接访问时看起来能打开",点击任何路由跳转后 URL 掉回 `/system/users` 等裸路径——**basename 从未生效**。根因:运行时配置文件放错了名字。Modern.js app-tools 约定的运行时配置文件是 `src/modern.runtime.ts`(源码常量 `DEFAULT_RUNTIME_CONFIG_FILE = 'modern.runtime'`,见 `@modern-js/app-tools` dist),而我写的是 `src/runtime.config.ts`——内容正确、名字不在约定上,整个配置被**静默忽略**。e2e 全绿是假象:用例只断言页面内容、从未断言 URL,dev server SPA 兜底 + layout 守卫手动剥前缀把缺陷遮住了。
+
+**执行顺序(红 → 绿)**:先加 URL 断言(此时 e2e 必然红),再改文件名(转绿)。不要反过来做。
+
+**S1 给 e2e 补 URL 断言**(先加,加完跑 e2e 应当红——这就是防回归)。
+
+在 `tests/playwright/demo-app.spec.ts` 中插入 4 处断言:
+
+```ts
+// 1. 登录守卫重定向后(goto("/admin") 之后,加在 heading 断言前):
+await expect(page).toHaveURL(/\/admin\/login$/);
+
+// 2. 登录成功后(点击"登录"之后,加在 hello heading 断言前):
+await expect(page).toHaveURL(/\/admin\/?$/);
+
+// 3. 菜单点击之后("用户管理" click 之后,加在 cell admin 断言前):
+await expect(page).toHaveURL(/\/admin\/system\/users$/);
+
+// 4. 退出登录之后(点击"退出登录"之后,加在登录页 heading 断言前):
+await expect(page).toHaveURL(/\/admin\/login$/);
+```
+
+加完执行 `pnpm test:e2e` 确认第 1 条就红(证明断言有效、bug 真实存在),再继续。
+
+**S2 改回约定文件名**(内容一行不动):
+
+```bash
+git mv apps/admin/src/runtime.config.ts apps/admin/src/modern.runtime.ts
+```
+
+Modern.js 按约定文件名自动加载(`.ts` 扩展名在探测范围内)。改完**必须重启 dev server** 才生效(`lsof -tiTCP:<端口> -sTCP:LISTEN | xargs kill -9`,再起)。
+
+**S3 同步 admin 冒烟测试**(`apps/admin/tests/smoke.test.mjs`):
+
+```ts
+// 改前:
+const runtimeConfigSource = await readFile(
+  new URL("../src/runtime.config.ts", import.meta.url),
+  "utf8"
+);
+// 改后:
+const runtimeConfigSource = await readFile(
+  new URL("../src/modern.runtime.ts", import.meta.url),
+  "utf8"
+);
+```
+
+**S4 文档更正**(本文件"决策(执行确认)"第 4 条与"变更清单 admin app"里的 `src/runtime.config.ts` 字样,均改为 `src/modern.runtime.ts`;并在决策 4 末尾补一句坑位说明:配置文件名不在 Modern.js 约定上会**静默失效**,必须靠 e2e 的 URL 断言兜底)。
+
+**验收(DoD)**:
+
+- [ ] e2e 四条 URL 断言在修复前红、修复后绿(即 `pnpm test:e2e` 通过且 URL 确实含 `/admin`);
+- [ ] 真浏览器/探针复测:goto `/admin` → URL 保持 `/admin/login`;登录 → `/admin/`;点菜单 → `/admin/system/users`;退出 → `/admin/login`;
+- [ ] 直访 `/admin/system/users`(已登录)正常,直访 `/`(根路径)不再渲染后台(basename 下 router 不匹配,交由对外站点);
+- [ ] `pnpm verify` 全绿;提交信息:`fix: modern.js runtime config file name for /admin basename`。
+
+**说明**:`layout.tsx` 剥离 basename 的应用内路径逻辑**保留不动**——真 basename 生效后 `useLocation().pathname` 仍包含 `/admin`,该逻辑与真 basename 互补;本修补只动文件名与测试。
+
 ## 种子数据
 
 超管账号与超级管理员角色(全权限);初始菜单树(系统管理:用户/角色/菜单/日志/配置);示例字典(如 status 通用状态);初始站点配置。
