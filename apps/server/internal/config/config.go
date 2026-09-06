@@ -93,7 +93,7 @@ func Load() (Config, error) {
 		},
 		Swagger: SwaggerConfig{
 			Enabled:  envBool("SWAGGER_ENABLED", true),
-			SpecPath: envOr("SWAGGER_SPEC_PATH", "../../openapi.yaml"),
+			SpecPath: envOr("SWAGGER_SPEC_PATH", "../../openapi/admin.yaml"),
 		},
 		JWT: JWTConfig{
 			Secret: envOr("JWT_SECRET", "dev-secret-change-me"),

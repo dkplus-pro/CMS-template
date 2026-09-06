@@ -1,6 +1,6 @@
 # 接口与页面清单(MVP 全量核对表)
 
-本清单是 [mvp-plan.md](./mvp-plan.md) 的落地核对表:接口的具体 schema 以 `openapi.yaml` 契约为准(本清单只做索引,不复述字段),两者必须在同一个 PR 内同步演进。页面实现遵循 [admin.md](./admin.md)。
+本清单是 [mvp-plan.md](./mvp-plan.md) 的落地核对表:接口的具体 schema 以 `openapi/admin.yaml` 契约为准(本清单只做索引,不复述字段),两者必须在同一个 PR 内同步演进。页面实现遵循 [admin.md](./admin.md);多受众契约说明见 [multi-audience-contracts.md](./multi-audience-contracts.md)。
 
 ## 通用约定
 
@@ -135,6 +135,6 @@
 
 ## 使用方式
 
-1. 新增/变更接口:先改本清单 → 落 `openapi.yaml` → `pnpm gen:api` → 前端直接调用生成函数(零手写)、后端补 handler/service/repo,清单与契约同一 PR;
+1. 新增/变更接口:先改本清单 → 落 `openapi/admin.yaml`(对外站点接口落 `site.yaml`)→ `pnpm gen:api` → 前端直接调用生成函数(零手写)、后端补 handler/service/repo,清单与契约同一 PR;
 2. 排期核对:阶段交付时按下表打勾——接口 42 个、页面 10 个路由(9 业务 + 登录)、弹窗 9 个;
 3. 页面开发顺序 = 表格"依赖接口"列就绪即可开工,不依赖后端整体完成。

@@ -10,7 +10,7 @@ import (
 )
 
 // WriteJSON 以统一响应包装写出:`{code, message, data}`(code 等于 HTTP 状态码)。
-// 契约描述的是 data 载荷,解包由 admin 的 mutator 统一处理(见 openapi.yaml 说明)。
+// 契约描述的是 data 载荷,解包由 admin 的 mutator 统一处理(见 openapi/admin.yaml 说明)。
 func WriteJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)

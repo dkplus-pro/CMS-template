@@ -14,7 +14,7 @@ A pnpm + Turborepo monorepo template with an OpenAPI-driven stack: a Go API serv
 apps/
   admin/                  Modern.js React + Arco Design admin app
   server/                 Go API server (oapi-codegen + GORM)
-openapi.yaml              Single source of truth for the API contract
+openapi/                  API contracts, one file per audience (admin.yaml; site.yaml)
 docs/                     Development docs (dev guide, MVP plan, database design)
 packages/
   tsconfig/              Shared TypeScript presets
@@ -73,7 +73,7 @@ pnpm --filter @monorepo-template/server run dev
 
 ## API contract workflow
 
-`openapi.yaml` at the repo root is the single source of truth. After changing it, regenerate both sides:
+`openapi/` is the single source of truth for API contracts — one file per audience (`admin.yaml` today; `site.yaml` for the public site, see `docs/multi-audience-contracts.md`). After changing a contract, regenerate both sides:
 
 ```bash
 pnpm gen:api   # server: apps/server/gen (oapi-codegen); admin: apps/admin/src/api/generated (orval)
@@ -90,7 +90,7 @@ pnpm test          # Jest + workspace tests + Playwright smoke test
 pnpm build         # Build all buildable workspaces
 pnpm format        # Check Prettier formatting
 pnpm format:write  # Fix Prettier formatting
-pnpm gen:api       # Regenerate API types/code from openapi.yaml (both workspaces)
+pnpm gen:api       # Regenerate API types/code from openapi/ contracts
 pnpm verify        # Fast local verification helper
 pnpm ci            # CI helper: install + lint + typecheck + test + build
 ```

@@ -8,7 +8,7 @@ import (
 	"github.com/cms-template/server/internal/config"
 )
 
-// swaggerIndexHTML Swagger UI 页面,静态资源走 CDN,spec 由同目录 openapi.yaml 端点提供。
+// swaggerIndexHTML Swagger UI 页面,静态资源走 CDN,spec 由同目录 admin.yaml 端点提供。
 const swaggerIndexHTML = `<!DOCTYPE html>
 <html lang="zh-CN">
   <head>
@@ -22,7 +22,7 @@ const swaggerIndexHTML = `<!DOCTYPE html>
     <script>
       window.addEventListener("load", function () {
         window.ui = SwaggerUIBundle({
-          url: "./openapi.yaml",
+          url: "./admin.yaml",
           dom_id: "#swagger-ui",
           persistAuthorization: true,
         });
@@ -31,7 +31,7 @@ const swaggerIndexHTML = `<!DOCTYPE html>
   </body>
 </html>`
 
-// RegisterSwagger 在 mux 上挂载 Swagger UI 与契约文件,路径:/swagger 与 /swagger/openapi.yaml。
+// RegisterSwagger 在 mux 上挂载 Swagger UI 与契约文件,路径:/swagger 与 /swagger/admin.yaml。
 func RegisterSwagger(mux *http.ServeMux, logger *slog.Logger, cfg config.SwaggerConfig) {
 	if !cfg.Enabled {
 		logger.Info("swagger ui disabled")
@@ -42,7 +42,7 @@ func RegisterSwagger(mux *http.ServeMux, logger *slog.Logger, cfg config.Swagger
 	if err != nil {
 		logger.Error("swagger enabled but spec file unreadable, refusing to start",
 			"path", cfg.SpecPath, "error", err)
-		// 契约是本项目的单一事实源,Swagger 开启却读不到说明部署不完整,直接失败。
+		// 契约是接口的单一事实源,Swagger 开启却读不到说明部署不完整,直接失败。
 		panic("swagger spec not found at " + cfg.SpecPath)
 	}
 
@@ -51,7 +51,7 @@ func RegisterSwagger(mux *http.ServeMux, logger *slog.Logger, cfg config.Swagger
 	})
 	mux.HandleFunc("GET /swagger/", func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case "/swagger/openapi.yaml":
+		case "/swagger/admin.yaml":
 			w.Header().Set("Content-Type", "application/yaml; charset=utf-8")
 			_, _ = w.Write(spec)
 		default:

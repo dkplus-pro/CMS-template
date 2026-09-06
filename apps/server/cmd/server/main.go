@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	gen "github.com/cms-template/server/gen"
+	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/config"
 	"github.com/cms-template/server/internal/handler"
 	"github.com/cms-template/server/internal/httpapi"
@@ -131,7 +131,8 @@ func main() {
 	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
 	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService, logsService, configsService, dictsService, mediaService), mux)
 
-	jwtSkip := httpapi.JWTSkipPaths("/healthz", "/swagger", "/swagger/", "/auth/login")
+	// spec 端点一并免认证,否则 Swagger UI 匿名拉取契约会被 401(精确匹配见 JWTSkipPaths)。
+	jwtSkip := httpapi.JWTSkipPaths("/healthz", "/swagger", "/swagger/", "/swagger/admin.yaml", "/auth/login")
 	loadPermissionCodes := func(ctx context.Context, userID int64) ([]string, error) {
 		return usersService.PermissionCodes(ctx, userID)
 	}

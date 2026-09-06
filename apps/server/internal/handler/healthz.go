@@ -3,7 +3,7 @@ package handler
 import (
 	"net/http"
 
-	gen "github.com/cms-template/server/gen"
+	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/httpapi"
 )
 

@@ -44,7 +44,7 @@ Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通�
   "scripts": {
     "dev": "go run ./cmd/server",
     "build": "go build -o bin/server ./cmd/server",
-    "gen:api": "oapi-codegen -config oapi.cfg.yaml ../../openapi.yaml"
+    "gen:api": "oapi-codegen -config oapi.admin.cfg.yaml ../../openapi/admin.yaml"
   }
 }
 ```
@@ -53,10 +53,10 @@ Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通�
 
 ## OpenAPI 接口生成
 
-- 契约唯一来源是仓库根的 `openapi.yaml`;
-- `pnpm gen:api`(即 `oapi-codegen`)生成 `gen/` 下的 types、请求/响应骨架与 `ServerInterface`;
+- 契约按受众存在 `openapi/` 目录:admin 契约唯一来源是 `openapi/admin.yaml`(site 契约见 `openapi/site.yaml` 与 [multi-audience-contracts.md](./multi-audience-contracts.md));
+- `pnpm gen:api`(即 `oapi-codegen`)生成 `gen/admin/` 下的 types、请求/响应骨架与 `ServerInterface`;
 - handler 按接口拆文件实现 `ServerInterface`(一个资源一个文件,如 `handler/article.go`);
-- 生成物不手改;契约变更流程:改 `openapi.yaml` → 重新生成 → 补 handler 实现。
+- 生成物不手改;契约变更流程:改对应受众契约 → 重新生成 → 补 handler 实现。
 
 ## 分层与错误处理
 
@@ -69,4 +69,4 @@ Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通�
 
 - `main.go` 保持装配职责,超过约 **100 行**说明依赖组装该抽 `internal/config` 或 wire 函数了;
 - 任何单文件超过约 **400 行**,按资源或职责拆分;
-- 新增接口的固定动作:改 `openapi.yaml` → `gen:api` → 建 handler 文件 → 写 service 方法 →(需要时)扩 repo。
+- 新增接口的固定动作:改对应受众契约(admin 为 `openapi/admin.yaml`)→ `gen:api` → 建 handler 文件 → 写 service 方法 →(需要时)扩 repo。

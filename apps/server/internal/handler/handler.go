@@ -1,11 +1,11 @@
-// Package handler 实现 openapi.yaml 生成的 ServerInterface。
+// Package handler 实现 openapi/admin.yaml 生成的 admin ServerInterface。
 // 每个资源一个文件;本文件放公共装配。
 package handler
 
 import (
 	"log/slog"
 
-	gen "github.com/cms-template/server/gen"
+	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/media"
 	"github.com/cms-template/server/internal/service"
 )

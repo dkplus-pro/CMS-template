@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	gen "github.com/cms-template/server/gen"
+	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/httpapi"
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"

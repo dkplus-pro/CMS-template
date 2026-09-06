@@ -10,19 +10,19 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 
 ## 总体技术决策
 
-| 项         | 决策                                              | 说明                                                                                                                                           |
-| ---------- | ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| 接口契约   | 根 `openapi.yaml` 单一事实源                      | tags 按模块划分(auth/users/roles/permissions/logs/configs/dicts/files);server 用 oapi-codegen,admin 用 orval 生成类型 + 接口函数(见 admin.md)  |
-| Swagger UI | server 暴露 `GET /swagger`                        | 直接托管根 `openapi.yaml`;dev 必开,生产由配置开关                                                                                              |
-| 存储       | GORM:dev SQLite / prod MySQL                      | 双端同一套模型建表;表结构与迁移方案见 [database.md](./database.md)                                                                             |
-| 认证       | JWT(HS256,Bearer)                                 | 有效期 2h,MVP 不做 refresh token 与服务端登出失效;密码 bcrypt                                                                                  |
-| 权限模型   | RBAC:user → role → permission                     | permission 分 `menu`(菜单/页面/按钮可见)与 `api`(接口/操作)两类,统一存一张表;数据权限不做                                                      |
-| 前端权限   | 静态菜单 + 权限码过滤(阶段 3 修订)                | 菜单与路由由前端代码静态声明(路径/组件/权限码),登录后按 `/auth/me` 下发的权限码过滤显隐;**服务端中间件独立校验,前端显隐只是体验,不是安全边界** |
-| 响应约定   | `{code, message, data}`                           | 分页入参 `page`/`pageSize`,返回 `{list, total}`;错误用 HTTP 状态码 + message                                                                   |
-| 联调       | admin 开发态代理 `/api` → `http://localhost:8080` | 免 CORS;端口约定 server=8080、admin=8081                                                                                                       |
-| 前端数据层 | TanStack Query + orval axios 直调                 | 服务端状态用 `useQuery`/`useMutation` + `XxxController.xxx()`(见 admin.md);客户端全局状态用 zustand(`src/store/`)                              |
-| 工具库     | lodash + ahooks                                   | 通用 React 逻辑优先 ahooks,纯数据操作优先 lodash;请求不用 ahooks useRequest                                                                    |
-| 文件存储   | storage 接口 + 多厂商实现(local / COS)            | 厂商由 storage 配置组 driver 选择;COS 直传对象存储、记录 CDN 地址;TOS 等厂商按同一接口扩展(见阶段 6)                                           |
+| 项         | 决策                                              | 说明                                                                                                                                                                                                                                                     |
+| ---------- | ------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 接口契约   | `openapi/` 目录单一事实源,按受众分文件            | admin 用 `openapi/admin.yaml`(tags: auth/users/roles/permissions/logs/configs/dicts/files);对外站点契约 `site.yaml` 见 [multi-audience-contracts.md](./multi-audience-contracts.md);server 用 oapi-codegen,前端用 orval 生成类型 + 接口函数(见 admin.md) |
+| Swagger UI | server 暴露 `GET /swagger`                        | 直接托管契约目录;dev 必开,生产由配置开关                                                                                                                                                                                                                 |
+| 存储       | GORM:dev SQLite / prod MySQL                      | 双端同一套模型建表;表结构与迁移方案见 [database.md](./database.md)                                                                                                                                                                                       |
+| 认证       | JWT(HS256,Bearer)                                 | 有效期 2h,MVP 不做 refresh token 与服务端登出失效;密码 bcrypt                                                                                                                                                                                            |
+| 权限模型   | RBAC:user → role → permission                     | permission 分 `menu`(菜单/页面/按钮可见)与 `api`(接口/操作)两类,统一存一张表;数据权限不做                                                                                                                                                                |
+| 前端权限   | 静态菜单 + 权限码过滤(阶段 3 修订)                | 菜单与路由由前端代码静态声明(路径/组件/权限码),登录后按 `/auth/me` 下发的权限码过滤显隐;**服务端中间件独立校验,前端显隐只是体验,不是安全边界**                                                                                                           |
+| 响应约定   | `{code, message, data}`                           | 分页入参 `page`/`pageSize`,返回 `{list, total}`;错误用 HTTP 状态码 + message                                                                                                                                                                             |
+| 联调       | admin 开发态代理 `/api` → `http://localhost:8080` | 免 CORS;端口约定 server=8080、admin=8081                                                                                                                                                                                                                 |
+| 前端数据层 | TanStack Query + orval axios 直调                 | 服务端状态用 `useQuery`/`useMutation` + `XxxController.xxx()`(见 admin.md);客户端全局状态用 zustand(`src/store/`)                                                                                                                                        |
+| 工具库     | lodash + ahooks                                   | 通用 React 逻辑优先 ahooks,纯数据操作优先 lodash;请求不用 ahooks useRequest                                                                                                                                                                              |
+| 文件存储   | storage 接口 + 多厂商实现(local / COS)            | 厂商由 storage 配置组 driver 选择;COS 直传对象存储、记录 CDN 地址;TOS 等厂商按同一接口扩展(见阶段 6)                                                                                                                                                     |
 
 ## 数据模型(一览)
 
@@ -292,7 +292,7 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 
 ### 契约与数据变化
 
-- `openapi.yaml`:Image / Video 响应 schema 增加 `url`(string,required,CDN 直链;local 为空串);`ConfigGroup` 枚举去掉 `storage`(存储配置不再是配置组),configs 接口只剩 `system` 组。**无新端点,权限码不变**;
+- `openapi/admin.yaml`:Image / Video 响应 schema 增加 `url`(string,required,CDN 直链;local 为空串);`ConfigGroup` 枚举去掉 `storage`(存储配置不再是配置组),configs 接口只剩 `system` 组。**无新端点,权限码不变**;
 - `files` 表:新增 `url VARCHAR(512) NOT NULL DEFAULT ''`(AutoMigrate 加列,加法变更 SQLite/MySQL 双端安全);`storage` 取值扩展为 `local | cos`(tos 预留);
 - seed:不再写入 storage 配置组,并在启动时清理阶段 6 之前入库的 storage 旧行(自愈,幂等)。
 
@@ -326,7 +326,7 @@ admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确�
 
 ## 跨阶段约定
 
-- **契约先行**:每个接口先落 `openapi.yaml` → `pnpm gen:api` → 再写实现;禁止跳过契约直接写 handler/前端类型;
+- **契约先行**:每个接口先落 `openapi/` 下对应受众契约(admin → `admin.yaml`)→ `pnpm gen:api` → 再写实现;禁止跳过契约直接写 handler/前端类型;
 - **权限码命名**:`模块:资源:动作`,如 `system:user:create`;菜单权限码同规范;
 - **每阶段 DoD**:`pnpm verify` 全绿、Swagger UI 可演示当阶段接口、无手写重复类型、种子数据可重建;
 - JWT 登出不失效是 MVP 取舍,需要立即失效时再加黑名单(后续迭代);

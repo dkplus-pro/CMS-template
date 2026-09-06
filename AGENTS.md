@@ -9,13 +9,13 @@ pnpm + Turborepo monorepo,两个应用:
 - `apps/admin` — Modern.js + React 19 + Arco Design 管理后台
 - `apps/server` — Go API 服务
 
-`openapi.yaml`(仓库根)是前后端唯一接口契约,两侧代码均由它生成。
-当前按 [docs/mvp-plan.md](docs/mvp-plan.md) 分阶段交付管理后台 MVP;新增功能先改 `openapi.yaml` 落契约,再写实现。
+`openapi/` 目录是前后端唯一接口契约,按受众分文件:当前为 `admin.yaml`,两侧代码均由它生成;对外网站立项后新增 `site.yaml`(多受众方案见 [docs/multi-audience-contracts.md](docs/multi-audience-contracts.md))。
+当前按 [docs/mvp-plan.md](docs/mvp-plan.md) 分阶段交付管理后台 MVP;新增功能先改 `openapi/` 下对应受众契约落契约,再写实现。
 
 ## 常用命令(仓库根执行)
 
 - `pnpm dev` — 一条命令并行启动 admin + server
-- `pnpm gen:api` — 从 openapi.yaml 生成 admin 类型与 server 接口代码
+- `pnpm gen:api` — 从 openapi/ 契约生成 admin 类型与 server 接口代码
 - `pnpm lint` / `pnpm typecheck` / `pnpm test`
 - `pnpm verify` — 提交前完整校验,改动后必须通过
 
@@ -23,7 +23,7 @@ pnpm + Turborepo monorepo,两个应用:
 
 ### 接口契约
 
-1. 接口改动先改 `openapi.yaml`,再 `pnpm gen:api`,然后补实现;
+1. 接口改动先改 `openapi/` 下对应受众契约(admin 改 `admin.yaml`),再 `pnpm gen:api`,然后补实现;
 2. 生成物(`apps/admin/src/api/generated/`、`apps/admin/src/api/controllers.gen.ts`、`apps/server/gen/`)禁止手改;前端接口函数一律调用 orval 生成物,Controller 绑定层由 gen:api 从契约 tags 自动生成,不手写请求函数;横切逻辑(token/401/错误提示)只写在 `src/api/client.ts`(mutator 入口);
 3. 两侧不允许手写与契约重复的接口类型。
 
