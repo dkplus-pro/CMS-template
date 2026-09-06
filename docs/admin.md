@@ -10,12 +10,12 @@
 apps/admin/src/
   api/
     client.ts            手写:axios 实例 + orval mutator(唯一含横切逻辑的文件)
-    controllers.ts       手写:Controller 绑定层,把 orval 工厂实例化为单例
+    controllers.gen.ts   生成物:Controller 绑定层(gen:api 从契约 tags 自动生成,勿手改)
     queryKeys.ts         手写:TanStack Query 的 queryKey 集中定义
     generated/           orval 生成物(类型 + 接口函数,勿手改)
   components/          公共组件(跨页面复用)
   hooks/               公共 hooks(跨页面复用的状态逻辑)
-  routes/              页面层(Modern.js 约定路由,即 Page 层)
+  routes/              页面层(Modern.js 约定路由,即 Page 层;$.tsx 为 404 兜底页)
   store/               客户端全局状态(zustand,每个领域一个 useXxxStore)
   utils/               公共工具函数
   constants/           公共常量
@@ -67,7 +67,7 @@ src/routes/article/
 - **mutator**:所有生成函数统一经 `src/api/client.ts` 的 `customInstance` 发起请求(配置在 `output.override.mutator`)。底层是 **axios** 实例:token 注入(request 拦截器)、401 处理、`{code, message, data}` 解包与错误 Message(response 拦截器)只写在这一处;若 orval 要求的 mutator 签名与现有函数不一致,在 `client.ts` 内加适配导出,不得把逻辑散落到别处;
 - **函数名来自 operationId**:契约中每个接口必须写 operationId(它同时是后端 `ServerInterface` 方法名与前端生成函数名);axios 客户端在 tags-split 下按 tag 生成工厂函数(如 `getSystem().healthz()`),与后端按模块的 handler 结构对应;
 - **只生成纯函数客户端**(调用返回 Promise),MVP 不启用 react-query / SWR / mocks 生成;后续若引入 `@tanstack/react-query`,改 orval 的 client 配置重新生成,页面调用方式平滑升级;
-- **Controller 直调**:`src/api/controllers.ts` 把每个 tag 的 orval 工厂实例化为单例,页面与 hooks 统一 `SystemController.healthz()` 风格调用;**禁止在 Controller 之外直接调用 `getXxx()` 工厂**,新增模块在此追加一行绑定;
+- **Controller 直调**:绑定层由 `pnpm gen:api` 从契约 tags 自动生成(`apps/admin/scripts/generate-controllers.mjs`,每个 tag 一行 `XxxController = getXxx()`),页面统一 `SystemController.healthz()` 风格调用;**新增 tag 只需在契约里声明,绑定层零手写**;
 - **queryKey 集中管理**:见"状态管理"一节,新增接口在 `src/api/queryKeys.ts` 登记对应 key;
 - 页面与 hooks 只 import `src/api` 的 Controller、queryKeys 与 `generated` 类型,**禁止手写与契约重复的接口类型**。
 

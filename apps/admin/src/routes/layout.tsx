@@ -16,7 +16,7 @@ import zhCN from "@arco-design/web-react/es/locale/zh-CN";
 import { Navigate, Outlet, useLocation, useNavigate } from "@modern-js/runtime/router";
 import { useEffect, useState } from "react";
 
-import { AuthController } from "../api/controllers";
+import { AuthController } from "../api/controllers.gen";
 import { queryKeys } from "../api/queryKeys";
 import { matchSelectedKey, sidebarMenus } from "../config/menu";
 import { queryClient } from "../config/queryClient";

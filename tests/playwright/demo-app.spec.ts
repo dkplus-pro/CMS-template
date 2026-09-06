@@ -21,6 +21,12 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   // 顶栏显示当前用户昵称(/auth/me 数据)。
   await expect(page.getByText("管理员")).toBeVisible();
 
+  // 兜底 404 页(arco Result 风格),返回首页可用。
+  await page.goto("/no-such-page");
+  await expect(page.getByText("抱歉,您访问的页面不存在")).toBeVisible();
+  await page.getByRole("button", { name: "返回首页" }).click();
+  await expect(page.getByRole("heading", { name: /hello from the admin app/i })).toBeVisible();
+
   // 退出登录回到登录页。
   await page.getByText("管理员").click();
   await page.getByText("退出登录").click();

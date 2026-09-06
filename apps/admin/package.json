@@ -8,7 +8,7 @@
     "build:github-pages": "modern build",
     "deploy:github-pages": "pnpm --workspace-root run build:pages",
     "dev": "modern dev",
-    "gen:api": "orval --config ./orval.config.ts",
+    "gen:api": "orval --config ./orval.config.ts && node ./scripts/generate-controllers.mjs",
     "lint": "eslint . --max-warnings=0",
     "serve": "modern serve",
     "test": "node --test tests/*.test.mjs",

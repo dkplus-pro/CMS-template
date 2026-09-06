@@ -2,7 +2,7 @@ import { Form, Input, Message, Modal } from "@arco-design/web-react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@modern-js/runtime/router";
 
-import { AuthController } from "../api/controllers";
+import { AuthController } from "../api/controllers.gen";
 import { useAuthStore } from "../store/auth";
 
 interface PasswordModalProps {

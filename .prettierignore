@@ -8,3 +8,4 @@ pnpm-lock.yaml
 playwright-report
 test-results
 apps/admin/src/api/generated/
+apps/admin/src/api/controllers.gen.ts

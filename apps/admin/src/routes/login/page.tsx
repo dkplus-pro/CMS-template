@@ -2,7 +2,7 @@ import { Button, Card, Form, Input, Typography } from "@arco-design/web-react";
 import { useMutation } from "@tanstack/react-query";
 import { useNavigate } from "@modern-js/runtime/router";
 
-import { AuthController } from "../../api/controllers";
+import { AuthController } from "../../api/controllers.gen";
 import { useAuthStore } from "../../store/auth";
 import { SYSTEM_NAME } from "../../constants";
 

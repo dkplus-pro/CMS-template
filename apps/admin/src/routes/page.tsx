@@ -2,7 +2,7 @@ import { Tag, Typography } from "@arco-design/web-react";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
-import { SystemController } from "../api/controllers";
+import { SystemController } from "../api/controllers.gen";
 import { queryKeys } from "../api/queryKeys";
 
 const highlights = [
