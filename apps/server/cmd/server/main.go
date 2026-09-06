@@ -64,6 +64,21 @@ func main() {
 		logger.Error("upsert api permissions", "error", err)
 		os.Exit(1)
 	}
+	// 对账清理:注册表移除的接口/模块,其权限点与授予记录一并删除(自愈)。
+	keepAPICodes := make([]string, 0, len(httpapi.RoutePermissions))
+	keepMenuCodes := make([]string, 0)
+	seen := make(map[string]bool)
+	for _, rp := range httpapi.RoutePermissions {
+		keepAPICodes = append(keepAPICodes, rp.Code)
+		if !seen[rp.Menu] {
+			seen[rp.Menu] = true
+			keepMenuCodes = append(keepMenuCodes, rp.Menu)
+		}
+	}
+	if err := repo.PrunePermissions(ctx, db, keepAPICodes, keepMenuCodes); err != nil {
+		logger.Error("prune permissions", "error", err)
+		os.Exit(1)
+	}
 	if err := repo.SeedSuperAdminRole(ctx, db); err != nil {
 		logger.Error("seed super admin role", "error", err)
 		os.Exit(1)

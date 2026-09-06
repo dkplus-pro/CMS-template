@@ -194,3 +194,51 @@ func TestRolePermissions(t *testing.T) {
 		t.Fatalf("expected 2 permission codes, got %v", codes)
 	}
 }
+
+func TestPrunePermissions(t *testing.T) {
+	_, _, permissions := newRBACService(t)
+	ctx := context.Background()
+
+	// 模拟历史遗留:已下线模块的 api 点与其父菜单点,且已被角色授予。
+	staleAPI, err := repo.UpsertPermission(ctx, permissions.db, &repo.Permission{
+		Code: "system:menu:list", Name: "菜单列表", Type: "api",
+	})
+	if err != nil {
+		t.Fatalf("seed stale api point: %v", err)
+	}
+	staleMenu, err := repo.UpsertPermission(ctx, permissions.db, &repo.Permission{
+		Code: "menu:system:menu", Name: "菜单管理", Type: "menu",
+	})
+	if err != nil {
+		t.Fatalf("seed stale menu point: %v", err)
+	}
+	roles := NewRoleService(permissions.db)
+	role, err := roles.Create(ctx, "ops2", "运维2", "", true)
+	if err != nil {
+		t.Fatalf("create role: %v", err)
+	}
+	if err := roles.UpdatePermissions(ctx, role.ID, []int64{staleAPI, staleMenu}); err != nil {
+		t.Fatalf("grant stale points: %v", err)
+	}
+
+	if err := repo.PrunePermissions(ctx, permissions.db,
+		[]string{"system:user:create", "system:user:list"}, []string{"menu:system:user"}); err != nil {
+		t.Fatalf("prune: %v", err)
+	}
+
+	var count int64
+	if err := permissions.db.Model(&repo.Permission{}).Where("code LIKE ?", "%system:menu%").Count(&count).Error; err != nil {
+		t.Fatal(err)
+	}
+	if count != 0 {
+		t.Fatalf("stale menu-module points should be pruned, got %d", count)
+	}
+	var grants int64
+	if err := permissions.db.Model(&repo.RolePermission{}).
+		Where("permission_id IN ?", []int64{staleAPI, staleMenu}).Count(&grants).Error; err != nil {
+		t.Fatal(err)
+	}
+	if grants != 0 {
+		t.Fatalf("stale grants should be pruned, got %d", grants)
+	}
+}

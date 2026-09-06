@@ -101,3 +101,60 @@ func CountUsersByRoleID(ctx context.Context, db *gorm.DB, roleID int64) (int64, 
 	}
 	return count, nil
 }
+
+// PrunePermissions 按注册表对账清理权限点:注册表是 api/menu 权限点的唯一事实源,
+// 从注册表移除的接口与模块,其权限点及角色授予记录在启动时一并清除(自愈,防幽灵权限点)。
+func PrunePermissions(ctx context.Context, db *gorm.DB, keepAPICodes, keepMenuCodes []string) error {
+	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		// 1. 清理已下线的 api 权限点。
+		if err := prunePermissions(tx, "api", keepAPICodes); err != nil {
+			return err
+		}
+		// 2. 清理已下线的菜单权限点(仍有 api 子点挂载的除外)。
+		return pruneMenuPermissions(tx, keepMenuCodes)
+	})
+}
+
+func prunePermissions(tx *gorm.DB, permissionType string, keepCodes []string) error {
+	query := tx.Model(&Permission{}).Where("type = ?", permissionType)
+	if len(keepCodes) > 0 {
+		query = query.Where("code NOT IN ?", keepCodes)
+	}
+	var staleIDs []int64
+	if err := query.Pluck("id", &staleIDs).Error; err != nil {
+		return fmt.Errorf("find stale %s permissions: %w", permissionType, err)
+	}
+	if len(staleIDs) == 0 {
+		return nil
+	}
+	if err := tx.Where("permission_id IN ?", staleIDs).Delete(&RolePermission{}).Error; err != nil {
+		return fmt.Errorf("clear grants of stale %s permissions: %w", permissionType, err)
+	}
+	if err := tx.Where("id IN ?", staleIDs).Delete(&Permission{}).Error; err != nil {
+		return fmt.Errorf("delete stale %s permissions: %w", permissionType, err)
+	}
+	return nil
+}
+
+func pruneMenuPermissions(tx *gorm.DB, keepMenuCodes []string) error {
+	query := tx.Model(&Permission{}).Where("type = ?", "menu")
+	if len(keepMenuCodes) > 0 {
+		query = query.Where("code NOT IN ?", keepMenuCodes)
+	}
+	// 仍有 api 子点挂载的菜单点保留(其子点刚被对账保留,说明模块未下线)。
+	query = query.Where("id NOT IN (SELECT parent_id FROM permissions WHERE type = 'api' AND parent_id != 0)")
+	var staleIDs []int64
+	if err := query.Pluck("id", &staleIDs).Error; err != nil {
+		return fmt.Errorf("find stale menu permissions: %w", err)
+	}
+	if len(staleIDs) == 0 {
+		return nil
+	}
+	if err := tx.Where("permission_id IN ?", staleIDs).Delete(&RolePermission{}).Error; err != nil {
+		return fmt.Errorf("clear grants of stale menu permissions: %w", err)
+	}
+	if err := tx.Where("id IN ?", staleIDs).Delete(&Permission{}).Error; err != nil {
+		return fmt.Errorf("delete stale menu permissions: %w", err)
+	}
+	return nil
+}
