@@ -17,6 +17,7 @@ import (
 	"github.com/cms-template/server/internal/handler"
 	"github.com/cms-template/server/internal/httpapi"
 	"github.com/cms-template/server/internal/repo"
+	"github.com/cms-template/server/internal/service"
 )
 
 func main() {
@@ -28,6 +29,8 @@ func main() {
 		os.Exit(1)
 	}
 
+	ctx := context.Background()
+
 	db, err := repo.Open(cfg.Database)
 	if err != nil {
 		logger.Error("open database", "error", err)
@@ -37,14 +40,44 @@ func main() {
 		logger.Error("auto migrate", "error", err)
 		os.Exit(1)
 	}
+	if err := repo.SeedAdmin(ctx, db); err != nil {
+		logger.Error("seed admin", "error", err)
+		os.Exit(1)
+	}
+
+	authService := service.NewAuthService(db, cfg.JWT.Secret, cfg.JWT.TTL)
 
 	mux := http.NewServeMux()
 	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
-	gen.HandlerFromMux(handler.New(logger, db), mux)
+	gen.HandlerFromMux(handler.New(logger, authService), mux)
+
+	jwtSkip := httpapi.JWTSkipPaths("/healthz", "/swagger", "/swagger/", "/auth/login")
+	operationLog := httpapi.OperationLog(func(ctx context.Context, entry httpapi.OperationLogEntry) {
+		if err := repo.CreateOperationLog(ctx, db, repo.OperationLogEntry{
+			UserID:     entry.UserID,
+			Username:   entry.Username,
+			Method:     entry.Method,
+			Path:       entry.Path,
+			Action:     entry.Action,
+			OK:         entry.OK,
+			StatusCode: entry.StatusCode,
+			Message:    entry.Message,
+			IP:         entry.IP,
+			LatencyMS:  entry.LatencyMS,
+		}); err != nil {
+			logger.Error("write operation log", "error", err)
+		}
+	})
 
 	srv := &http.Server{
-		Addr:              cfg.HTTP.Addr,
-		Handler:           httpapi.Chain(mux, httpapi.Logging(logger), httpapi.Recover(logger)),
+		Addr: cfg.HTTP.Addr,
+		Handler: httpapi.Chain(
+			mux,
+			httpapi.Logging(logger),
+			httpapi.JWTAuth(logger, cfg.JWT.Secret, jwtSkip),
+			operationLog,
+			httpapi.Recover(logger),
+		),
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 

@@ -7,7 +7,10 @@
  * 修改流程:改本文件 → `pnpm gen:api` 双端生成 → 双端实现。
  * 生成物(apps/admin/src/api/generated/、apps/server/gen/)禁止手改。
  *
- * OpenAPI spec version: 0.1.0
+ * 响应包装:传输层统一为 `{code, message, data}`(code 等于 HTTP 状态码);
+ * 本契约描述的是 data 载荷,admin 在 mutator(src/api/client.ts)统一解包。
+ *
+ * OpenAPI spec version: 0.2.0
  */
 import type {
   HealthzResponse

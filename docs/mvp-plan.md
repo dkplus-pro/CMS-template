@@ -84,11 +84,11 @@ admin:
 | GET  | /auth/me       | 当前用户 + 角色 + 权限码(为动态菜单预留) |
 | PUT  | /auth/password | 校验旧密码后修改                         |
 
-server:users 表与种子管理员(文档注明初始口令,建议首次登录即改);JWT 签发/校验中间件(除 /auth/login、/healthz、/swagger 外全量拦截);**操作日志中间件在本阶段埋点**(只记录不查询)。
+server:users 表与种子管理员(**初始账号 `admin` / `admin123`,首次登录后应在"修改密码"中更换**);JWT 签发/校验中间件(除 /auth/login、/healthz、/swagger 外全量拦截);**操作日志中间件在本阶段埋点**(只记录不查询)。种子逻辑在 `internal/repo/seed.go`,users 表为空时创建,可重复执行。
 
-admin:先切换 orval 接口生成(替换 openapi-typescript 手写薄函数模式,规范见 [admin.md](./admin.md));登录页;token 与当前用户进全局 model;路由守卫(未登录跳登录);顶栏用户下拉(修改密码弹窗、退出)。
+admin:orval 接口生成(见 [admin.md](./admin.md));登录页(`routes/login/`);token 与当前用户进 zustand(`store/auth.ts`);路由守卫(全局 layout 内,未登录跳登录);顶栏用户下拉(修改密码弹窗、退出)。
 
-验收:登录后进入壳;错误口令/禁用账号被拒;token 过期后任意请求跳登录;改密后旧 token 场景按新口令可登录。
+验收:登录后进入壳;错误口令/禁用账号被拒;token 过期后任意请求跳登录;改密后旧 token 场景按新口令可登录。**本阶段已交付并验收**(e2e 覆盖完整登录-登出流程)。
 
 ## 阶段 2:用户 · 角色 · 权限(RBAC 核心)
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"time"
 )
 
 // Config 服务运行所需的全量配置。
@@ -12,6 +13,7 @@ type Config struct {
 	HTTP     HTTPConfig
 	Database DatabaseConfig
 	Swagger  SwaggerConfig
+	JWT      JWTConfig
 }
 
 // HTTPConfig HTTP 监听配置。
@@ -34,6 +36,12 @@ type SwaggerConfig struct {
 	SpecPath string
 }
 
+// JWTConfig 认证配置(见 docs/mvp-plan.md 认证约定)。
+type JWTConfig struct {
+	Secret string
+	TTL    time.Duration
+}
+
 // Load 读取环境变量并应用默认值,非法值直接报错,避免带病启动。
 func Load() (Config, error) {
 	cfg := Config{
@@ -47,6 +55,10 @@ func Load() (Config, error) {
 		Swagger: SwaggerConfig{
 			Enabled:  envBool("SWAGGER_ENABLED", true),
 			SpecPath: envOr("SWAGGER_SPEC_PATH", "../../openapi.yaml"),
+		},
+		JWT: JWTConfig{
+			Secret: envOr("JWT_SECRET", "dev-secret-change-me"),
+			TTL:    time.Duration(envInt("JWT_TTL_HOURS", 2)) * time.Hour,
 		},
 	}
 
@@ -72,6 +84,18 @@ func envBool(key string, fallback bool) bool {
 		return fallback
 	}
 	v, err := strconv.ParseBool(raw)
+	if err != nil {
+		return fallback
+	}
+	return v
+}
+
+func envInt(key string, fallback int) int {
+	raw := os.Getenv(key)
+	if raw == "" {
+		return fallback
+	}
+	v, err := strconv.Atoi(raw)
 	if err != nil {
 		return fallback
 	}

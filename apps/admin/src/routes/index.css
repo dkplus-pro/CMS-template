@@ -46,6 +46,29 @@ body {
   border-bottom: 1px solid #e5e6eb;
 }
 
+.app-header-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+}
+
+.app-user {
+  cursor: pointer;
+  color: #1d2129;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #eef4ff 0%, #f6f8fb 60%, #e8f3ff 100%);
+}
+
+.login-card {
+  width: min(92vw, 380px);
+  box-shadow: 0 24px 80px rgb(23 32 51 / 12%);
+}
+
 .app-content {
   padding: 24px;
 }

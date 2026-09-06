@@ -59,7 +59,7 @@ test("stage 0 wires openapi contract pipeline and dev proxy to the go server", a
 
   const configSource = await readFile(new URL("../modern.config.ts", import.meta.url), "utf8");
   assert.match(configSource, /proxy: \{/);
-  assert.match(configSource, /target: "http:\/\/localhost:8080"/);
+  assert.match(configSource, /API_PROXY_TARGET/);
   assert.match(configSource, /pathRewrite: \{ "\^\/api": "" \}/);
 
   const generatedHealthz = await readFile(

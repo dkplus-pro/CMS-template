@@ -7,7 +7,10 @@
  * 修改流程:改本文件 → `pnpm gen:api` 双端生成 → 双端实现。
  * 生成物(apps/admin/src/api/generated/、apps/server/gen/)禁止手改。
  *
- * OpenAPI spec version: 0.1.0
+ * 响应包装:传输层统一为 `{code, message, data}`(code 等于 HTTP 状态码);
+ * 本契约描述的是 data 载荷,admin 在 mutator(src/api/client.ts)统一解包。
+ *
+ * OpenAPI spec version: 0.2.0
  */
 export interface Error {
   /** HTTP 状态码 */
@@ -33,5 +36,50 @@ export interface PageMeta {
 
 export interface HealthzResponse {
   status: string;
+}
+
+export interface LoginRequest {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  username: string;
+  /**
+     * @minLength 6
+     * @maxLength 64
+     */
+  password: string;
+}
+
+export interface UserInfo {
+  id: number;
+  username: string;
+  nickname: string;
+  email?: string;
+  status: boolean;
+  /** 角色码列表 */
+  roles: string[];
+  /** 权限码列表(阶段 2/3 填充) */
+  permissions: string[];
+}
+
+export interface LoginResponse {
+  token: string;
+  /** token 过期时间 */
+  expiresAt: string;
+  user: UserInfo;
+}
+
+export interface ChangePasswordRequest {
+  /**
+     * @minLength 6
+     * @maxLength 64
+     */
+  oldPassword: string;
+  /**
+     * @minLength 6
+     * @maxLength 64
+     */
+  newPassword: string;
 }
 

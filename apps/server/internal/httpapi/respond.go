@@ -3,25 +3,44 @@ package httpapi
 
 import (
 	"encoding/json"
+	"fmt"
 	"log/slog"
 	"net/http"
 	"time"
 )
 
-// WriteJSON 以统一 JSON 响应写出。
+// WriteJSON 以统一响应包装写出:`{code, message, data}`(code 等于 HTTP 状态码)。
+// 契约描述的是 data 载荷,解包由 admin 的 mutator 统一处理(见 openapi.yaml 说明)。
 func WriteJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	if body != nil {
-		if err := json.NewEncoder(w).Encode(body); err != nil {
-			slog.Error("write json response", "error", err)
-		}
+	if status == http.StatusNoContent || body == nil {
+		return
+	}
+	if err := json.NewEncoder(w).Encode(map[string]any{
+		"code":    status,
+		"message": "ok",
+		"data":    body,
+	}); err != nil {
+		slog.Error("write json response", "error", err)
 	}
 }
 
-// WriteError 写出契约中定义的 Error 结构。
+// WriteError 写出契约中定义的 Error 结构(错误不套 data 包装)。
 func WriteError(w http.ResponseWriter, status int, message string) {
-	WriteJSON(w, status, map[string]any{"code": status, "message": message})
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
+	w.WriteHeader(status)
+	if err := json.NewEncoder(w).Encode(map[string]any{"code": status, "message": message}); err != nil {
+		slog.Error("write error response", "error", err)
+	}
+}
+
+// DecodeRequest 解析 JSON 请求体。
+func DecodeRequest(r *http.Request, v any) error {
+	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		return fmt.Errorf("decode request body: %w", err)
+	}
+	return nil
 }
 
 // Middleware 标准 http 中间件签名。

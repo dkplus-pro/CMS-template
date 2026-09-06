@@ -5,20 +5,19 @@ package handler
 import (
 	"log/slog"
 
-	"gorm.io/gorm"
-
 	gen "github.com/cms-template/server/gen"
+	"github.com/cms-template/server/internal/service"
 )
 
 // Handler 承载全部 HTTP 处理器,依赖通过构造函数注入。
 type Handler struct {
 	logger *slog.Logger
-	db     *gorm.DB
+	auth   *service.AuthService
 }
 
 // New 装配 Handler。
-func New(logger *slog.Logger, db *gorm.DB) *Handler {
-	return &Handler{logger: logger, db: db}
+func New(logger *slog.Logger, auth *service.AuthService) *Handler {
+	return &Handler{logger: logger, auth: auth}
 }
 
 // 编译期保证 Handler 实现了契约生成的全部接口;新增接口后此处会立即报错。

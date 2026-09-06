@@ -15,7 +15,12 @@ export function getToken(): string | null {
 }
 
 export function setToken(token: string | null): void {
-  useAuthStore.getState().setToken(token);
+  const store = useAuthStore.getState();
+  if (token) {
+    store.setAuth(token, store.user);
+  } else {
+    store.clear();
+  }
 }
 
 function isEnvelope(
@@ -43,8 +48,10 @@ axiosInstance.interceptors.response.use(
     return response;
   },
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
-      setToken(null);
+    // 登录接口自身的 401 是"凭证错误",不属于会话过期,交给通用错误分支提示。
+    const isLoginRequest = error.config?.url?.includes("/auth/login");
+    if (error.response?.status === 401 && !isLoginRequest) {
+      useAuthStore.getState().clear();
       Message.error("登录已过期,请重新登录");
       // 阶段 1 登录页上线后在此跳转 /login。
     } else if (error.response) {

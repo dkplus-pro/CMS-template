@@ -62,6 +62,8 @@ One command starts both workspaces via Turborepo:
 - admin at <http://localhost:8081/> (dev-proxies `/api` to the server)
 - Go server at <http://localhost:8080/> (Swagger UI at <http://localhost:8080/swagger/>)
 
+Default admin account: `admin` / `admin123` (change it via the avatar menu after first login).
+
 To run only one workspace:
 
 ```bash

@@ -6,17 +6,85 @@
 package gen
 
 import (
+	"context"
 	"fmt"
 	"net/http"
+	"time"
 )
+
+const (
+	BearerAuthScopes = "bearerAuth.Scopes"
+)
+
+// ChangePasswordRequest defines model for ChangePasswordRequest.
+type ChangePasswordRequest struct {
+	NewPassword string `json:"newPassword"`
+	OldPassword string `json:"oldPassword"`
+}
+
+// Error defines model for Error.
+type Error struct {
+	// Code HTTP 状态码
+	Code int `json:"code"`
+
+	// Message 错误描述
+	Message string `json:"message"`
+}
 
 // HealthzResponse defines model for HealthzResponse.
 type HealthzResponse struct {
 	Status string `json:"status"`
 }
 
+// LoginRequest defines model for LoginRequest.
+type LoginRequest struct {
+	Password string `json:"password"`
+	Username string `json:"username"`
+}
+
+// LoginResponse defines model for LoginResponse.
+type LoginResponse struct {
+	// ExpiresAt token 过期时间
+	ExpiresAt time.Time `json:"expiresAt"`
+	Token     string    `json:"token"`
+	User      UserInfo  `json:"user"`
+}
+
+// UserInfo defines model for UserInfo.
+type UserInfo struct {
+	Email    *string `json:"email,omitempty"`
+	Id       int64   `json:"id"`
+	Nickname string  `json:"nickname"`
+
+	// Permissions 权限码列表(阶段 2/3 填充)
+	Permissions []string `json:"permissions"`
+
+	// Roles 角色码列表
+	Roles    []string `json:"roles"`
+	Status   bool     `json:"status"`
+	Username string   `json:"username"`
+}
+
+// LoginJSONRequestBody defines body for Login for application/json ContentType.
+type LoginJSONRequestBody = LoginRequest
+
+// ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
+type ChangePasswordJSONRequestBody = ChangePasswordRequest
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
+	// 登录
+	// (POST /auth/login)
+	Login(w http.ResponseWriter, r *http.Request)
+	// 退出登录(MVP 为前端清 token,服务端不失效)
+	// (POST /auth/logout)
+	Logout(w http.ResponseWriter, r *http.Request)
+	// 当前用户信息(含角色与权限码,供动态菜单预留)
+	// (GET /auth/me)
+	GetMe(w http.ResponseWriter, r *http.Request)
+	// 修改密码(校验旧密码)
+	// (PUT /auth/password)
+	ChangePassword(w http.ResponseWriter, r *http.Request)
 	// 健康检查
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
@@ -30,6 +98,80 @@ type ServerInterfaceWrapper struct {
 }
 
 type MiddlewareFunc func(http.Handler) http.Handler
+
+// Login operation middleware
+func (siw *ServerInterfaceWrapper) Login(w http.ResponseWriter, r *http.Request) {
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Login(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// Logout operation middleware
+func (siw *ServerInterfaceWrapper) Logout(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.Logout(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetMe operation middleware
+func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetMe(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ChangePassword operation middleware
+func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ChangePassword(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
 
 // Healthz operation middleware
 func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
@@ -165,6 +307,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 		ErrorHandlerFunc:   options.ErrorHandlerFunc,
 	}
 
+	m.HandleFunc("POST "+options.BaseURL+"/auth/login", wrapper.Login)
+	m.HandleFunc("POST "+options.BaseURL+"/auth/logout", wrapper.Logout)
+	m.HandleFunc("GET "+options.BaseURL+"/auth/me", wrapper.GetMe)
+	m.HandleFunc("PUT "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.Healthz)
 
 	return m
