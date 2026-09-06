@@ -98,6 +98,11 @@
 | DELETE | /videos/{id}        | 删除(级联底层文件)                         | media:video:delete |
 | GET    | /files/{id}/content | 文件内容流(图片预览/视频播放共用;登录即可) | 登录               |
 
+阶段 6(对象存储接入,方案见 mvp-plan.md)对本块的增量,端点与权限码不变:
+
+- Image / Video 响应 schema 增加 `url` 字段(CDN 直链;local 存储为空串),admin 展示优先用 `url`,空串回退 content 端点;
+- `GET /files/{id}/content` 对 `files.url` 非空的记录(OSS)改为 **302 重定向**到 CDN 地址,local 记录维持流式输出(保留 Range)。
+
 ## 权限点汇总
 
 - **api 权限点 27 个**(上表权限码去重):user 5、role 5、menu 4、log 1、config 2、dict 4、media 6;以 server 路由注册表为源,启动时 upsert 进 permissions(type=api);

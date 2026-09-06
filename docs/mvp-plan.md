@@ -22,23 +22,23 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 | 联调       | admin 开发态代理 `/api` → `http://localhost:8080` | 免 CORS;端口约定 server=8080、admin=8081                                                                                                       |
 | 前端数据层 | TanStack Query + orval axios 直调                 | 服务端状态用 `useQuery`/`useMutation` + `XxxController.xxx()`(见 admin.md);客户端全局状态用 zustand(`src/store/`)                              |
 | 工具库     | lodash + ahooks                                   | 通用 React 逻辑优先 ahooks,纯数据操作优先 lodash;请求不用 ahooks useRequest                                                                    |
-| 文件存储   | storage 接口 + local 实现                         | 预留 S3 实现,不阻塞 MVP                                                                                                                        |
+| 文件存储   | storage 接口 + 多厂商实现(local / COS)            | 厂商由 storage 配置组 driver 选择;COS 直传对象存储、记录 CDN 地址;TOS 等厂商按同一接口扩展(见阶段 6)                                           |
 
 ## 数据模型(一览)
 
 完整字段、索引与类型约定见 [database.md](./database.md)。
 
-| 表                 | 关键字段                                                                                 | 说明                                     |
-| ------------------ | ---------------------------------------------------------------------------------------- | ---------------------------------------- |
-| users              | id, username, password_hash, nickname, email, status                                     | status: 1 启用 / 0 禁用                  |
-| roles              | id, code, name, remark, status                                                           | 内置超级管理员角色不可删                 |
-| user_roles         | user_id, role_id                                                                         | 用户 ↔ 角色                              |
-| permissions        | id, code, type(menu/api), name, parent_id                                                | 统一权限点;code 见命名规范               |
-| role_permissions   | role_id, permission_id                                                                   | 角色 ↔ 权限,唯一关联表                   |
-| operation_logs     | id, user_id, username, method, path, action, ok, status_code, ip, latency_ms, created_at | 只增不改                                 |
-| files              | id, name, orig_name, mime, size, storage, path, uploader_id                              | storage: local                           |
-| sys_configs        | group, key, value                                                                        | KV,value 存 JSON;group: system / storage |
-| dicts / dict_items | code / dict_id, label, value, sort, status                                               | 字典与字典项                             |
+| 表                 | 关键字段                                                                                 | 说明                                         |
+| ------------------ | ---------------------------------------------------------------------------------------- | -------------------------------------------- |
+| users              | id, username, password_hash, nickname, email, status                                     | status: 1 启用 / 0 禁用                      |
+| roles              | id, code, name, remark, status                                                           | 内置超级管理员角色不可删                     |
+| user_roles         | user_id, role_id                                                                         | 用户 ↔ 角色                                  |
+| permissions        | id, code, type(menu/api), name, parent_id                                                | 统一权限点;code 见命名规范                   |
+| role_permissions   | role_id, permission_id                                                                   | 角色 ↔ 权限,唯一关联表                       |
+| operation_logs     | id, user_id, username, method, path, action, ok, status_code, ip, latency_ms, created_at | 只增不改                                     |
+| files              | id, name, orig_name, mime, size, storage, url, path, uploader_id                         | storage: local / cos;url 存 CDN 直链(阶段 6) |
+| sys_configs        | group, key, value                                                                        | KV,value 存 JSON;group: system / storage     |
+| dicts / dict_items | code / dict_id, label, value, sort, status                                               | 字典与字典项                                 |
 
 ## 阶段总览
 
@@ -50,6 +50,7 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 | 3    | 权限驱动的菜单(静态菜单方案,修订)            | S    | 2    | 与阶段 4 前半并行 |
 | 4    | 操作日志 · 系统基础配置                      | M    | 2    | 与阶段 3 并行     |
 | 5    | 文件管理(整体可后置)                         | M    | 4    | 独立              |
+| 6    | 对象存储接入(多厂商抽象,先接 COS)            | S    | 5    | 独立              |
 
 规模:S ≈ 1-2 天,M ≈ 3-4 天,L ≈ 5-7 天(单人有效开发时间,仅用于排期参考)。
 
@@ -199,7 +200,7 @@ admin:日志页改为业务语义——列:操作人/动作/资源/描述/结果
 
 ### 分层设计
 
-- **底层(通用,无 UI)**:`files` 表 + `internal/storage` 接口(local 实现,目录来自 storage 配置组;预留 S3 实现位),负责文件的存取与介质删除。通用 `/files` CRUD 接口**暂不对外暴露**——后续非媒体业务(如附件)需要时再开放,避免运营侧出现无语义的文件列表;
+- **底层(通用,无 UI)**:`files` 表 + `internal/storage` 接口(local 实现,目录来自 storage 配置组;多厂商扩展见阶段 6),负责文件的存取与介质删除。通用 `/files` CRUD 接口**暂不对外暴露**——后续非媒体业务(如附件)需要时再开放,避免运营侧出现无语义的文件列表;
 - **上层(类型化)**:`media_assets` 表(kind = image / video / audio,file_id 关联 files,meta 存提取的信息);每种类型注册一个**信息提取器**(`Extractor` 接口):图片用 Go 标准库解析宽高与格式,视频/音频 MVP 只记基础信息并预留 ffprobe 接入位(时长、分辨率、封面帧等后续按需补充);
 - 上传流程:`storage.Save → files 记录 → 提取器解析 → media_assets 记录`;删除媒体级联删除底层文件与介质;
 - 文件内容统一走 `GET /files/{id}/content`(登录即可,流式输出),图片预览与视频播放共用,上层接口不重复提供下载。
@@ -225,6 +226,88 @@ server:`files`、`media_assets` 表;`internal/storage` 接口 + local 实现;上
 admin:图片管理页(网格缩略图 + 上传弹窗 + 预览大图 + 删除确认)、视频管理页(列表 + 上传弹窗 + 内嵌 video 播放 + 删除确认);**不做通用文件管理页**。
 
 验收:上传图片后缩略图与大图预览正常且 meta 含宽高/格式;上传视频可内嵌播放;删除媒体后 files 记录与介质文件同步删除;非图片/视频类型(如 .txt)被对应接口以 400 拒绝;音频接口未开放。**本阶段已按修订方案交付并验收**(e2e 覆盖真实上传与展示;冒烟覆盖提取/级联删除/类型拒绝)。
+
+## 阶段 6:对象存储接入(多厂商抽象,先接 COS)
+
+> **方案说明(先出方案,后写代码)**:文件介质要能从服务器本地目录迁到对象存储,且厂商不止一家(腾讯云 COS、火山引擎 TOS 等)。因此把"存文件"这一层按厂商抽象:接口唯一、厂商实现可插拔、配置按厂商分组,新增厂商不改业务代码。本期先接 COS:**上传直传 COS,文件记录落 CDN 地址**,admin 展示走 CDN 直链。
+
+### 多厂商抽象设计
+
+- **接口唯一**:沿用 `internal/storage.Storage` 作为唯一存储抽象,media / 后续任何业务只面向接口编程,不感知厂商。接口随 OSS 需求修订:
+
+  ```go
+  type Storage interface {
+      // Save 写入文件内容,返回对象 key(uuid + 扩展名,可带厂商前缀)与字节数。
+      Save(ctx context.Context, r io.Reader, ext string) (key string, size int64, err error)
+      // Open 顺序读对象内容(信息提取、本地兜底输出用)。
+      Open(ctx context.Context, key string) (io.ReadCloser, error)
+      // URL 返回外网可访问地址(CDN 直链);本地存储返回 ""。
+      URL(key string) string
+      // Driver 返回驱动名(local / cos / tos ...),写入 files.storage。
+      Driver() string
+      // Delete 删除对象;不存在视为已删除(幂等)。
+      Delete(ctx context.Context, key string) error
+  }
+  ```
+
+  `Open` 由 `*os.File` 放宽为 `io.ReadCloser`(COS 实现为 `Object.Get` 的响应体);本地实现仍返回 `*os.File`,内容端点类型断言回 `io.ReadSeeker` 以保留 Range 播放。
+
+- **厂商实现可插拔**:一个厂商一个文件(`internal/storage/local.go`、`cos.go`,后续 `tos.go`),各自封装 SDK 与配置;`main.go` 按 storage 配置组的 `driver` 键 switch 装配,业务层零改动。
+- **配置按厂商分组**:继续放在 storage 配置组(运维项,admin 不展示,改后重启生效),厂商键加前缀互不干扰:
+
+  | 键              | 示例                      | 说明                                                                |
+  | --------------- | ------------------------- | ------------------------------------------------------------------- |
+  | `driver`        | `local` / `cos`           | 当前驱动                                                            |
+  | `basePath`      | `data/files`              | local 专用:存储目录                                                 |
+  | `cos.secretId`  | `AKID...`                 | COS 专用:访问密钥 ID(建议子账号最小权限)                            |
+  | `cos.secretKey` | `***`                     | COS 专用:访问密钥 Key                                               |
+  | `cos.bucket`    | `my-assets-1250000000`    | COS 专用:Bucket 全名(含 APPID 后缀)                                 |
+  | `cos.region`    | `ap-guangzhou`            | COS 专用:地域                                                       |
+  | `cos.cdnDomain` | `https://cdn.example.com` | COS 专用:CDN 域名;为空时用默认 `{bucket}.cos.{region}.myqcloud.com` |
+  | `cos.prefix`    | `cms/`                    | COS 专用:对象 key 前缀,可空                                         |
+
+- **新增厂商步骤**(拓展示例,文档化固定动作):
+  1. `internal/storage/{vendor}.go` 实现 `Storage` 接口(封装厂商 SDK,对象 key 规则与 local 一致:uuid + 扩展名 + 可选前缀);
+  2. seed 增补 `{vendor}.*` 配置键,`driver` 枚举说明加新值;
+  3. `main.go` 装配 switch 加分支;
+  4. `files.storage` 取值登记新驱动名。
+     TOS(火山引擎)届时按此四步接入(其 SDK 或 S3 兼容模式均可),接口与表结构不变。
+
+### COS 接入方案(本期)
+
+- **SDK**:`github.com/tencentyun/cos-go-sdk-v5`。`Save` 用 `Object.Put` 流式上传;`Delete` 用 `Object.Delete`(COS 删除缺失 key 返回成功,天然幂等);`Open` 用 `Object.Get` 返回响应体。
+- **上传流程调整**(`media.Upload`):
+  - 图片(≤10MB):先把请求体读入内存一次,`Save` 与宽高提取(`image.DecodeConfig`)复用同一份字节,**避免上传后再从 COS 回源 GET 一次**;
+  - 视频(≤200MB):保持流式 `Save`,meta 暂无提取需求,不回源;
+  - files 记录:`storage` 写当前驱动名,`url` 写 `driver.URL(key)`(CDN 完整地址;local 为空串)——**历史记录不随 CDN 域名配置漂移**;若日后更换 CDN 域名,用一条 SQL 按旧前缀批量刷新即可。
+- **内容端点** `GET /files/{id}/content`:`files.url` 非空(OSS 记录)→ **302 重定向到 CDN 地址**;为空(local)→ 维持现状 `http.ServeContent`(保留 Range,视频可拖进度)。两种记录混合共存,历史 local 文件不受影响。
+- **驱动切换**:改 `driver` 配置 + 重启即生效;local ↔ COS 可来回切,已上传记录各按各的 `url` 访问,不互相污染。
+
+### 契约与数据变化
+
+- `openapi.yaml`:Image / Video 响应 schema 增加 `url`(string,CDN 直链;local 存储为空串)。**无新端点,权限码不变**;
+- `files` 表:新增 `url VARCHAR(512) NOT NULL DEFAULT ''`(AutoMigrate 加列,加法变更 SQLite/MySQL 双端安全);`storage` 取值扩展为 `local | cos`(tos 预留);
+- seed:storage 组补 `cos.*` 键(空值占位 + remark 说明)。
+
+### admin 变化
+
+- `useFileURL`:记录带 `url` 直接返回(CDN 公开可读,无需 Bearer);无 `url` 走原 blob + Bearer 通道(本地文件)。图片/视频列表、预览、播放统一经此分支,页面对存储后端无感;
+- 系统设置页维持只展示 system 组;COS 配置属运维项(改库或后续开放 storage 组),不在 admin 暴露。
+
+### 执行前需用户提供的 COS 配置
+
+1. `SecretId` / `SecretKey`(建议子账号,最小授权:该 bucket 的 PutObject / GetObject / DeleteObject);
+2. Bucket 全名(含 `-APPID` 后缀)与 Region;
+3. CDN 域名(已配置该 bucket 为回源);暂无 CDN 则用 COS 默认域名,需确认 bucket 公共可读;
+4. 对象 key 前缀(可空,默认空);
+5. 确认项:MVP 按 **CDN/默认域名公开可读** 出直链;私有 bucket + 签名 URL(时效防盗链)属后续迭代,本期不做。
+
+### 验收
+
+- `driver=cos`:上传图片/视频直传 COS,files 记录 `storage=cos` 且 `url` 为 CDN 地址,admin 列表/预览/播放走 CDN 直链;删除媒体同步删除 COS 对象;
+- `driver=local`:行为与现状完全一致(回归);
+- 历史 local 记录与新 COS 记录混合展示均正常;切换驱动只需改配置 + 重启;
+- 单测:COS 实现以 httptest 桩覆盖 Save/Delete/URL/幂等删除;e2e 仍跑 local;COS 链路冒烟脚本手动执行(密钥不入库、不进 CI)。
 
 ## 种子数据
 

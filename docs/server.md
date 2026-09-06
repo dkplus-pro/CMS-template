@@ -23,6 +23,16 @@ apps/server/
 
 数据库表结构、字段类型约定与 SQLite → MySQL 迁移方案见 [database.md](./database.md);repo 层通过 GORM 双驱动按配置切换。
 
+## 文件存储(多厂商抽象)
+
+文件介质统一经 `internal/storage.Storage` 接口存取,业务层(media 等)只面向接口,不感知厂商;方案全貌见 [mvp-plan.md](./mvp-plan.md) 阶段 6。
+
+- **一个厂商一个文件**:`local.go`(本地目录)、`cos.go`(腾讯云 COS),后续 `tos.go`(火山引擎);各自封装 SDK 细节与配置读取,对象 key 规则统一为 uuid + 扩展名(+ 可选厂商前缀);
+- **接口要点**:`Save` 流式写入返回 key 与字节数;`Open` 返回 `io.ReadCloser`(本地返回 `*os.File`,内容端点断言回 `io.ReadSeeker` 保留 Range);`URL(key)` 返回外网地址(CDN 直链,本地为空串);`Driver()` 返回驱动名写入 `files.storage`;`Delete` 幂等;
+- **装配**:`main.go` 按 storage 配置组 `driver` 键 switch 构造实现,切换驱动 = 改配置 + 重启;配置键清单见 [database.md](./database.md) sys_configs 一节;
+- **新增厂商**:实现接口 → seed 加 `{vendor}.*` 配置键 → main 装配分支 → `files.storage` 取值登记,业务代码零改动;
+- **密钥纪律**:厂商密钥只进 storage 配置组(运维维护,admin 不展示),不写进代码与 CI;COS 链路冒烟用脚本手动执行。
+
 ## 接入 monorepo
 
 Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通过 `package.json` 暴露统一脚本:

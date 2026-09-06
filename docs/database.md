@@ -108,17 +108,18 @@
 
 ### files — 文件
 
-| 字段        | 类型         | 说明                  |
-| ----------- | ------------ | --------------------- |
-| id          | PK           |                       |
-| orig_name   | VARCHAR(255) | 原始文件名            |
-| name        | VARCHAR(128) | 存储名(uuid + 扩展名) |
-| path        | VARCHAR(255) | 相对路径 / 对象 key   |
-| mime        | VARCHAR(64)  |                       |
-| size        | int64        | 字节                  |
-| storage     | VARCHAR(16)  | `local`,预留 `s3`     |
-| uploader_id | int64        | 0 = 系统              |
-| created_at  |              |                       |
+| 字段        | 类型         | 说明                                                        |
+| ----------- | ------------ | ----------------------------------------------------------- |
+| id          | PK           |                                                             |
+| orig_name   | VARCHAR(255) | 原始文件名                                                  |
+| name        | VARCHAR(128) | 存储名 / 对象 key(uuid + 扩展名,可带厂商前缀)               |
+| path        | VARCHAR(255) | 相对路径 / 对象 key                                         |
+| mime        | VARCHAR(64)  |                                                             |
+| size        | int64        | 字节                                                        |
+| storage     | VARCHAR(16)  | 驱动名:`local` / `cos`(tos 预留;见 mvp-plan.md 阶段 6)      |
+| url         | VARCHAR(512) | 外网访问地址(CDN 直链);local 为空串,AutoMigrate 加列默认 '' |
+| uploader_id | int64        | 0 = 系统                                                    |
+| created_at  |              |                                                             |
 
 ### media_assets — 媒体资源(类型化上层;方案见 mvp-plan.md 阶段 5 修订)
 
@@ -147,6 +148,19 @@
 | remark                  | VARCHAR(255)           | 用途说明                   |
 | updated_by              | int64                  | 最后修改人                 |
 | created_at / updated_at |                        |                            |
+
+storage 组键清单(运维项,admin 不展示,改后重启生效;厂商键加前缀,新增厂商只加键不加表,见 mvp-plan.md 阶段 6):
+
+| 键              | 说明                                                              |
+| --------------- | ----------------------------------------------------------------- |
+| `driver`        | 当前存储驱动:`local` / `cos`(tos 预留)                            |
+| `basePath`      | local 专用:存储目录(默认 `data/files`)                            |
+| `cos.secretId`  | COS 专用:访问密钥 ID                                              |
+| `cos.secretKey` | COS 专用:访问密钥 Key(明文落库,后续可迁 env)                      |
+| `cos.bucket`    | COS 专用:Bucket 全名(含 `-APPID` 后缀)                            |
+| `cos.region`    | COS 专用:地域,如 `ap-guangzhou`                                   |
+| `cos.cdnDomain` | COS 专用:CDN 域名;为空用默认 `{bucket}.cos.{region}.myqcloud.com` |
+| `cos.prefix`    | COS 专用:对象 key 前缀,可空                                       |
 
 ### dicts / dict_items — 字典
 
