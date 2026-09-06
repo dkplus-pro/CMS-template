@@ -1,24 +1,21 @@
 import { Message } from "@arco-design/web-react";
 import Axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 
-import { TOKEN_STORAGE_KEY } from "../constants";
+import { useAuthStore } from "../store/auth";
 
 // 统一请求客户端(orval axios 客户端的 mutator,见 docs/admin.md):
 // 底层为 axios 实例;baseURL 拼接、token 注入、401 处理、错误提示、{code, message, data} 解包
 // 全部只写在这里,生成物不含任何横切逻辑,生成函数拿到的直接是 data 本体。
+// token 的读写委托给 zustand 的 useAuthStore(客户端全局状态,见 src/store/auth.ts)。
 
 const BASE_URL = "/api";
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_STORAGE_KEY);
+  return useAuthStore.getState().token;
 }
 
 export function setToken(token: string | null): void {
-  if (token) {
-    localStorage.setItem(TOKEN_STORAGE_KEY, token);
-  } else {
-    localStorage.removeItem(TOKEN_STORAGE_KEY);
-  }
+  useAuthStore.getState().setToken(token);
 }
 
 function isEnvelope(

@@ -16,7 +16,7 @@ apps/admin/src/
   components/          公共组件(跨页面复用)
   hooks/               公共 hooks(跨页面复用的状态逻辑)
   routes/              页面层(Modern.js 约定路由,即 Page 层)
-  store/               全局共享状态(Modern.js model)
+  store/               客户端全局状态(zustand,每个领域一个 useXxxStore)
   utils/               公共工具函数
   constants/           公共常量
   config/              公共配置(主题、路由菜单、queryClient 等)
@@ -48,7 +48,7 @@ src/routes/article/
 
 - **服务端状态**(接口数据)一律使用 TanStack Query:页面/hooks 里 `useQuery` / `useMutation` + Controller 函数;**禁止手写 `useEffect` + `useState` 拉取接口**;QueryClient 单例在 `src/config/queryClient.ts`,由全局 layout 提供 Provider;
 - **queryKey** 集中定义在 `src/api/queryKeys.ts`,结构为 `[模块, 资源, ...参数]`,与 Controller 模块一一对应,禁止在页面里裸写字符串 key;
-- **客户端全局状态**(登录用户、菜单等)使用 Modern.js 自带 model(`@modern-js/runtime` 的 `useModel`),集中放 `src/store/`;
+- **客户端全局状态**(登录用户、token、菜单等)一律使用 **zustand**,集中放 `src/store/`:每个领域一个文件、一个 `useXxxStore`;需要跨会话保留的状态(如 token)用 `persist` 中间件持久化到 localStorage;组件内按需订阅,组件外用 `useXxxStore.getState()` / `.setState()` 读写;
 - 可复用的局部状态逻辑抽成 hooks(如 `useTableQuery` 封装"分页 + 筛选 + 请求"),放 `src/hooks/`;
 - 允许使用 zustand,但一个项目里只用一种全局方案,不要混用。
 
@@ -81,7 +81,7 @@ src/routes/article/
 | ------------------ | ------------------------------------ |
 | 2 个及以上页面使用 | `src/components/`、`src/hooks/`      |
 | 仅单个页面使用     | 页面目录内的 `components/`、`hooks/` |
-| 跨页面全局共享状态 | `src/store/`(Modern.js model)        |
+| 跨页面全局共享状态 | `src/store/`(zustand)                |
 | 接口类型与请求函数 | 一律复用 `src/api/generated/` 生成物 |
 
 拆分规则:

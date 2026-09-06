@@ -43,11 +43,16 @@ test("stage 0 wires openapi contract pipeline and dev proxy to the go server", a
   assert.match(clientSource, /export function customInstance/);
   assert.match(clientSource, /Axios\.create/);
 
+  assert.ok(packageJson.dependencies.zustand, "zustand required");
+
   const controllersSource = await readFile(
     new URL("../src/api/controllers.ts", import.meta.url),
     "utf8"
   );
   assert.match(controllersSource, /export const SystemController = getSystem\(\)/);
+
+  const authStoreSource = await readFile(new URL("../src/store/auth.ts", import.meta.url), "utf8");
+  assert.match(authStoreSource, /export const useAuthStore/);
 
   const layoutSource = await readFile(new URL("../src/routes/layout.tsx", import.meta.url), "utf8");
   assert.match(layoutSource, /QueryClientProvider/);
