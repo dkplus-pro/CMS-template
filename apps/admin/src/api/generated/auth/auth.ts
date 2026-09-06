@@ -13,6 +13,7 @@
  * OpenAPI spec version: 0.2.0
  */
 import type {
+  AuthMenuNode,
   ChangePasswordRequest,
   LoginRequest,
   LoginResponse,
@@ -72,8 +73,20 @@ const changePassword = (
     },
       );
     }
-  return {login,logout,getMe,changePassword}};
+  /**
+ * @summary 当前用户可见菜单树(动态路由/侧边栏数据源,仅需登录)
+ */
+const getAuthMenus = (
+
+ ) => {
+      return customInstance<AuthMenuNode[]>(
+      {url: `/auth/menus`, method: 'GET'
+    },
+      );
+    }
+  return {login,logout,getMe,changePassword,getAuthMenus}};
 export type LoginResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getAuth>['login']>>>
 export type LogoutResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getAuth>['logout']>>>
 export type GetMeResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getAuth>['getMe']>>>
 export type ChangePasswordResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getAuth>['changePassword']>>>
+export type GetAuthMenusResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getAuth>['getAuthMenus']>>>

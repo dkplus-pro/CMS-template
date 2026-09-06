@@ -38,6 +38,11 @@ var RoutePermissions = []RoutePermission{
 	{"PUT", "/roles/{id}/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
 
 	{"GET", "/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
+
+	{"GET", "/menus", "system:menu:list", "菜单列表", "menu:system:menu", "菜单管理"},
+	{"POST", "/menus", "system:menu:create", "创建菜单", "menu:system:menu", "菜单管理"},
+	{"PUT", "/menus/{id}", "system:menu:update", "编辑菜单", "menu:system:menu", "菜单管理"},
+	{"DELETE", "/menus/{id}", "system:menu:delete", "删除菜单", "menu:system:menu", "菜单管理"},
 }
 
 // MatchRoutePermission 按方法与路径匹配注册表;未命中的接口仅需登录。

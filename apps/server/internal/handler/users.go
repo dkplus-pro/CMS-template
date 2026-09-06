@@ -214,3 +214,10 @@ func derefInts(v *[]int64) []int64 {
 	}
 	return *v
 }
+
+func genOptsString(v string) *string {
+	if v == "" {
+		return nil
+	}
+	return &v
+}

@@ -49,6 +49,7 @@ func main() {
 	usersService := service.NewUserService(db)
 	rolesService := service.NewRoleService(db)
 	permissionsService := service.NewPermissionService(db)
+	menusService := service.NewMenuService(db)
 
 	// 把路由注册表中的 API 权限点同步进 permissions 表(含挂载的菜单权限点),幂等。
 	apiSeeds := make([]repo.ApiPermissionSeed, 0, len(httpapi.RoutePermissions))
@@ -68,10 +69,14 @@ func main() {
 		logger.Error("seed super admin role", "error", err)
 		os.Exit(1)
 	}
+	if err := repo.SeedMenus(ctx, db); err != nil {
+		logger.Error("seed menus", "error", err)
+		os.Exit(1)
+	}
 
 	mux := http.NewServeMux()
 	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
-	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService), mux)
+	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService, menusService), mux)
 
 	jwtSkip := httpapi.JWTSkipPaths("/healthz", "/swagger", "/swagger/", "/auth/login")
 	loadPermissionCodes := func(ctx context.Context, userID int64) ([]string, error) {

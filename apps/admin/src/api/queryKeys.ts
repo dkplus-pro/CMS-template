@@ -2,10 +2,14 @@
 // 结构为 [模块, 资源, ...参数],与 Controller 模块一一对应,禁止在页面里裸写字符串 key。
 export const queryKeys = {
   auth: {
-    me: ["auth", "me"] as const
+    me: ["auth", "me"] as const,
+    menus: ["auth", "menus"] as const
   },
   system: {
     healthz: ["system", "healthz"] as const
+  },
+  menus: {
+    tree: ["menus", "tree"] as const
   },
   users: {
     list: (page: number, pageSize: number, keyword: string, status?: boolean) =>

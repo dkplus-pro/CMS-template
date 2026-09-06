@@ -33,17 +33,18 @@ func (s *PermissionService) Tree(ctx context.Context) ([]types.PermissionNode, e
 		}
 	}
 
-	roots := make([]types.PermissionNode, 0)
+	var rootPtrs []*types.PermissionNode
 	for _, p := range list {
 		node := nodes[p.ID]
 		if parent, ok := nodes[p.ParentID]; ok && p.ParentID != 0 {
 			parent.Children = append(parent.Children, *node)
 		} else {
-			roots = append(roots, *node)
+			rootPtrs = append(rootPtrs, node)
 		}
 	}
-	if roots == nil {
-		roots = []types.PermissionNode{}
+	roots := make([]types.PermissionNode, 0, len(rootPtrs))
+	for _, ptr := range rootPtrs {
+		roots = append(roots, *ptr)
 	}
 	return roots, nil
 }

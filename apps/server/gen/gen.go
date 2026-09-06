@@ -24,6 +24,18 @@ const (
 	Menu PermissionNodeType = "menu"
 )
 
+// AuthMenuNode defines model for AuthMenuNode.
+type AuthMenuNode struct {
+	Children     []AuthMenuNode `json:"children"`
+	ComponentKey *string        `json:"componentKey,omitempty"`
+	Icon         *string        `json:"icon,omitempty"`
+	Id           int64          `json:"id"`
+	Name         string         `json:"name"`
+	ParentId     int64          `json:"parentId"`
+	Path         string         `json:"path"`
+	Sort         int            `json:"sort"`
+}
+
 // ChangePasswordRequest defines model for ChangePasswordRequest.
 type ChangePasswordRequest struct {
 	NewPassword string `json:"newPassword"`
@@ -56,6 +68,36 @@ type LoginResponse struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 	Token     string    `json:"token"`
 	User      UserInfo  `json:"user"`
+}
+
+// MenuItem defines model for MenuItem.
+type MenuItem struct {
+	Children []MenuItem `json:"children"`
+
+	// ComponentKey 前端组件白名单 key,目录留空
+	ComponentKey *string `json:"componentKey,omitempty"`
+	Icon         *string `json:"icon,omitempty"`
+	Id           int64   `json:"id"`
+	Name         string  `json:"name"`
+	ParentId     int64   `json:"parentId"`
+	Path         string  `json:"path"`
+
+	// PermissionCode 绑定的菜单权限码,空为不绑定(登录可见)
+	PermissionCode *string `json:"permissionCode,omitempty"`
+	Sort           int     `json:"sort"`
+	Visible        bool    `json:"visible"`
+}
+
+// MenuUpsertRequest defines model for MenuUpsertRequest.
+type MenuUpsertRequest struct {
+	ComponentKey   *string `json:"componentKey,omitempty"`
+	Icon           *string `json:"icon,omitempty"`
+	Name           string  `json:"name"`
+	ParentId       int64   `json:"parentId"`
+	Path           string  `json:"path"`
+	PermissionCode *string `json:"permissionCode,omitempty"`
+	Sort           int     `json:"sort"`
+	Visible        bool    `json:"visible"`
 }
 
 // PermissionIdsRequest defines model for PermissionIdsRequest.
@@ -207,6 +249,12 @@ type LoginJSONRequestBody = LoginRequest
 // ChangePasswordJSONRequestBody defines body for ChangePassword for application/json ContentType.
 type ChangePasswordJSONRequestBody = ChangePasswordRequest
 
+// CreateMenuJSONRequestBody defines body for CreateMenu for application/json ContentType.
+type CreateMenuJSONRequestBody = MenuUpsertRequest
+
+// UpdateMenuJSONRequestBody defines body for UpdateMenu for application/json ContentType.
+type UpdateMenuJSONRequestBody = MenuUpsertRequest
+
 // CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
 type CreateRoleJSONRequestBody = RoleRequest
 
@@ -239,12 +287,27 @@ type ServerInterface interface {
 	// 当前用户信息(含角色与权限码,供动态菜单预留)
 	// (GET /auth/me)
 	GetMe(w http.ResponseWriter, r *http.Request)
+	// 当前用户可见菜单树(动态路由/侧边栏数据源,仅需登录)
+	// (GET /auth/menus)
+	GetAuthMenus(w http.ResponseWriter, r *http.Request)
 	// 修改密码(校验旧密码)
 	// (PUT /auth/password)
 	ChangePassword(w http.ResponseWriter, r *http.Request)
 	// 健康检查
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
+	// 全量菜单树(管理端,含隐藏)
+	// (GET /menus)
+	ListMenus(w http.ResponseWriter, r *http.Request)
+	// 新建菜单(目录/页面)
+	// (POST /menus)
+	CreateMenu(w http.ResponseWriter, r *http.Request)
+	// 删除菜单(有子菜单拒绝;联动删除绑定的菜单权限点)
+	// (DELETE /menus/{id})
+	DeleteMenu(w http.ResponseWriter, r *http.Request, id Id)
+	// 编辑菜单
+	// (PUT /menus/{id})
+	UpdateMenu(w http.ResponseWriter, r *http.Request, id Id)
 	// 全量权限点树(menu + api)
 	// (GET /permissions)
 	ListPermissions(w http.ResponseWriter, r *http.Request)
@@ -355,6 +418,26 @@ func (siw *ServerInterfaceWrapper) GetMe(w http.ResponseWriter, r *http.Request)
 	handler.ServeHTTP(w, r)
 }
 
+// GetAuthMenus operation middleware
+func (siw *ServerInterfaceWrapper) GetAuthMenus(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetAuthMenus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ChangePassword operation middleware
 func (siw *ServerInterfaceWrapper) ChangePassword(w http.ResponseWriter, r *http.Request) {
 
@@ -380,6 +463,108 @@ func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Reques
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Healthz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMenus operation middleware
+func (siw *ServerInterfaceWrapper) ListMenus(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMenus(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMenu operation middleware
+func (siw *ServerInterfaceWrapper) CreateMenu(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMenu(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMenu operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMenu(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMenu(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateMenu operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMenu(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateMenu(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -985,8 +1170,13 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/auth/login", wrapper.Login)
 	m.HandleFunc("POST "+options.BaseURL+"/auth/logout", wrapper.Logout)
 	m.HandleFunc("GET "+options.BaseURL+"/auth/me", wrapper.GetMe)
+	m.HandleFunc("GET "+options.BaseURL+"/auth/menus", wrapper.GetAuthMenus)
 	m.HandleFunc("PUT "+options.BaseURL+"/auth/password", wrapper.ChangePassword)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.Healthz)
+	m.HandleFunc("GET "+options.BaseURL+"/menus", wrapper.ListMenus)
+	m.HandleFunc("POST "+options.BaseURL+"/menus", wrapper.CreateMenu)
+	m.HandleFunc("DELETE "+options.BaseURL+"/menus/{id}", wrapper.DeleteMenu)
+	m.HandleFunc("PUT "+options.BaseURL+"/menus/{id}", wrapper.UpdateMenu)
 	m.HandleFunc("GET "+options.BaseURL+"/permissions", wrapper.ListPermissions)
 	m.HandleFunc("GET "+options.BaseURL+"/roles", wrapper.ListRoles)
 	m.HandleFunc("POST "+options.BaseURL+"/roles", wrapper.CreateRole)

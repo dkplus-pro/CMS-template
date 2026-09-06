@@ -1,20 +1,25 @@
-import { Button, Result } from "@arco-design/web-react";
-import { useNavigate } from "@modern-js/runtime/router";
+import { useLocation } from "@modern-js/runtime/router";
 
-// 兜底 404 页面(Modern.js 约定:routes/$.page.tsx),样式对齐 arco-design-pro 的异常页。
-export default function NotFoundPage() {
-  const navigate = useNavigate();
+import { componentRegistry } from "../config/component-registry";
+import NotFoundPage from "../components/not-found";
+import { flattenMenus, useAuthMenus } from "../hooks/use-auth-menus";
 
-  return (
-    <Result
-      status="404"
-      title="404"
-      subTitle="抱歉,您访问的页面不存在"
-      extra={
-        <Button type="primary" onClick={() => navigate("/")}>
-          返回首页
-        </Button>
-      }
-    />
-  );
+// 兜底路由 = 动态路由分发器:按当前路径在 /auth/menus 中查找菜单项,
+// 用其 component_key 从白名单注册表渲染页面组件;未匹配则渲染 404。
+// 服务端已按权限过滤该树,无权限的菜单在这里表现为 404。
+export default function DynamicRoute() {
+  const location = useLocation();
+  const menusQuery = useAuthMenus();
+
+  if (menusQuery.isPending) {
+    return null;
+  }
+
+  const menu = flattenMenus(menusQuery.data ?? []).find((item) => item.path === location.pathname);
+  const PageComponent = menu?.componentKey ? componentRegistry[menu.componentKey] : undefined;
+
+  if (!PageComponent) {
+    return <NotFoundPage />;
+  }
+  return <PageComponent />;
 }

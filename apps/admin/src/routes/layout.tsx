@@ -18,8 +18,8 @@ import { useEffect, useState } from "react";
 
 import { AuthController } from "../api/controllers.gen";
 import { queryKeys } from "../api/queryKeys";
-import { matchSelectedKey, sidebarMenus } from "../config/menu";
 import { queryClient } from "../config/queryClient";
+import { flattenMenus, useAuthMenus } from "../hooks/use-auth-menus";
 import { SYSTEM_NAME } from "../constants";
 import { useAuthStore } from "../store/auth";
 
@@ -63,6 +63,18 @@ function AppShell() {
     }
   }, [meQuery.data]);
 
+  // 侧边栏与面包屑来自当前用户可见菜单树(动态路由数据源,见 docs/admin.md)。
+  const menusQuery = useAuthMenus();
+  // 受控展开:菜单树加载后展开全部目录(MVP 约定,目录数量少)。
+  const [openKeys, setOpenKeys] = useState<string[]>([]);
+  useEffect(() => {
+    if (menusQuery.data) {
+      setOpenKeys(
+        (menusQuery.data ?? []).filter((node) => node.children?.length).map((node) => node.path)
+      );
+    }
+  }, [menusQuery.data]);
+
   // 路由守卫:未登录访问业务页跳 /login,已登录访问 /login 跳首页。
   if (isLoginPage) {
     if (token) {
@@ -74,8 +86,8 @@ function AppShell() {
     return <Navigate to="/login" replace />;
   }
 
-  const selectedKey = matchSelectedKey(location.pathname);
-  const activeTitle = sidebarMenus.find((menu) => menu.path === selectedKey)?.title;
+  const menuTree = menusQuery.data ?? [];
+  const currentMenu = flattenMenus(menuTree).find((menu) => menu.path === location.pathname);
 
   const handleUserMenu = async (key: string) => {
     if (key === "password") {
@@ -99,20 +111,29 @@ function AppShell() {
         <Sider className="app-sider" width={220}>
           <div className="app-logo">{SYSTEM_NAME}</div>
           <Menu
-            selectedKeys={selectedKey ? [selectedKey] : []}
+            selectedKeys={[location.pathname]}
+            openKeys={openKeys}
             onClickMenuItem={(key) => navigate(key)}
             style={{ width: "100%" }}
           >
-            {sidebarMenus.map((menu) => (
-              <Menu.Item key={menu.path}>{menu.title}</Menu.Item>
-            ))}
+            {menuTree.map((node) =>
+              node.children?.length ? (
+                <Menu.SubMenu key={node.path} title={node.name}>
+                  {node.children.map((child) => (
+                    <Menu.Item key={child.path}>{child.name}</Menu.Item>
+                  ))}
+                </Menu.SubMenu>
+              ) : (
+                <Menu.Item key={node.path}>{node.name}</Menu.Item>
+              )
+            )}
           </Menu>
         </Sider>
         <ArcoLayout>
           <Header className="app-header">
             <Breadcrumb>
               <Breadcrumb.Item>{SYSTEM_NAME}</Breadcrumb.Item>
-              {activeTitle ? <Breadcrumb.Item>{activeTitle}</Breadcrumb.Item> : null}
+              {currentMenu ? <Breadcrumb.Item>{currentMenu.name}</Breadcrumb.Item> : null}
             </Breadcrumb>
             <div className="app-header-right">
               <Dropdown

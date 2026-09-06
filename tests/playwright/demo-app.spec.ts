@@ -41,6 +41,10 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await page.getByText("角色管理").click();
   await expect(page.getByRole("button", { name: "新建角色" })).toBeVisible();
 
+  // 动态路由 + 菜单管理:侧边栏来自 /auth/menus,树表格含种子菜单。
+  await page.getByText("菜单管理").click();
+  await expect(page.getByRole("cell", { name: "用户管理", exact: true })).toBeVisible();
+
   // 退出登录回到登录页。
   await page.getByText("管理员", { exact: true }).click();
   await page.getByText("退出登录").click();

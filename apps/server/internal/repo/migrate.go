@@ -13,6 +13,7 @@ var autoMigrateModels = []any{
 	&UserRole{},
 	&Permission{},
 	&RolePermission{},
+	&Menu{},
 	&OperationLog{},
 }
 

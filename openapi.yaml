@@ -21,6 +21,8 @@ tags:
     description: 角色管理
   - name: permissions
     description: 权限点
+  - name: menus
+    description: 菜单管理
 security:
   - bearerAuth: []
 paths:
@@ -412,6 +414,103 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/PermissionNode"
+  /menus:
+    get:
+      operationId: listMenus
+      summary: 全量菜单树(管理端,含隐藏)
+      tags:
+        - menus
+      responses:
+        "200":
+          description: 菜单树
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MenuItem"
+    post:
+      operationId: createMenu
+      summary: 新建菜单(目录/页面)
+      tags:
+        - menus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MenuUpsertRequest"
+      responses:
+        "200":
+          description: 新建后的菜单
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "409":
+          description: 菜单路径已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /menus/{id}:
+    put:
+      operationId: updateMenu
+      summary: 编辑菜单
+      tags:
+        - menus
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MenuUpsertRequest"
+      responses:
+        "200":
+          description: 更新后的菜单
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MenuItem"
+        "409":
+          description: 菜单路径已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteMenu
+      summary: 删除菜单(有子菜单拒绝;联动删除绑定的菜单权限点)
+      tags:
+        - menus
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: 删除成功
+        "409":
+          description: 存在子菜单
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /auth/menus:
+    get:
+      operationId: getAuthMenus
+      summary: 当前用户可见菜单树(动态路由/侧边栏数据源,仅需登录)
+      tags:
+        - auth
+      responses:
+        "200":
+          description: 可见菜单树(已按权限过滤,排除隐藏项)
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AuthMenuNode"
 components:
   parameters:
     Id:
@@ -773,3 +872,103 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/PermissionNode"
+    MenuItem:
+      type: object
+      required:
+        - id
+        - parentId
+        - name
+        - path
+        - sort
+        - visible
+        - children
+      properties:
+        id:
+          type: integer
+          format: int64
+        parentId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        path:
+          type: string
+        componentKey:
+          type: string
+          description: 前端组件白名单 key,目录留空
+        icon:
+          type: string
+        permissionCode:
+          type: string
+          description: 绑定的菜单权限码,空为不绑定(登录可见)
+        sort:
+          type: integer
+        visible:
+          type: boolean
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/MenuItem"
+    MenuUpsertRequest:
+      type: object
+      required:
+        - parentId
+        - name
+        - path
+        - sort
+        - visible
+      properties:
+        parentId:
+          type: integer
+          format: int64
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+        path:
+          type: string
+          minLength: 1
+          maxLength: 128
+        componentKey:
+          type: string
+          maxLength: 64
+        icon:
+          type: string
+          maxLength: 64
+        permissionCode:
+          type: string
+          maxLength: 128
+        sort:
+          type: integer
+        visible:
+          type: boolean
+    AuthMenuNode:
+      type: object
+      required:
+        - id
+        - parentId
+        - name
+        - path
+        - sort
+        - children
+      properties:
+        id:
+          type: integer
+          format: int64
+        parentId:
+          type: integer
+          format: int64
+        name:
+          type: string
+        path:
+          type: string
+        componentKey:
+          type: string
+        icon:
+          type: string
+        sort:
+          type: integer
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/AuthMenuNode"

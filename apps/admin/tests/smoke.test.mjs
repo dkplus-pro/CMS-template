@@ -21,10 +21,23 @@ test("admin app has visible hello-world content and Modern.js app tools configur
   assert.match(configSource, /appTools\(\)/);
 });
 
-test("admin has a 404 fallback page and generated controller layer", async () => {
-  const notFoundSource = await readFile(new URL("../src/routes/$.tsx", import.meta.url), "utf8");
+test("admin has a 404 fallback page, dynamic route dispatcher and generated controller layer", async () => {
+  const notFoundSource = await readFile(
+    new URL("../src/components/not-found.tsx", import.meta.url),
+    "utf8"
+  );
   assert.match(notFoundSource, /Result/);
   assert.match(notFoundSource, /status="404"/);
+
+  const dispatcherSource = await readFile(new URL("../src/routes/$.tsx", import.meta.url), "utf8");
+  assert.match(dispatcherSource, /componentRegistry/);
+  assert.match(dispatcherSource, /getAuthMenus|useAuthMenus/);
+
+  const registrySource = await readFile(
+    new URL("../src/config/component-registry.tsx", import.meta.url),
+    "utf8"
+  );
+  assert.match(registrySource, /"system\/users": UsersPage/);
 
   const controllersGen = await readFile(
     new URL("../src/api/controllers.gen.ts", import.meta.url),

@@ -66,6 +66,22 @@ type RolePermission struct {
 
 func (RolePermission) TableName() string { return "role_permissions" }
 
+// Menu 菜单表(目录/页面统一)。
+type Menu struct {
+	ID           int64  `gorm:"primaryKey;autoIncrement" json:"id"`
+	ParentID     int64  `gorm:"not null;default:0;index" json:"parentId"`
+	Name         string `gorm:"size:64;not null" json:"name"`
+	Path         string `gorm:"size:128;not null;uniqueIndex" json:"path"`
+	ComponentKey string `gorm:"size:64" json:"componentKey"`
+	Icon         string `gorm:"size:64" json:"icon"`
+	PermissionID int64  `gorm:"not null;default:0" json:"permissionId"`
+	Sort         int    `gorm:"not null;default:0" json:"sort"`
+	Visible      bool   `gorm:"not null;default:true" json:"visible"`
+	Timestamps
+}
+
+func (Menu) TableName() string { return "menus" }
+
 // OperationLog 操作日志,只增不改。
 type OperationLog struct {
 	ID         int64     `gorm:"primaryKey;autoIncrement"`
