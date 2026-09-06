@@ -18,6 +18,8 @@ var autoMigrateModels = []any{
 	&SysConfig{},
 	&Dict{},
 	&DictEntry{},
+	&File{},
+	&MediaAsset{},
 }
 
 // AutoMigrate 按声明顺序幂等建表。

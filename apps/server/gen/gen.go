@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/oapi-codegen/runtime"
+	openapi_types "github.com/oapi-codegen/runtime/types"
 )
 
 const (
@@ -127,6 +128,35 @@ type Error struct {
 // HealthzResponse defines model for HealthzResponse.
 type HealthzResponse struct {
 	Status string `json:"status"`
+}
+
+// ImageAsset defines model for ImageAsset.
+type ImageAsset struct {
+	CreatedAt time.Time `json:"createdAt"`
+
+	// FileId 底层文件 ID,内容走 /files/{fileId}/content
+	FileId int64 `json:"fileId"`
+
+	// Format 实际格式,如 png / jpeg
+	Format *string `json:"format,omitempty"`
+
+	// Height 提取的高(px)
+	Height   *int   `json:"height,omitempty"`
+	Id       int64  `json:"id"`
+	OrigName string `json:"origName"`
+
+	// Size 字节
+	Size  int64  `json:"size"`
+	Title string `json:"title"`
+
+	// Width 提取的宽(px)
+	Width *int `json:"width,omitempty"`
+}
+
+// ImageListResponse defines model for ImageListResponse.
+type ImageListResponse struct {
+	List  []ImageAsset `json:"list"`
+	Total int          `json:"total"`
 }
 
 // LoginRequest defines model for LoginRequest.
@@ -285,6 +315,30 @@ type UserUpdateRequest struct {
 	Nickname string  `json:"nickname"`
 }
 
+// VideoAsset defines model for VideoAsset.
+type VideoAsset struct {
+	CreatedAt time.Time `json:"createdAt"`
+
+	// DurationSeconds 时长(秒);MVP 未接 ffprobe 时为空
+	DurationSeconds *float32 `json:"durationSeconds"`
+	FileId          int64    `json:"fileId"`
+	Id              int64    `json:"id"`
+	OrigName        string   `json:"origName"`
+
+	// Resolution 分辨率,如 1920x1080;MVP 未接 ffprobe 时为空
+	Resolution *string `json:"resolution"`
+
+	// Size 字节
+	Size  int64  `json:"size"`
+	Title string `json:"title"`
+}
+
+// VideoListResponse defines model for VideoListResponse.
+type VideoListResponse struct {
+	List  []VideoAsset `json:"list"`
+	Total int          `json:"total"`
+}
+
 // ConfigGroup defines model for ConfigGroup.
 type ConfigGroup string
 
@@ -306,6 +360,17 @@ type UpdateConfigParamsGroup string
 // ListDictsParams defines parameters for ListDicts.
 type ListDictsParams struct {
 	Keyword *string `form:"keyword,omitempty" json:"keyword,omitempty"`
+}
+
+// ListImagesParams defines parameters for ListImages.
+type ListImagesParams struct {
+	Page     *Page     `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *PageSize `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
+// UploadImageMultipartBody defines parameters for UploadImage.
+type UploadImageMultipartBody struct {
+	File openapi_types.File `json:"file"`
 }
 
 // ListOperationLogsParams defines parameters for ListOperationLogs.
@@ -351,6 +416,17 @@ type ListUsersParams struct {
 	Status  *bool   `form:"status,omitempty" json:"status,omitempty"`
 }
 
+// ListVideosParams defines parameters for ListVideos.
+type ListVideosParams struct {
+	Page     *Page     `form:"page,omitempty" json:"page,omitempty"`
+	PageSize *PageSize `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+}
+
+// UploadVideoMultipartBody defines parameters for UploadVideo.
+type UploadVideoMultipartBody struct {
+	File openapi_types.File `json:"file"`
+}
+
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
 type LoginJSONRequestBody = LoginRequest
 
@@ -372,6 +448,9 @@ type CreateDictItemJSONRequestBody = DictEntryUpsertRequest
 // UpdateDictJSONRequestBody defines body for UpdateDict for application/json ContentType.
 type UpdateDictJSONRequestBody = DictUpsertRequest
 
+// UploadImageMultipartRequestBody defines body for UploadImage for multipart/form-data ContentType.
+type UploadImageMultipartRequestBody UploadImageMultipartBody
+
 // CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
 type CreateRoleJSONRequestBody = RoleRequest
 
@@ -392,6 +471,9 @@ type UpdateUserRolesJSONRequestBody = RoleIdsRequest
 
 // UpdateUserStatusJSONRequestBody defines body for UpdateUserStatus for application/json ContentType.
 type UpdateUserStatusJSONRequestBody = StatusRequest
+
+// UploadVideoMultipartRequestBody defines body for UploadVideo for multipart/form-data ContentType.
+type UploadVideoMultipartRequestBody UploadVideoMultipartBody
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -437,9 +519,24 @@ type ServerInterface interface {
 	// 编辑字典
 	// (PUT /dicts/{id})
 	UpdateDict(w http.ResponseWriter, r *http.Request, id Id)
+	// 文件内容流(图片预览/视频播放共用;登录即可)
+	// (GET /files/{id}/content)
+	GetFileContent(w http.ResponseWriter, r *http.Request, id Id)
 	// 健康检查
 	// (GET /healthz)
 	Healthz(w http.ResponseWriter, r *http.Request)
+	// 图片分页列表
+	// (GET /images)
+	ListImages(w http.ResponseWriter, r *http.Request, params ListImagesParams)
+	// 上传图片(校验类型/大小,提取宽高与格式)
+	// (POST /images)
+	UploadImage(w http.ResponseWriter, r *http.Request)
+	// 删除图片(级联删除底层文件与介质)
+	// (DELETE /images/{id})
+	DeleteImage(w http.ResponseWriter, r *http.Request, id Id)
+	// 图片详情
+	// (GET /images/{id})
+	GetImage(w http.ResponseWriter, r *http.Request, id Id)
 	// 操作日志分页列表
 	// (GET /operation-logs)
 	ListOperationLogs(w http.ResponseWriter, r *http.Request, params ListOperationLogsParams)
@@ -488,6 +585,18 @@ type ServerInterface interface {
 	// 启用/禁用用户(不可操作自己)
 	// (PATCH /users/{id}/status)
 	UpdateUserStatus(w http.ResponseWriter, r *http.Request, id Id)
+	// 视频分页列表
+	// (GET /videos)
+	ListVideos(w http.ResponseWriter, r *http.Request, params ListVideosParams)
+	// 上传视频(meta 预留时长/分辨率)
+	// (POST /videos)
+	UploadVideo(w http.ResponseWriter, r *http.Request)
+	// 删除视频(级联删除底层文件与介质)
+	// (DELETE /videos/{id})
+	DeleteVideo(w http.ResponseWriter, r *http.Request, id Id)
+	// 视频详情
+	// (GET /videos/{id})
+	GetVideo(w http.ResponseWriter, r *http.Request, id Id)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -874,11 +983,165 @@ func (siw *ServerInterfaceWrapper) UpdateDict(w http.ResponseWriter, r *http.Req
 	handler.ServeHTTP(w, r)
 }
 
+// GetFileContent operation middleware
+func (siw *ServerInterfaceWrapper) GetFileContent(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetFileContent(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // Healthz operation middleware
 func (siw *ServerInterfaceWrapper) Healthz(w http.ResponseWriter, r *http.Request) {
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Healthz(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListImages operation middleware
+func (siw *ServerInterfaceWrapper) ListImages(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListImagesParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", r.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListImages(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadImage operation middleware
+func (siw *ServerInterfaceWrapper) UploadImage(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadImage(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteImage operation middleware
+func (siw *ServerInterfaceWrapper) DeleteImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteImage(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetImage operation middleware
+func (siw *ServerInterfaceWrapper) GetImage(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetImage(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1450,6 +1713,129 @@ func (siw *ServerInterfaceWrapper) UpdateUserStatus(w http.ResponseWriter, r *ht
 	handler.ServeHTTP(w, r)
 }
 
+// ListVideos operation middleware
+func (siw *ServerInterfaceWrapper) ListVideos(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListVideosParams
+
+	// ------------- Optional query parameter "page" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "page", r.URL.Query(), &params.Page)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "page", Err: err})
+		return
+	}
+
+	// ------------- Optional query parameter "pageSize" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "pageSize", r.URL.Query(), &params.PageSize)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "pageSize", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListVideos(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadVideo operation middleware
+func (siw *ServerInterfaceWrapper) UploadVideo(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadVideo(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteVideo operation middleware
+func (siw *ServerInterfaceWrapper) DeleteVideo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteVideo(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetVideo operation middleware
+func (siw *ServerInterfaceWrapper) GetVideo(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetVideo(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 type UnescapedCookieParamError struct {
 	ParamName string
 	Err       error
@@ -1584,7 +1970,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/dicts/{code}/items", wrapper.CreateDictItem)
 	m.HandleFunc("DELETE "+options.BaseURL+"/dicts/{id}", wrapper.DeleteDict)
 	m.HandleFunc("PUT "+options.BaseURL+"/dicts/{id}", wrapper.UpdateDict)
+	m.HandleFunc("GET "+options.BaseURL+"/files/{id}/content", wrapper.GetFileContent)
 	m.HandleFunc("GET "+options.BaseURL+"/healthz", wrapper.Healthz)
+	m.HandleFunc("GET "+options.BaseURL+"/images", wrapper.ListImages)
+	m.HandleFunc("POST "+options.BaseURL+"/images", wrapper.UploadImage)
+	m.HandleFunc("DELETE "+options.BaseURL+"/images/{id}", wrapper.DeleteImage)
+	m.HandleFunc("GET "+options.BaseURL+"/images/{id}", wrapper.GetImage)
 	m.HandleFunc("GET "+options.BaseURL+"/operation-logs", wrapper.ListOperationLogs)
 	m.HandleFunc("GET "+options.BaseURL+"/permissions", wrapper.ListPermissions)
 	m.HandleFunc("GET "+options.BaseURL+"/roles", wrapper.ListRoles)
@@ -1601,6 +1992,10 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("PUT "+options.BaseURL+"/users/{id}", wrapper.UpdateUser)
 	m.HandleFunc("PUT "+options.BaseURL+"/users/{id}/roles", wrapper.UpdateUserRoles)
 	m.HandleFunc("PATCH "+options.BaseURL+"/users/{id}/status", wrapper.UpdateUserStatus)
+	m.HandleFunc("GET "+options.BaseURL+"/videos", wrapper.ListVideos)
+	m.HandleFunc("POST "+options.BaseURL+"/videos", wrapper.UploadVideo)
+	m.HandleFunc("DELETE "+options.BaseURL+"/videos/{id}", wrapper.DeleteVideo)
+	m.HandleFunc("GET "+options.BaseURL+"/videos/{id}", wrapper.GetVideo)
 
 	return m
 }

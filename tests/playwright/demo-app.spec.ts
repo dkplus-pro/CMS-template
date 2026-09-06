@@ -56,6 +56,24 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await page.getByRole("cell", { name: "common_status", exact: true }).click();
   await expect(page.getByRole("cell", { name: "启用" })).toBeVisible();
 
+  // 图片管理:上传(带权限头的内容端点)后网格出现缩略图。
+  await page.getByText("图片管理").click();
+  await page.getByRole("button", { name: "上传图片" }).click();
+  const PNG_1X1 = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAoAAAAKCAIAAAACUFjqAAAAEElEQVR4nGP8z8Dwn4GBgQEACyoCAqLvVMkAAAAASUVORK5CYII=",
+    "base64"
+  );
+  await page.setInputFiles('input[type="file"]', {
+    name: "logo.png",
+    mimeType: "image/png",
+    buffer: PNG_1X1
+  });
+  await expect(page.getByText("logo.png").first()).toBeVisible();
+
+  // 视频管理页面可达。
+  await page.getByText("视频管理").click();
+  await expect(page.getByRole("button", { name: "上传视频" })).toBeVisible();
+
   // 退出登录回到登录页。
   await page.getByText("管理员", { exact: true }).click();
   await page.getByText("退出登录").click();

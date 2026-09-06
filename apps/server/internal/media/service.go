@@ -1,0 +1,288 @@
+// Package media 媒体资源业务:上传(校验 → 存储 → 提取 → 记录)、列表、详情、删除(级联底层文件)。
+// 底层文件经 internal/storage 与 files 表,信息提取按类型走 Extractor(见 docs/mvp-plan.md 阶段 5 修订)。
+package media
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"image"
+	_ "image/gif"
+	_ "image/jpeg"
+	_ "image/png"
+	"io"
+	"os"
+	"path/filepath"
+	"strconv"
+	"strings"
+	"time"
+
+	"gorm.io/gorm"
+
+	"github.com/cms-template/server/internal/oplog"
+	"github.com/cms-template/server/internal/repo"
+	"github.com/cms-template/server/internal/storage"
+)
+
+// 媒体类型。
+const (
+	KindImage = "image"
+	KindVideo = "video"
+	KindAudio = "audio"
+)
+
+// 上传大小上限(MVP 常量,后续迁 storage 配置组)。
+const (
+	ImageMaxBytes = 10 << 20  // 10MB
+	VideoMaxBytes = 200 << 20 // 200MB
+)
+
+// 各类型允许的扩展名。
+var allowedExts = map[string][]string{
+	KindImage: {".png", ".jpg", ".jpeg", ".gif", ".webp"},
+	KindVideo: {".mp4", ".webm", ".mov"},
+}
+
+var maxBytes = map[string]int64{
+	KindImage: ImageMaxBytes,
+	KindVideo: VideoMaxBytes,
+}
+
+// 媒体模块业务错误。
+var (
+	ErrInvalidType = errors.New("invalid media type")
+	ErrTooLarge    = errors.New("file too large")
+)
+
+// ErrMediaNotFound 媒体资源不存在。
+var ErrMediaNotFound = repo.ErrFileNotFound
+
+// Service 媒体资源业务。
+type Service struct {
+	db      *gorm.DB
+	storage storage.Storage
+}
+
+// NewService 装配媒体服务。
+func NewService(db *gorm.DB, store storage.Storage) *Service {
+	return &Service{db: db, storage: store}
+}
+
+// Asset 媒体资源出参:media_assets + 底层 files 信息已合并,meta 按类型展开。
+type Asset struct {
+	ID        int64
+	FileID    int64
+	Title     string
+	OrigName  string
+	Size      int64
+	Width     int // image
+	Height    int // image
+	Format    string
+	CreatedAt time.Time
+}
+
+// Upload 上传媒体:校验扩展名与大小 → 存介质 → files 记录 → 提取 → media_assets 记录。
+func (s *Service) Upload(ctx context.Context, kind, origName, contentType string, r io.Reader, uploaderID int64) (Asset, error) {
+	ext := strings.ToLower(filepath.Ext(origName))
+	if err := validateType(kind, ext); err != nil {
+		return Asset{}, err
+	}
+
+	limited := io.LimitReader(r, maxBytes[kind]+1)
+	name, size, err := s.storage.Save(ctx, limited, strings.TrimPrefix(ext, "."))
+	if err != nil {
+		return Asset{}, err
+	}
+	if size > maxBytes[kind] {
+		_ = s.storage.Delete(ctx, name)
+		return Asset{}, ErrTooLarge
+	}
+
+	file := repo.File{
+		OrigName: filepath.Base(origName), Name: name, Path: name,
+		Mime: contentType, Size: size, Storage: "local", UploaderID: uploaderID,
+	}
+	if err := repo.CreateFile(ctx, s.db, &file); err != nil {
+		_ = s.storage.Delete(ctx, name)
+		return Asset{}, err
+	}
+
+	meta := s.extract(kind, name)
+
+	asset := repo.MediaAsset{
+		Kind: kind, FileID: file.ID, Title: file.OrigName,
+		Meta: encodeMeta(meta), UploaderID: uploaderID,
+	}
+	if err := repo.CreateMediaAsset(ctx, s.db, &asset); err != nil {
+		_ = s.storage.Delete(ctx, name)
+		_ = repo.DeleteFile(ctx, s.db, file.ID)
+		return Asset{}, err
+	}
+
+	verb, title := describeUpload(kind, asset.Title, meta)
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "media.upload", Resource: kind, ResourceID: fmt.Sprint(asset.ID),
+		Description: verb + title,
+	}, "")
+	return s.toAsset(asset, file), nil
+}
+
+// List 媒体分页(合并底层文件信息)。
+func (s *Service) List(ctx context.Context, kind string, page, pageSize int) ([]Asset, int64, error) {
+	assets, total, err := repo.ListMediaAssets(ctx, s.db, kind, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	items := make([]Asset, 0, len(assets))
+	for _, asset := range assets {
+		item, err := s.toAssetE(ctx, asset)
+		if err != nil {
+			return nil, 0, err
+		}
+		items = append(items, item)
+	}
+	return items, total, nil
+}
+
+// Get 媒体详情。
+func (s *Service) Get(ctx context.Context, id int64) (Asset, error) {
+	asset, err := repo.GetMediaAssetByID(ctx, s.db, id)
+	if err != nil {
+		return Asset{}, err
+	}
+	return s.toAssetE(ctx, asset)
+}
+
+// GetFile 底层文件记录(内容流端点用)。
+func (s *Service) GetFile(ctx context.Context, id int64) (repo.File, error) {
+	return repo.GetFileByID(ctx, s.db, id)
+}
+
+// Open 打开介质文件。
+func (s *Service) Open(ctx context.Context, name string) (*os.File, error) {
+	return s.storage.Open(ctx, name)
+}
+
+func (s *Service) toAsset(asset repo.MediaAsset, file repo.File) Asset {
+	out := Asset{
+		ID: asset.ID, FileID: asset.FileID, Title: asset.Title,
+		OrigName: file.OrigName, Size: file.Size, CreatedAt: asset.CreatedAt,
+	}
+	meta := decodeMeta(asset.Meta)
+	out.Width, _ = strconv.Atoi(meta["width"])
+	out.Height, _ = strconv.Atoi(meta["height"])
+	out.Format = meta["format"]
+	return out
+}
+
+func (s *Service) toAssetE(ctx context.Context, asset repo.MediaAsset) (Asset, error) {
+	file, err := repo.GetFileByID(ctx, s.db, asset.FileID)
+	if err != nil {
+		return Asset{}, err
+	}
+	return s.toAsset(asset, file), nil
+}
+
+// Delete 删除媒体:级联删除底层文件记录与介质(记业务日志)。
+func (s *Service) Delete(ctx context.Context, id int64) error {
+	asset, err := repo.GetMediaAssetByID(ctx, s.db, id)
+	if err != nil {
+		return err
+	}
+	file, err := repo.GetFileByID(ctx, s.db, asset.FileID)
+	if err != nil {
+		return err
+	}
+	if err := s.storage.Delete(ctx, file.Name); err != nil {
+		return err
+	}
+	if err := repo.DeleteMediaAsset(ctx, s.db, id); err != nil {
+		return err
+	}
+	if err := repo.DeleteFile(ctx, s.db, asset.FileID); err != nil {
+		return err
+	}
+	oplog.Success(ctx, s.db, oplog.Entry{
+		Action: "media.delete", Resource: asset.Kind, ResourceID: fmt.Sprint(asset.ID),
+		Description: "删除" + kindLabel(asset.Kind) + " " + asset.Title,
+	}, "")
+	return nil
+}
+
+func kindLabel(kind string) string {
+	switch kind {
+	case KindImage:
+		return "图片"
+	case KindVideo:
+		return "视频"
+	case KindAudio:
+		return "音频"
+	}
+	return kind
+}
+
+func describeUpload(kind, title string, meta map[string]string) (verb, text string) {
+	verb = "上传" + kindLabel(kind)
+	if w, h := meta["width"], meta["height"]; w != "" && h != "" {
+		return verb, fmt.Sprintf(" %s(%sx%s)", title, w, h)
+	}
+	return verb, " " + title
+}
+
+func decodeMeta(encoded string) map[string]string {
+	meta := map[string]string{}
+	if encoded == "" {
+		return meta
+	}
+	if err := json.Unmarshal([]byte(encoded), &meta); err != nil {
+		return map[string]string{}
+	}
+	return meta
+}
+
+func encodeMeta(meta map[string]string) string {
+	if len(meta) == 0 {
+		return ""
+	}
+	encoded, err := json.Marshal(meta)
+	if err != nil {
+		return ""
+	}
+	return string(encoded)
+}
+
+// validateType 扩展名白名单校验(图片另在提取时做内容校验)。
+func validateType(kind, ext string) error {
+	allowed, ok := allowedExts[kind]
+	if !ok {
+		return ErrInvalidType
+	}
+	for _, a := range allowed {
+		if a == ext {
+			return nil
+		}
+	}
+	return ErrInvalidType
+}
+
+// extract 按类型提取信息;图片解析宽高与格式(内容校验),视频/音频预留 ffprobe。
+func (s *Service) extract(kind, name string) map[string]string {
+	meta := map[string]string{}
+	if kind != KindImage {
+		return meta // video/audio:预留 ffprobe 提取时长/分辨率,拿到后写进 meta 即可
+	}
+	file, err := s.storage.Open(context.Background(), name)
+	if err != nil {
+		return meta
+	}
+	defer file.Close()
+	cfg, format, err := image.DecodeConfig(file)
+	if err != nil {
+		return meta // 内容不是可解码图片,meta 留空;下次列表仍可见
+	}
+	meta["width"] = fmt.Sprint(cfg.Width)
+	meta["height"] = fmt.Sprint(cfg.Height)
+	meta["format"] = format
+	return meta
+}

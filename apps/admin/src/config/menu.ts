@@ -21,6 +21,14 @@ export const sidebarMenus: MenuConfig[] = [
       { path: "/system/configs", title: "系统配置", permission: "menu:system:config" },
       { path: "/system/dicts", title: "字典管理", permission: "menu:system:dict" }
     ]
+  },
+  {
+    path: "/media",
+    title: "媒体管理",
+    children: [
+      { path: "/media/images", title: "图片管理", permission: "menu:media:image" },
+      { path: "/media/videos", title: "视频管理", permission: "menu:media:video" }
+    ]
   }
 ];
 

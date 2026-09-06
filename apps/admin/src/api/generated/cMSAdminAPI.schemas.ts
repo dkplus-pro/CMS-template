@@ -288,6 +288,53 @@ export interface DictEntryUpsertRequest {
   status?: boolean;
 }
 
+export interface ImageAsset {
+  id: number;
+  /** 底层文件 ID,内容走 /files/{fileId}/content */
+  fileId: number;
+  title: string;
+  origName: string;
+  /** 字节 */
+  size: number;
+  /** 提取的宽(px) */
+  width?: number;
+  /** 提取的高(px) */
+  height?: number;
+  /** 实际格式,如 png / jpeg */
+  format?: string;
+  createdAt: string;
+}
+
+export interface ImageListResponse {
+  list: ImageAsset[];
+  total: number;
+}
+
+export interface VideoAsset {
+  id: number;
+  fileId: number;
+  title: string;
+  origName: string;
+  /** 字节 */
+  size: number;
+  /**
+     * 时长(秒);MVP 未接 ffprobe 时为空
+     * @nullable
+     */
+  durationSeconds?: number | null;
+  /**
+     * 分辨率,如 1920x1080;MVP 未接 ffprobe 时为空
+     * @nullable
+     */
+  resolution?: string | null;
+  createdAt: string;
+}
+
+export interface VideoListResponse {
+  list: VideoAsset[];
+  total: number;
+}
+
 export type PageParameter = number;
 
 export type PageSizeParameter = number;
@@ -366,5 +413,37 @@ export const ListOperationLogsStatus = {
 
 export type ListDictsParams = {
 keyword?: string;
+};
+
+export type UploadImageBody = {
+  file: Blob | File;
+};
+
+export type ListImagesParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: PageSizeParameter;
+};
+
+export type UploadVideoBody = {
+  file: Blob | File;
+};
+
+export type ListVideosParams = {
+/**
+ * @minimum 1
+ */
+page?: PageParameter;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: PageSizeParameter;
 };
 

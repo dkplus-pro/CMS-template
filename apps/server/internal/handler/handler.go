@@ -6,6 +6,7 @@ import (
 	"log/slog"
 
 	gen "github.com/cms-template/server/gen"
+	"github.com/cms-template/server/internal/media"
 	"github.com/cms-template/server/internal/service"
 )
 
@@ -19,6 +20,7 @@ type Handler struct {
 	logs        *service.LogService
 	configs     *service.ConfigService
 	dicts       *service.DictService
+	media       *media.Service
 }
 
 // New 装配 Handler。
@@ -31,10 +33,11 @@ func New(
 	logs *service.LogService,
 	configs *service.ConfigService,
 	dicts *service.DictService,
+	media *media.Service,
 ) *Handler {
 	return &Handler{
 		logger: logger, auth: auth, users: users, roles: roles,
-		permissions: permissions, logs: logs, configs: configs, dicts: dicts,
+		permissions: permissions, logs: logs, configs: configs, dicts: dicts, media: media,
 	}
 }
 

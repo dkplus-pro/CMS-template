@@ -52,6 +52,15 @@ var RoutePermissions = []RoutePermission{
 	{"POST", "/dicts/{code}/items", "system:dict:update", "创建字典项", "menu:system:dict", "字典管理"},
 	{"PUT", "/dicts/items/{id}", "system:dict:update", "编辑字典项", "menu:system:dict", "字典管理"},
 	{"DELETE", "/dicts/items/{id}", "system:dict:update", "删除字典项", "menu:system:dict", "字典管理"},
+
+	{"GET", "/images", "media:image:list", "图片列表", "menu:media:image", "图片管理"},
+	{"POST", "/images", "media:image:upload", "上传图片", "menu:media:image", "图片管理"},
+	{"GET", "/images/{id}", "media:image:list", "图片列表", "menu:media:image", "图片管理"},
+	{"DELETE", "/images/{id}", "media:image:delete", "删除图片", "menu:media:image", "图片管理"},
+	{"GET", "/videos", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
+	{"POST", "/videos", "media:video:upload", "上传视频", "menu:media:video", "视频管理"},
+	{"GET", "/videos/{id}", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
+	{"DELETE", "/videos/{id}", "media:video:delete", "删除视频", "menu:media:video", "视频管理"},
 }
 
 // MatchRoutePermission 按方法与路径匹配注册表;未命中的接口仅需登录。

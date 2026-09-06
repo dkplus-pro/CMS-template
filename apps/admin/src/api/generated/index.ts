@@ -2,6 +2,7 @@ export * from './auth/auth';
 export * from './configs/configs';
 export * from './dicts/dicts';
 export * from './logs/logs';
+export * from './media/media';
 export * from './permissions/permissions';
 export * from './roles/roles';
 export * from './system/system';

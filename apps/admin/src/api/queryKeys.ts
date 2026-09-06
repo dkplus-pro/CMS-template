@@ -38,5 +38,9 @@ export const queryKeys = {
   dicts: {
     list: (keyword: string) => ["dicts", "list", { keyword }] as const,
     items: (code: string) => ["dicts", "items", code] as const
+  },
+  media: {
+    images: (page: number, pageSize: number) => ["media", "images", { page, pageSize }] as const,
+    videos: (page: number, pageSize: number) => ["media", "videos", { page, pageSize }] as const
   }
 };

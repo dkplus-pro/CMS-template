@@ -27,6 +27,8 @@ tags:
     description: 系统配置
   - name: dicts
     description: 字典管理
+  - name: media
+    description: 媒体资源(图片/视频)
 security:
   - bearerAuth: []
 paths:
@@ -667,6 +669,170 @@ paths:
       responses:
         "204":
           description: 删除成功
+  /images:
+    post:
+      operationId: uploadImage
+      summary: 上传图片(校验类型/大小,提取宽高与格式)
+      tags:
+        - media
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 上传后的图片资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageAsset"
+        "400":
+          description: 非图片类型或超过大小限制
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      operationId: listImages
+      summary: 图片分页列表
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 图片分页
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageListResponse"
+  /images/{id}:
+    get:
+      operationId: getImage
+      summary: 图片详情
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: 图片资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageAsset"
+    delete:
+      operationId: deleteImage
+      summary: 删除图片(级联删除底层文件与介质)
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: 删除成功
+  /videos:
+    post:
+      operationId: uploadVideo
+      summary: 上传视频(meta 预留时长/分辨率)
+      tags:
+        - media
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - file
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: 上传后的视频资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoAsset"
+        "400":
+          description: 非视频类型或超过大小限制
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    get:
+      operationId: listVideos
+      summary: 视频分页列表
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PageSize"
+      responses:
+        "200":
+          description: 视频分页
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoListResponse"
+  /videos/{id}:
+    get:
+      operationId: getVideo
+      summary: 视频详情
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: 视频资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoAsset"
+    delete:
+      operationId: deleteVideo
+      summary: 删除视频(级联删除底层文件与介质)
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: 删除成功
+  /files/{id}/content:
+    get:
+      operationId: getFileContent
+      summary: 文件内容流(图片预览/视频播放共用;登录即可)
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: 文件字节流
+          content:
+            application/octet-stream:
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: 文件不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   parameters:
     Id:
@@ -1205,3 +1371,99 @@ components:
         status:
           type: boolean
           default: true
+    ImageAsset:
+      type: object
+      required:
+        - id
+        - fileId
+        - title
+        - origName
+        - size
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        fileId:
+          type: integer
+          format: int64
+          description: 底层文件 ID,内容走 /files/{fileId}/content
+        title:
+          type: string
+        origName:
+          type: string
+        size:
+          type: integer
+          format: int64
+          description: 字节
+        width:
+          type: integer
+          description: 提取的宽(px)
+        height:
+          type: integer
+          description: 提取的高(px)
+        format:
+          type: string
+          description: 实际格式,如 png / jpeg
+        createdAt:
+          type: string
+          format: date-time
+    ImageListResponse:
+      type: object
+      required:
+        - list
+        - total
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/ImageAsset"
+        total:
+          type: integer
+    VideoAsset:
+      type: object
+      required:
+        - id
+        - fileId
+        - title
+        - origName
+        - size
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        fileId:
+          type: integer
+          format: int64
+        title:
+          type: string
+        origName:
+          type: string
+        size:
+          type: integer
+          format: int64
+          description: 字节
+        durationSeconds:
+          type: number
+          nullable: true
+          description: 时长(秒);MVP 未接 ffprobe 时为空
+        resolution:
+          type: string
+          nullable: true
+          description: 分辨率,如 1920x1080;MVP 未接 ffprobe 时为空
+        createdAt:
+          type: string
+          format: date-time
+    VideoListResponse:
+      type: object
+      required:
+        - list
+        - total
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/VideoAsset"
+        total:
+          type: integer

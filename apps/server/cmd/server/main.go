@@ -16,8 +16,10 @@ import (
 	"github.com/cms-template/server/internal/config"
 	"github.com/cms-template/server/internal/handler"
 	"github.com/cms-template/server/internal/httpapi"
+	"github.com/cms-template/server/internal/media"
 	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/service"
+	"github.com/cms-template/server/internal/storage"
 )
 
 func main() {
@@ -103,9 +105,21 @@ func main() {
 		os.Exit(1)
 	}
 
+	basePath, err := repo.GetConfigValue(ctx, db, "storage", "basePath")
+	if err != nil {
+		logger.Error("read storage basePath", "error", err)
+		os.Exit(1)
+	}
+	fileStorage, err := storage.NewLocal(basePath)
+	if err != nil {
+		logger.Error("init file storage", "error", err)
+		os.Exit(1)
+	}
+	mediaService := media.NewService(db, fileStorage)
+
 	mux := http.NewServeMux()
 	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
-	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService, logsService, configsService, dictsService), mux)
+	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService, logsService, configsService, dictsService, mediaService), mux)
 
 	jwtSkip := httpapi.JWTSkipPaths("/healthz", "/swagger", "/swagger/", "/auth/login")
 	loadPermissionCodes := func(ctx context.Context, userID int64) ([]string, error) {
