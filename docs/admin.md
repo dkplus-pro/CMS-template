@@ -50,10 +50,15 @@ src/routes/article/
 
 ### 页面骨架(PageContainer)
 
-- 面包屑与页头放**内容区顶部**(PageContainer 模式),不放顶栏;新页面必须套 `src/components/page-container.tsx`:
+- 面包屑与操作区放**内容区顶部**(PageContainer 模式),不放顶栏;新页面必须套 `src/components/page-container.tsx`:
   - 面包屑自动取 `config/menu.tsx` 的标题链(首页 / 系统管理 / 用户管理),页面不手写;
-  - `title` 为页面标题(缺省取菜单链叶子标题),`extra` 为右侧操作区插槽(如"新建"按钮);
+  - PageContainer **不再渲染页内标题**(标题与面包屑叶子重复),只保留面包屑 + `extra` 右侧操作区插槽(如"新建"按钮),页面标题以面包屑为准;
 - 详情类内容可继续用 `Descriptions` 等组件,但外层同样套 PageContainer。
+
+### 布局宽度与页脚
+
+- **列表/网格页铺满内容区;分组表单页窄栏居中**:表单页容器统一 `.form-page { max-width: 720px; margin: 0 auto }`,吸底操作栏 `.form-footer-bar` 在容器内 sticky、宽度跟随容器(不做全宽负边距),落地范例见系统配置页(`routes/system/configs/page.tsx`);
+- **公共页脚**:全局 layout 在内容区之后渲染 `src/components/app-footer.tsx`(Arco `Layout.Footer`,居中、次要文字色),版权文案来自 `constants` 的 `COPYRIGHT_TEXT`(占位,上线替换真实主体);登录页不渲染页脚。
 
 ### 分页(统一全量)
 
@@ -73,7 +78,7 @@ src/routes/article/
 ### 表单(按复杂度二分)
 
 - **简单表单**(单组、字段少):`Modal` + `Form`,不单独开页面;
-- **复杂表单**(多分组/长表单):分组表单页,照 [arco-pro form/group](https://react-pro.arco.design/form/group) 范式——`PageContainer` + `Card` 分组 + 底部固定操作栏(提交/重置,sticky 吸底);落地范例见系统配置页(`routes/system/configs/page.tsx`),后续新表单页照此;
+- **复杂表单**(多分组/长表单):分组表单页,照 [arco-pro form/group](https://react-pro.arco.design/form/group) 范式——`PageContainer` + `.form-page` 窄栏居中容器 + `Card` 分组 + 底部固定操作栏(提交/重置,sticky 吸底、宽度跟随容器);落地范例见系统配置页(`routes/system/configs/page.tsx`),后续新表单页照此;布局范式详见"布局宽度与页脚"一节;
 - 详情页 = `Descriptions`。
 
 ## 状态管理

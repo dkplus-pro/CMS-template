@@ -109,6 +109,8 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   // 不在约定上导致 basename 静默失效的回归,见 docs/mvp-plan.md 阶段 8 修补)。
   await expect(page).toHaveURL(/\/admin\/login$/);
   await expect(page.getByRole("heading", { name: "CMS 管理后台" })).toBeVisible();
+  // 登录页不渲染公共页脚(阶段 16)。
+  await expect(page.locator(".app-footer")).toHaveCount(0);
 
   // 错误口令被拒绝且停留在登录页。
   await page.getByPlaceholder("用户名").fill("admin");
@@ -122,6 +124,11 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await expect(page).toHaveURL(/\/admin\/?$/);
   await expect(page.getByText("用户总数")).toBeVisible();
   await expect(page.getByText("近 30 天上传趋势")).toBeVisible();
+
+  // 业务页不渲染页内标题(与面包屑重复,阶段 16 已移除),公共页脚版权可见(阶段 16)。
+  await expect(page.locator(".page-title")).toHaveCount(0);
+  await expect(page.locator(".app-footer")).toBeVisible();
+  await expect(page.locator(".app-footer")).toContainText("© 2026 CMS Template");
 
   // 顶栏显示当前用户昵称(/auth/me 数据)。
   await expect(page.getByText("管理员")).toBeVisible();
@@ -143,6 +150,8 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   // 用户管理:列表加载种子管理员,新建用户成功后出现在表格中。
   await page.getByText("用户管理").click();
   await expect(page).toHaveURL(/\/admin\/system\/users$/);
+  // 带 extra 操作区的页面同样无页内标题。
+  await expect(page.locator(".page-title")).toHaveCount(0);
   await expect(page.getByRole("cell", { name: "admin", exact: true })).toBeVisible();
   await page.getByRole("button", { name: "新建用户" }).click();
   await page.getByPlaceholder("登录名").fill("bob");

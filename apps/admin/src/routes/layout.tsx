@@ -15,6 +15,7 @@ import zhCN from "@arco-design/web-react/es/locale/zh-CN";
 import { Navigate, Outlet, useLocation, useNavigate } from "@modern-js/runtime/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import AppFooter from "../components/app-footer";
 import ErrorBoundary from "../components/error-boundary";
 
 import { AuthController } from "../api/controllers.gen";
@@ -203,6 +204,8 @@ function AppShell() {
               <Outlet />
             </ErrorBoundary>
           </Content>
+          {/* 公共页脚:版权标识;登录页走上方守卫分支直接返回,不经过本壳层。 */}
+          <AppFooter />
         </ArcoLayout>
       </ArcoLayout>
       <PasswordModal

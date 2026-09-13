@@ -91,35 +91,42 @@ body {
   padding: 24px;
 }
 
-/* PageContainer:面包屑 + 页头在内容区顶部(UI 规范见 docs/admin.md)。 */
+/* PageContainer:面包屑 + 操作区在内容区顶部,不渲染页内标题(UI 规范见 docs/admin.md)。 */
 .page-breadcrumb {
   margin-bottom: 12px;
 }
 
-.page-header {
+.page-extra {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 16px;
 }
 
-.page-title {
-  margin: 0;
-  color: #1d2129;
-  font-size: 20px;
-  font-weight: 600;
+/* 分组表单页窄栏居中(列表/网格页铺满、表单页窄栏居中,范式见 docs/admin.md)。 */
+.form-page {
+  max-width: 720px;
+  margin: 0 auto;
 }
 
-/* 分组表单页底部固定操作栏(arco-pro form/group 范式,见 docs/admin.md)。 */
+/* 分组表单页底部固定操作栏(arco-pro form/group 范式,见 docs/admin.md):
+   容器内吸底,宽度跟随 .form-page 容器,不做全宽负边距。 */
 .form-footer-bar {
   position: sticky;
   bottom: 0;
   z-index: 5;
-  margin: 16px -24px -24px;
+  margin-top: 16px;
   padding: 12px 24px;
   background: #ffffff;
   border-top: 1px solid #e5e6eb;
   text-align: center;
+}
+
+/* 公共页脚(版权标识,UI 规范见 docs/admin.md)。 */
+.app-footer {
+  text-align: center;
+  color: #4e5969;
+  font-size: 14px;
+  background: transparent;
 }
 
 .hero {

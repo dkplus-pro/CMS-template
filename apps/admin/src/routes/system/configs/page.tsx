@@ -59,7 +59,7 @@ function SiteConfigForm({ group }: { group: "system" }) {
   };
 
   return (
-    <Form form={form} layout="vertical" onSubmit={handleSubmit} style={{ maxWidth: 640 }}>
+    <Form form={form} layout="vertical" onSubmit={handleSubmit} className="form-page">
       <Card title="站点信息">
         {items.map((item) => (
           <Form.Item
