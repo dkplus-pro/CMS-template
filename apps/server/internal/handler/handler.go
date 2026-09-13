@@ -8,6 +8,7 @@ import (
 	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/media"
 	"github.com/cms-template/server/internal/service"
+	"github.com/cms-template/server/internal/uploads"
 )
 
 // Handler 承载全部 HTTP 处理器,依赖通过构造函数注入。
@@ -21,6 +22,7 @@ type Handler struct {
 	configs     *service.ConfigService
 	dicts       *service.DictService
 	media       *media.Service
+	uploads     *uploads.Service
 }
 
 // New 装配 Handler。
@@ -34,10 +36,12 @@ func New(
 	configs *service.ConfigService,
 	dicts *service.DictService,
 	media *media.Service,
+	uploads *uploads.Service,
 ) *Handler {
 	return &Handler{
 		logger: logger, auth: auth, users: users, roles: roles,
-		permissions: permissions, logs: logs, configs: configs, dicts: dicts, media: media,
+		permissions: permissions, logs: logs, configs: configs, dicts: dicts,
+		media: media, uploads: uploads,
 	}
 }
 

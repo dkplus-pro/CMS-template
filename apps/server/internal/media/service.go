@@ -33,9 +33,11 @@ const (
 )
 
 // 上传大小上限(MVP 常量,后续迁 storage 配置组)。
+// 视频上限 2GB:分片上传启用后按 admin-enhancement-plan 阶段 14 放开,
+// 单发 multipart 上传沿用同一常量(视频走流式,不吃内存)。
 const (
-	ImageMaxBytes = 10 << 20  // 10MB
-	VideoMaxBytes = 200 << 20 // 200MB
+	ImageMaxBytes = 10 << 20 // 10MB
+	VideoMaxBytes = 2 << 30  // 2GB
 )
 
 // 各类型允许的扩展名。
@@ -310,6 +312,15 @@ func encodeMeta(meta map[string]string) string {
 		return ""
 	}
 	return string(encoded)
+}
+
+// ValidateFile 校验媒体类型与扩展名,返回该类型的大小上限(分片上传会话初始化复用)。
+func ValidateFile(kind, origName string) (int64, error) {
+	ext := strings.ToLower(filepath.Ext(origName))
+	if err := validateType(kind, ext); err != nil {
+		return 0, err
+	}
+	return maxBytes[kind], nil
 }
 
 // validateType 扩展名白名单校验(图片另在提取时做内容校验)。

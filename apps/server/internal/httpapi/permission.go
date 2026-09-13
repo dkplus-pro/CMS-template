@@ -72,6 +72,10 @@ var RoutePermissions = []RoutePermission{
 	{"POST", "/api/admin/videos", "media:video:upload", "上传视频", "menu:media:video", "视频管理"},
 	{"GET", "/api/admin/videos/{id}", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
 	{"DELETE", "/api/admin/videos/{id}", "media:video:delete", "删除视频", "menu:media:video", "视频管理"},
+	// 分片上传(阶段 14):权限只在初始化端点按 kind 静态绑定;分片/状态/合并/中止
+	// 不入注册表,仅要求登录 + 会话属主校验。
+	{"POST", "/api/admin/uploads/images", "media:image:upload", "上传图片", "menu:media:image", "图片管理"},
+	{"POST", "/api/admin/uploads/videos", "media:video:upload", "上传视频", "menu:media:video", "视频管理"},
 }
 
 // MatchRoutePermission 按方法与路径匹配注册表;未命中的接口仅需登录。

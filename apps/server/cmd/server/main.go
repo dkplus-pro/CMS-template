@@ -22,6 +22,7 @@ import (
 	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/storage"
+	"github.com/cms-template/server/internal/uploads"
 )
 
 func main() {
@@ -128,6 +129,7 @@ func main() {
 	}
 	logger.Info("file storage ready", "driver", fileStorage.Driver())
 	mediaService := media.NewService(db, fileStorage)
+	uploadsService := uploads.NewService(uploads.DefaultBaseDir, mediaService)
 
 	// 双受众路由(见 docs/multi-audience-contracts.md 与 docs/mvp-plan.md 阶段 8):
 	// URL 布局:admin 契约路径字面带 /api/admin、site 契约带 /api/site,网关仅按前缀转发。
@@ -138,7 +140,7 @@ func main() {
 	}
 
 	adminMux := http.NewServeMux()
-	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService, logsService, configsService, dictsService, mediaService), adminMux)
+	gen.HandlerFromMux(handler.New(logger, authService, usersService, rolesService, permissionsService, logsService, configsService, dictsService, mediaService, uploadsService), adminMux)
 
 	siteMux := http.NewServeMux()
 	sitegen.HandlerFromMux(sitehandler.New(logger, configsService), siteMux)
@@ -174,6 +176,9 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
+
+	// 分片上传会话清理:启动清一轮 + 每小时定时,随进程退出停止(见 internal/uploads/cleaner.go)。
+	go uploadsService.StartCleaner(ctx, logger)
 
 	go func() {
 		logger.Info("server listening", "addr", cfg.HTTP.Addr)

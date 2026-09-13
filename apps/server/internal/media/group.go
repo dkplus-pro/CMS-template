@@ -148,6 +148,12 @@ func (s *Service) MoveGroup(ctx context.Context, id, groupID int64) (Asset, erro
 	return s.Get(ctx, id)
 }
 
+// ValidateGroup 校验分组存在且类型匹配(0=未分组放行);分片上传初始化时提前校验,
+// complete 走 Upload 管线时仍会复检,以此兜底中途变更。
+func (s *Service) ValidateGroup(ctx context.Context, kind string, groupID int64) error {
+	return s.validateGroupOfKind(ctx, kind, groupID)
+}
+
 // validateGroupOfKind 校验目标分组存在且与媒体类型匹配(0=未分组,放行)。
 func (s *Service) validateGroupOfKind(ctx context.Context, kind string, groupID int64) error {
 	if groupID == 0 {
