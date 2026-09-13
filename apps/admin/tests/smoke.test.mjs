@@ -15,8 +15,10 @@ test("admin app exposes standard lifecycle scripts", () => {
   assert.equal(packageJson.scripts.typecheck, "tsc --noEmit");
 });
 
-test("admin app has visible hello-world content and Modern.js app tools configured", () => {
-  assert.match(pageSource, /Hello from the admin app/);
+test("admin app has dashboard home page content and Modern.js app tools configured", () => {
+  // 阶段 12:欢迎页已替换为仪表盘(统计卡 + 图表,mock 纪律见 routes/dashboard/mock.ts)
+  assert.match(pageSource, /PageContainer/);
+  assert.match(pageSource, /useDashboardData/);
   assert.match(layoutSource, /Outlet/);
   assert.match(configSource, /appTools\(\)/);
 });

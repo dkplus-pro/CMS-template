@@ -28,7 +28,7 @@ export interface MenuConfig {
 }
 
 export const sidebarMenus: MenuConfig[] = [
-  { path: "/", title: "欢迎页", icon: <IconDashboard /> },
+  { path: "/", title: "仪表盘", icon: <IconDashboard /> },
   {
     path: "/system",
     title: "系统管理",

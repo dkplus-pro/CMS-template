@@ -21,6 +21,8 @@
     "@dnd-kit/utilities": "^3.2.2",
     "@modern-js/runtime": "^3.5.0",
     "@tanstack/react-query": "^5.102.8",
+    "@visactor/react-vchart": "^2.1.6",
+    "@visactor/vchart-arco-theme": "^1.13.1",
     "ahooks": "^3.9.7",
     "axios": "^1.20.0",
     "lodash": "^4.18.1",

@@ -1,59 +1,50 @@
-import { Tag, Typography } from "@arco-design/web-react";
-import { useQuery } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { Card, Grid, Spin } from "@arco-design/web-react";
 
-import { SystemController } from "../api/controllers.gen";
-import { queryKeys } from "../api/queryKeys";
+import PageContainer from "../components/page-container";
+import MediaTypeDistributionChart from "./dashboard/media-type-chart";
+import StatCards from "./dashboard/stat-cards";
+import UploadTrendChart from "./dashboard/upload-trend-chart";
+import { useDashboardData, useDashboardTotals } from "./dashboard/use-dashboard-data";
 
-const highlights = [
-  "Modern.js React app shell",
-  "Application-local type-check, lint, and test scripts",
-  "Ready to compose with shared packages from the monorepo"
-];
+const { Row, Col } = Grid;
 
-type ApiStatus = "loading" | "online" | "offline";
-
-const apiStatusConfig: Record<ApiStatus, { text: string; color: string }> = {
-  loading: { text: "检测中", color: "gray" },
-  online: { text: "在线", color: "green" },
-  offline: { text: "离线", color: "red" }
-};
-
+// 首页仪表盘(阶段 12,见 docs/admin-enhancement-plan.md):
+// 统计卡走真实列表接口的 total(存储用量为 mock),两张图表走 mock 数据(见 dashboard/mock.ts 的 TODO)。
+// 图表组件(VChart)只在 routes/dashboard/ 内引入,路由级代码分割保证不进主包。
 export default function HomePage() {
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const { isPending, error } = useQuery({
-    queryKey: queryKeys.system.healthz,
-    queryFn: () => SystemController.healthz(),
-    enabled: mounted
-  });
-
-  const apiStatus: ApiStatus = isPending ? "loading" : error ? "offline" : "online";
-  const status = apiStatusConfig[apiStatus];
+  const { data: mockData } = useDashboardData();
+  const totals = useDashboardTotals();
 
   return (
-    <section className="hero" aria-labelledby="hero-title">
-      <p className="eyebrow">Turborepo + pnpm template</p>
-      <Typography.Title heading={1} id="hero-title" style={{ marginTop: 0 }}>
-        Hello from the admin app.
-      </Typography.Title>
-      <p className="lede">
-        Use this application as the first runnable workspace while packages, CI, and deployment
-        support are added around it.
-      </p>
-      <p className="api-status" aria-label="API service status">
-        API 服务状态:
-        <Tag color={status.color}>{status.text}</Tag>
-      </p>
-      <ul className="highlights" aria-label="admin app capabilities">
-        {highlights.map((item) => (
-          <li key={item}>{item}</li>
-        ))}
-      </ul>
-    </section>
+    <PageContainer>
+      <StatCards
+        userTotal={totals.userTotal}
+        imageTotal={totals.imageTotal}
+        videoTotal={totals.videoTotal}
+        storageUsage={totals.storageUsage}
+        isPending={totals.isPending}
+      />
+
+      <Row gutter={16} style={{ marginTop: 16 }}>
+        <Col span={14}>
+          <Card title="近 30 天上传趋势">
+            {mockData ? (
+              <UploadTrendChart data={mockData.uploadTrend} />
+            ) : (
+              <Spin style={{ display: "block", margin: "140px auto", width: "100%" }} />
+            )}
+          </Card>
+        </Col>
+        <Col span={10}>
+          <Card title="媒体类型分布">
+            {mockData ? (
+              <MediaTypeDistributionChart data={mockData.mediaTypeDistribution} />
+            ) : (
+              <Spin style={{ display: "block", margin: "140px auto", width: "100%" }} />
+            )}
+          </Card>
+        </Col>
+      </Row>
+    </PageContainer>
   );
 }
