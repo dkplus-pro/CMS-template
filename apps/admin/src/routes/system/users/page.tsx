@@ -15,170 +15,50 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import type { UserItem } from "../../../api/generated/cMSAdminAPI.schemas";
-import { RolesController, UsersController } from "../../../api/controllers.gen";
+import { UsersController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
+import PageContainer from "../../../components/page-container";
+import { useTableQuery } from "../../../hooks/use-table-query";
 
-interface UserFormModalProps {
-  visible: boolean;
-  editing: UserItem | null;
-  onClose: () => void;
+import { UserFormModal } from "./components/user-form-modal";
+import { UserRolesModal } from "./components/user-roles-modal";
+
+// 查询条件(提交后才生效,见 docs/admin.md 列表页范式)。
+interface UserFilters {
+  keyword?: string;
+  status?: boolean;
 }
 
-function UserFormModal({ visible, editing, onClose }: UserFormModalProps) {
-  const [form] = Form.useForm();
-  const queryClient = useQueryClient();
-
-  const saveMutation = useMutation({
-    mutationFn: (values: {
-      username?: string;
-      password?: string;
-      nickname?: string;
-      email?: string;
-    }) => {
-      if (editing) {
-        return UsersController.updateUser(editing.id, { nickname: values.nickname ?? "" });
-      }
-      return UsersController.createUser({
-        username: values.username ?? "",
-        password: values.password ?? "",
-        nickname: values.nickname,
-        email: values.email
-      });
-    },
-    onSuccess: () => {
-      Message.success(editing ? "用户已更新" : "用户已创建");
-      void queryClient.invalidateQueries({ queryKey: ["users"] });
-      onClose();
-    }
-  });
-
-  const handleOk = async () => {
-    try {
-      const values = await form.validate();
-      saveMutation.mutate(values);
-    } catch {
-      // 校验失败,表单内已显示错误信息。
-    }
-  };
-
-  return (
-    <Modal
-      title={editing ? "编辑用户" : "新建用户"}
-      visible={visible}
-      onOk={handleOk}
-      confirmLoading={saveMutation.isPending}
-      onCancel={onClose}
-      unmountOnExit
-    >
-      <Form form={form} layout="vertical" initialValues={editing ?? {}}>
-        <Form.Item
-          field="username"
-          label="用户名"
-          rules={[{ required: !editing, message: "请输入用户名" }]}
-        >
-          <Input placeholder="登录名" disabled={Boolean(editing)} maxLength={64} />
-        </Form.Item>
-        {!editing ? (
-          <Form.Item
-            field="password"
-            label="初始密码"
-            rules={[
-              { required: true, message: "请输入初始密码" },
-              { minLength: 6, message: "至少 6 位" }
-            ]}
-          >
-            <Input.Password placeholder="初始密码" maxLength={64} />
-          </Form.Item>
-        ) : null}
-        <Form.Item
-          field="nickname"
-          label="昵称"
-          rules={[{ required: true, message: "请输入昵称" }]}
-        >
-          <Input placeholder="显示名" maxLength={64} />
-        </Form.Item>
-        <Form.Item field="email" label="邮箱">
-          <Input placeholder="email@example.com" maxLength={128} />
-        </Form.Item>
-      </Form>
-    </Modal>
-  );
-}
-
-interface UserRolesModalProps {
-  visible: boolean;
-  user: UserItem | null;
-  onClose: () => void;
-}
-
-function UserRolesModal({ visible, user, onClose }: UserRolesModalProps) {
-  const [roleIds, setRoleIds] = useState<number[]>(user?.roleIds ?? []);
-  // 回填:每次打开时以该用户已绑定的角色初始化选中项。
-  useEffect(() => {
-    if (visible) {
-      setRoleIds(user?.roleIds ?? []);
-    }
-  }, [visible, user]);
-  const queryClient = useQueryClient();
-
-  const rolesQuery = useQuery({
-    queryKey: queryKeys.roles.all,
-    queryFn: () => RolesController.listAllRoles(),
-    enabled: visible
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: () => UsersController.updateUserRoles(user?.id ?? 0, { roleIds }),
-    onSuccess: () => {
-      Message.success("角色已分配");
-      void queryClient.invalidateQueries({ queryKey: ["users"] });
-      onClose();
-    }
-  });
-
-  const options = (rolesQuery.data ?? []).map((role) => ({
-    label: `${role.name}(${role.code})`,
-    value: role.id
-  }));
-
-  return (
-    <Modal
-      title={`分配角色:${user?.nickname ?? ""}`}
-      visible={visible}
-      onOk={() => saveMutation.mutate()}
-      confirmLoading={saveMutation.isPending}
-      onCancel={onClose}
-      unmountOnExit
-    >
-      <Select
-        mode="multiple"
-        placeholder="选择角色"
-        style={{ width: "100%" }}
-        options={options}
-        value={roleIds}
-        onChange={(value) => setRoleIds(value)}
-        loading={rolesQuery.isPending}
-      />
-    </Modal>
-  );
+interface UserQueryValues {
+  keyword?: string;
+  status?: number;
 }
 
 export default function UsersPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [keyword, setKeyword] = useState("");
-  const [status, setStatus] = useState<boolean | undefined>(undefined);
+  const [form] = Form.useForm<UserQueryValues>();
+  const [filters, setFilters] = useState<UserFilters>({});
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<UserItem | null>(null);
   const [rolesUser, setRolesUser] = useState<UserItem | null>(null);
 
+  const { page, pageSize, pagination, resetPage, setTotal } = useTableQuery();
+
   const listQuery = useQuery({
-    queryKey: queryKeys.users.list(page, pageSize, keyword, status),
+    queryKey: queryKeys.users.list(page, pageSize, filters.keyword ?? "", filters.status),
     queryFn: () =>
-      UsersController.listUsers({ page, pageSize, keyword: keyword || undefined, status })
+      UsersController.listUsers({
+        page,
+        pageSize,
+        keyword: filters.keyword || undefined,
+        status: filters.status
+      })
   });
+
+  useEffect(() => {
+    setTotal(listQuery.data?.total ?? 0);
+  }, [listQuery.data?.total, setTotal]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, enabled }: { id: number; enabled: boolean }) =>
@@ -200,6 +80,20 @@ export default function UsersPage() {
       content: `确定删除用户 ${record.username} 吗?`,
       onOk: () => deleteMutation.mutateAsync(record.id)
     });
+  };
+
+  const handleSearch = (values: UserQueryValues) => {
+    setFilters({
+      keyword: values.keyword?.trim() || undefined,
+      status: values.status === undefined ? undefined : values.status === 1
+    });
+    resetPage();
+  };
+
+  const handleReset = () => {
+    form.resetFields();
+    setFilters({});
+    resetPage();
   };
 
   const columns = [
@@ -264,59 +158,54 @@ export default function UsersPage() {
   ];
 
   return (
-    <Card>
-      <Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
-        <Space>
-          <Input.Search
-            placeholder="搜索用户名/昵称"
-            style={{ width: 240 }}
-            onSearch={(value) => {
-              setKeyword(value);
-              setPage(1);
-            }}
-          />
-          <Select
-            placeholder="状态"
-            style={{ width: 120 }}
-            allowClear
-            onChange={(value) => {
-              setStatus(value === undefined ? undefined : value === 1);
-              setPage(1);
-            }}
-            options={[
-              { label: "启用", value: 1 },
-              { label: "禁用", value: 0 }
-            ]}
-          />
-        </Space>
-        <AuthGate permission="system:user:create">
-          <Button
-            type="primary"
-            onClick={() => {
-              setEditing(null);
-              setFormVisible(true);
-            }}
-          >
-            新建用户
-          </Button>
-        </AuthGate>
-      </Space>
-
-      <Table
-        rowKey="id"
-        loading={listQuery.isPending}
-        columns={columns}
-        data={listQuery.data?.list ?? []}
-        pagination={{
-          total: listQuery.data?.total ?? 0,
-          current: page,
-          pageSize,
-          onChange: (current, size) => {
-            setPage(current);
-            setPageSize(size);
-          }
-        }}
-      />
+    <PageContainer>
+      <Card>
+        {/* 查询区:Form + 查询/重置(arco-pro search-table 范式)。 */}
+        <Form form={form} layout="inline" onSubmit={handleSearch}>
+          <Form.Item field="keyword" label="关键词">
+            <Input placeholder="用户名/昵称" allowClear style={{ width: 200 }} />
+          </Form.Item>
+          <Form.Item field="status" label="状态">
+            <Select
+              placeholder="请选择"
+              allowClear
+              style={{ width: 120 }}
+              options={[
+                { label: "启用", value: 1 },
+                { label: "禁用", value: 0 }
+              ]}
+            />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={listQuery.isPending}>
+                查询
+              </Button>
+              <Button onClick={handleReset}>重置</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+        <div style={{ margin: "16px 0", textAlign: "right" }}>
+          <AuthGate permission="system:user:create">
+            <Button
+              type="primary"
+              onClick={() => {
+                setEditing(null);
+                setFormVisible(true);
+              }}
+            >
+              新建用户
+            </Button>
+          </AuthGate>
+        </div>
+        <Table
+          rowKey="id"
+          loading={listQuery.isPending}
+          columns={columns}
+          data={listQuery.data?.list ?? []}
+          pagination={pagination}
+        />
+      </Card>
 
       <UserFormModal
         visible={formVisible}
@@ -331,6 +220,6 @@ export default function UsersPage() {
         user={rolesUser}
         onClose={() => setRolesUser(null)}
       />
-    </Card>
+    </PageContainer>
   );
 }

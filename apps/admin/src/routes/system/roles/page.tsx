@@ -8,181 +8,49 @@ import {
   Space,
   Switch,
   Table,
-  Tag,
-  Tree
+  Tag
 } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
 import type { RoleItem } from "../../../api/generated/cMSAdminAPI.schemas";
-import { PermissionsController, RolesController } from "../../../api/controllers.gen";
+import { RolesController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
+import PageContainer from "../../../components/page-container";
+import { useTableQuery } from "../../../hooks/use-table-query";
 
-interface RoleFormModalProps {
-  visible: boolean;
-  editing: RoleItem | null;
-  onClose: () => void;
+import { RoleFormModal } from "./components/role-form-modal";
+import { RolePermissionsModal } from "./components/role-permissions-modal";
+
+// 查询条件(提交后才生效,见 docs/admin.md 列表页范式)。
+interface RoleFilters {
+  keyword?: string;
 }
 
-function RoleFormModal({ visible, editing, onClose }: RoleFormModalProps) {
-  const [form] = Form.useForm();
-  const queryClient = useQueryClient();
-
-  const saveMutation = useMutation({
-    mutationFn: (values: { code: string; name: string; remark?: string }) => {
-      if (editing) {
-        return RolesController.updateRole(editing.id, {
-          code: editing.isBuiltin ? editing.code : values.code,
-          name: values.name,
-          remark: values.remark,
-          status: editing.status
-        });
-      }
-      return RolesController.createRole({
-        code: values.code,
-        name: values.name,
-        remark: values.remark
-      });
-    },
-    onSuccess: () => {
-      Message.success(editing ? "角色已更新" : "角色已创建");
-      void queryClient.invalidateQueries({ queryKey: ["roles"] });
-      onClose();
-    }
-  });
-
-  const handleOk = async () => {
-    try {
-      const values = await form.validate();
-      saveMutation.mutate(values);
-    } catch {
-      // 校验失败,表单内已显示错误信息。
-    }
-  };
-
-  return (
-    <Modal
-      title={editing ? "编辑角色" : "新建角色"}
-      visible={visible}
-      onOk={handleOk}
-      confirmLoading={saveMutation.isPending}
-      onCancel={onClose}
-      unmountOnExit
-    >
-      <Form form={form} layout="vertical" initialValues={editing ?? {}}>
-        <Form.Item
-          field="code"
-          label="编码"
-          rules={[{ required: true, message: "请输入角色编码" }]}
-        >
-          <Input placeholder="如 ops" maxLength={64} disabled={Boolean(editing?.isBuiltin)} />
-        </Form.Item>
-        <Form.Item
-          field="name"
-          label="名称"
-          rules={[{ required: true, message: "请输入角色名称" }]}
-        >
-          <Input placeholder="显示名" maxLength={64} />
-        </Form.Item>
-        <Form.Item field="remark" label="备注">
-          <Input.TextArea placeholder="角色说明" maxLength={255} />
-        </Form.Item>
-      </Form>
-    </Modal>
-  );
-}
-
-interface RolePermissionsModalProps {
-  visible: boolean;
-  role: RoleItem | null;
-  onClose: () => void;
-}
-
-// 权限树:菜单权限点为根节点,API 权限点挂在其所属模块的菜单点下(见 docs/api-pages.md)。
-function RolePermissionsModal({ visible, role, onClose }: RolePermissionsModalProps) {
-  const [checkedKeys, setCheckedKeys] = useState<string[]>([]);
-  // 回填:每次打开时以角色已有的权限点初始化勾选。
-  useEffect(() => {
-    if (visible) {
-      setCheckedKeys((role?.permissionIds ?? []).map(String));
-    }
-  }, [visible, role]);
-  const queryClient = useQueryClient();
-
-  const treeQuery = useQuery({
-    queryKey: queryKeys.permissions.tree,
-    queryFn: () => PermissionsController.listPermissions(),
-    enabled: visible
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: () =>
-      RolesController.updateRolePermissions(role?.id ?? 0, {
-        permissionIds: checkedKeys.map((key) => Number(key)).filter((id) => Number.isInteger(id))
-      }),
-    onSuccess: () => {
-      Message.success("权限已分配");
-      void queryClient.invalidateQueries({ queryKey: ["roles"] });
-      onClose();
-    }
-  });
-
-  const treeData = (treeQuery.data ?? []).map((node) => toTreeNode(node));
-
-  return (
-    <Modal
-      title={`分配权限:${role?.name ?? ""}`}
-      visible={visible}
-      onOk={() => saveMutation.mutate()}
-      confirmLoading={saveMutation.isPending}
-      onCancel={onClose}
-      unmountOnExit
-    >
-      <Tree
-        checkable
-        checkedKeys={checkedKeys}
-        onCheck={(value) => setCheckedKeys(value as string[])}
-        treeData={treeData}
-      />
-    </Modal>
-  );
-}
-
-interface ApiPermissionNode {
-  id: number;
-  code: string;
-  name: string;
-  children: ApiPermissionNode[];
-}
-
-interface TreeNode {
-  key: string;
-  title: string;
-  children: TreeNode[];
-}
-
-function toTreeNode(node: ApiPermissionNode): TreeNode {
-  return {
-    key: String(node.id),
-    title: `${node.name}(${node.code})`,
-    children: node.children.map(toTreeNode)
-  };
+interface RoleQueryValues {
+  keyword?: string;
 }
 
 export default function RolesPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(20);
-  const [keyword, setKeyword] = useState("");
+  const [form] = Form.useForm<RoleQueryValues>();
+  const [filters, setFilters] = useState<RoleFilters>({});
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<RoleItem | null>(null);
   const [permissionsRole, setPermissionsRole] = useState<RoleItem | null>(null);
 
+  const { page, pageSize, pagination, resetPage, setTotal } = useTableQuery();
+
   const listQuery = useQuery({
-    queryKey: queryKeys.roles.list(page, pageSize, keyword),
-    queryFn: () => RolesController.listRoles({ page, pageSize, keyword: keyword || undefined })
+    queryKey: queryKeys.roles.list(page, pageSize, filters.keyword ?? ""),
+    queryFn: () =>
+      RolesController.listRoles({ page, pageSize, keyword: filters.keyword || undefined })
   });
+
+  useEffect(() => {
+    setTotal(listQuery.data?.total ?? 0);
+  }, [listQuery.data?.total, setTotal]);
 
   const statusMutation = useMutation({
     mutationFn: ({ id, enabled, role }: { id: number; enabled: boolean; role: RoleItem }) =>
@@ -209,6 +77,17 @@ export default function RolesPage() {
       content: `确定删除角色 ${record.name} 吗?`,
       onOk: () => deleteMutation.mutateAsync(record.id)
     });
+  };
+
+  const handleSearch = (values: RoleQueryValues) => {
+    setFilters({ keyword: values.keyword?.trim() || undefined });
+    resetPage();
+  };
+
+  const handleReset = () => {
+    form.resetFields();
+    setFilters({});
+    resetPage();
   };
 
   const columns = [
@@ -267,44 +146,43 @@ export default function RolesPage() {
   ];
 
   return (
-    <Card>
-      <Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
-        <Input.Search
-          placeholder="搜索角色编码/名称"
-          style={{ width: 240 }}
-          onSearch={(value) => {
-            setKeyword(value);
-            setPage(1);
-          }}
+    <PageContainer>
+      <Card>
+        {/* 查询区:Form + 查询/重置(arco-pro search-table 范式)。 */}
+        <Form form={form} layout="inline" onSubmit={handleSearch}>
+          <Form.Item field="keyword" label="关键词">
+            <Input placeholder="角色编码/名称" allowClear style={{ width: 200 }} />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={listQuery.isPending}>
+                查询
+              </Button>
+              <Button onClick={handleReset}>重置</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+        <div style={{ margin: "16px 0", textAlign: "right" }}>
+          <AuthGate permission="system:role:create">
+            <Button
+              type="primary"
+              onClick={() => {
+                setEditing(null);
+                setFormVisible(true);
+              }}
+            >
+              新建角色
+            </Button>
+          </AuthGate>
+        </div>
+        <Table
+          rowKey="id"
+          loading={listQuery.isPending}
+          columns={columns}
+          data={listQuery.data?.list ?? []}
+          pagination={pagination}
         />
-        <AuthGate permission="system:role:create">
-          <Button
-            type="primary"
-            onClick={() => {
-              setEditing(null);
-              setFormVisible(true);
-            }}
-          >
-            新建角色
-          </Button>
-        </AuthGate>
-      </Space>
-
-      <Table
-        rowKey="id"
-        loading={listQuery.isPending}
-        columns={columns}
-        data={listQuery.data?.list ?? []}
-        pagination={{
-          total: listQuery.data?.total ?? 0,
-          current: page,
-          pageSize,
-          onChange: (current, size) => {
-            setPage(current);
-            setPageSize(size);
-          }
-        }}
-      />
+      </Card>
 
       <RoleFormModal
         visible={formVisible}
@@ -319,6 +197,6 @@ export default function RolesPage() {
         role={permissionsRole}
         onClose={() => setPermissionsRole(null)}
       />
-    </Card>
+    </PageContainer>
   );
 }

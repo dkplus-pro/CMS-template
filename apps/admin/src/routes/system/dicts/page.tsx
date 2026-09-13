@@ -4,42 +4,46 @@ import {
   Form,
   Input,
   Message,
-  Modal,
   Popconfirm,
   Space,
-  Switch,
   Table,
   Tag
 } from "@arco-design/web-react";
-import {
-  DndContext,
-  PointerSensor,
-  closestCenter,
-  useSensor,
-  useSensors,
-  type DragEndEvent
-} from "@dnd-kit/core";
-import { SortableContext, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
-import { CSS } from "@dnd-kit/utilities";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
-import type { Dict, DictEntry } from "../../../api/generated/cMSAdminAPI.schemas";
+import type { Dict } from "../../../api/generated/cMSAdminAPI.schemas";
 import { DictsController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
+import PageContainer from "../../../components/page-container";
+import { useTableQuery } from "../../../hooks/use-table-query";
+
+import { DictFormModal } from "./components/dict-form-modal";
+
+interface DictQueryValues {
+  keyword?: string;
+}
 
 // 字典管理:列表页 + 操作栏(编辑 / 上下线 / 删除)。
+// 字典为全量接口(无服务端分页),分页由 Table 客户端切片,但 props 仍按 UI 规范全量配置。
 export default function DictsPage() {
   const queryClient = useQueryClient();
-  const [keyword, setKeyword] = useState("");
+  const [form] = Form.useForm<DictQueryValues>();
+  const [filters, setFilters] = useState<{ keyword?: string }>({});
   const [formVisible, setFormVisible] = useState(false);
   const [editing, setEditing] = useState<Dict | null>(null);
 
+  const { pagination, resetPage, setTotal } = useTableQuery();
+
   const listQuery = useQuery({
-    queryKey: queryKeys.dicts.list(keyword),
-    queryFn: () => DictsController.listDicts({ keyword: keyword || undefined })
+    queryKey: queryKeys.dicts.list(filters.keyword ?? ""),
+    queryFn: () => DictsController.listDicts({ keyword: filters.keyword || undefined })
   });
+
+  useEffect(() => {
+    setTotal(listQuery.data?.length ?? 0);
+  }, [listQuery.data, setTotal]);
 
   const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["dicts"] });
 
@@ -59,6 +63,17 @@ export default function DictsPage() {
       invalidate();
     }
   });
+
+  const handleSearch = (values: DictQueryValues) => {
+    setFilters({ keyword: values.keyword?.trim() || undefined });
+    resetPage();
+  };
+
+  const handleReset = () => {
+    form.resetFields();
+    setFilters({});
+    resetPage();
+  };
 
   const columns = [
     { title: "编码", dataIndex: "code", width: 180 },
@@ -111,33 +126,43 @@ export default function DictsPage() {
   ];
 
   return (
-    <Card>
-      <Space style={{ marginBottom: 16, width: "100%", justifyContent: "space-between" }}>
-        <Input.Search
-          placeholder="搜索编码/名称"
-          style={{ width: 240 }}
-          onSearch={(value) => setKeyword(value)}
+    <PageContainer>
+      <Card>
+        {/* 查询区:Form + 查询/重置(arco-pro search-table 范式)。 */}
+        <Form form={form} layout="inline" onSubmit={handleSearch}>
+          <Form.Item field="keyword" label="关键词">
+            <Input placeholder="编码/名称" allowClear style={{ width: 200 }} />
+          </Form.Item>
+          <Form.Item>
+            <Space>
+              <Button type="primary" htmlType="submit" loading={listQuery.isPending}>
+                查询
+              </Button>
+              <Button onClick={handleReset}>重置</Button>
+            </Space>
+          </Form.Item>
+        </Form>
+        <div style={{ margin: "16px 0", textAlign: "right" }}>
+          <AuthGate permission="system:dict:create">
+            <Button
+              type="primary"
+              onClick={() => {
+                setEditing(null);
+                setFormVisible(true);
+              }}
+            >
+              新建字典
+            </Button>
+          </AuthGate>
+        </div>
+        <Table
+          rowKey="id"
+          loading={listQuery.isPending}
+          columns={columns}
+          data={listQuery.data ?? []}
+          pagination={pagination}
         />
-        <AuthGate permission="system:dict:create">
-          <Button
-            type="primary"
-            onClick={() => {
-              setEditing(null);
-              setFormVisible(true);
-            }}
-          >
-            新建字典
-          </Button>
-        </AuthGate>
-      </Space>
-
-      <Table
-        rowKey="id"
-        loading={listQuery.isPending}
-        columns={columns}
-        data={listQuery.data ?? []}
-        pagination={false}
-      />
+      </Card>
 
       <DictFormModal
         visible={formVisible}
@@ -147,245 +172,6 @@ export default function DictsPage() {
           setEditing(null);
         }}
       />
-    </Card>
+    </PageContainer>
   );
-}
-
-interface EntryFormValue {
-  label: string;
-  value: string;
-  enabled?: boolean;
-}
-
-interface DictFormValues {
-  code: string;
-  name: string;
-  remark?: string;
-  entries?: EntryFormValue[];
-}
-
-// 新建/编辑共用弹窗:字典基本信息 + 字典项动态增减(Form.List,参考 arco 动态表单)。
-function DictFormModal({
-  visible,
-  editing,
-  onClose
-}: {
-  visible: boolean;
-  editing: Dict | null;
-  onClose: () => void;
-}) {
-  const [form] = Form.useForm<DictFormValues>();
-  const queryClient = useQueryClient();
-  const invalidate = () => void queryClient.invalidateQueries({ queryKey: ["dicts"] });
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
-
-  const saveMutation = useMutation({
-    mutationFn: async (values: DictFormValues) => {
-      let dictId = editing?.id;
-      if (editing) {
-        await DictsController.updateDict(editing.id, {
-          code: values.code,
-          name: values.name,
-          remark: values.remark,
-          status: editing.status
-        });
-      } else {
-        const created = await DictsController.createDict({
-          code: values.code,
-          name: values.name,
-          remark: values.remark
-        });
-        dictId = created.id;
-      }
-      // 字典项整组覆写:编辑保存一次全部;新建时按表单内容写入。
-      // 排序即拖拽后的数组顺序,提交时按索引赋值。
-      const entries = (values.entries ?? []).map((entry, index) => ({
-        label: entry.label,
-        value: entry.value,
-        sort: index,
-        status: entry.enabled ?? true
-      }));
-      if (dictId) {
-        await DictsController.replaceDictEntries(dictId, { entries });
-      }
-    },
-    onSuccess: () => {
-      Message.success(editing ? "字典已更新" : "字典已创建");
-      invalidate();
-      onClose();
-    }
-  });
-
-  const openWithDefault = () => {
-    form.clearFields();
-    if (editing) {
-      form.setFieldsValue({
-        code: editing.code,
-        name: editing.name,
-        remark: editing.remark ?? ""
-      });
-      // 编辑:回填基本信息,字典项从接口拉取后回填进 Form.List。
-      DictsController.listDictItems(editing.code).then((entries: DictEntry[]) => {
-        form.setFieldsValue({
-          entries: entries.map((entry) => ({
-            label: entry.label,
-            value: entry.value,
-            enabled: entry.status
-          }))
-        });
-      });
-    } else {
-      form.setFieldsValue({ code: "", name: "", remark: "", entries: [emptyEntry()] });
-    }
-  };
-
-  const handleOk = async () => {
-    try {
-      saveMutation.mutate(await form.validate());
-    } catch {
-      // 校验失败,表单内已显示错误信息。
-    }
-  };
-
-  return (
-    <Modal
-      title={editing ? `编辑字典:${editing.name}` : "新建字典"}
-      visible={visible}
-      onOk={handleOk}
-      confirmLoading={saveMutation.isPending}
-      onCancel={onClose}
-      unmountOnExit
-      afterOpen={openWithDefault}
-      style={{ width: 680 }}
-    >
-      <Form form={form} layout="vertical">
-        <Form.Item field="code" label="编码" rules={[{ required: true, message: "请输入编码" }]}>
-          <Input placeholder="如 common_status" maxLength={64} />
-        </Form.Item>
-        <Form.Item field="name" label="名称" rules={[{ required: true, message: "请输入名称" }]}>
-          <Input placeholder="显示名" maxLength={64} />
-        </Form.Item>
-        <Form.Item field="remark" label="备注">
-          <Input placeholder="用途说明" maxLength={255} />
-        </Form.Item>
-
-        <Form.Item label="字典项" required>
-          <Form.List field="entries">
-            {(fields, { add, remove, move }) => (
-              <>
-                {/* 表头,列宽与下方表单行对齐(手柄 / 标签 / 值 / 启用 / 操作) */}
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    marginBottom: 8,
-                    paddingLeft: 30,
-                    color: "#86909c",
-                    fontSize: 12
-                  }}
-                >
-                  <span style={{ width: 120 }}>标签</span>
-                  <span style={{ width: 100 }}>值</span>
-                  <span style={{ width: 56 }}>启用</span>
-                  <span>操作</span>
-                </div>
-
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragEnd={(event: DragEndEvent) => {
-                    const { active, over } = event;
-                    if (over && active.id !== over.id) {
-                      const oldIndex = fields.findIndex((f) => f.key === active.id);
-                      const newIndex = fields.findIndex((f) => f.key === over.id);
-                      if (oldIndex !== -1 && newIndex !== -1) {
-                        move(oldIndex, newIndex);
-                      }
-                    }
-                  }}
-                >
-                  <SortableContext
-                    items={fields.map((f) => f.key)}
-                    strategy={verticalListSortingStrategy}
-                  >
-                    {fields.map((field) => (
-                      <SortableEntry
-                        key={field.key}
-                        id={field.key}
-                        name={field.field}
-                        onRemove={() => remove(fields.findIndex((f) => f.key === field.key))}
-                      />
-                    ))}
-                  </SortableContext>
-                </DndContext>
-
-                <Button size="mini" onClick={() => add(emptyEntry())}>
-                  + 添加字典项
-                </Button>
-              </>
-            )}
-          </Form.List>
-        </Form.Item>
-      </Form>
-    </Modal>
-  );
-}
-
-interface SortableEntryProps {
-  id: number;
-  name: string;
-  onRemove: () => void;
-}
-
-// 可拖拽的字典项行:手柄拖拽重排,顺序即提交时的排序(见 Form.List 的 move)。
-function SortableEntry({ id, name, onRemove }: SortableEntryProps) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
-    id
-  });
-
-  return (
-    <div
-      ref={setNodeRef}
-      style={{
-        display: "flex",
-        gap: 8,
-        marginBottom: 8,
-        alignItems: "flex-start",
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1
-      }}
-    >
-      <span
-        {...attributes}
-        {...listeners}
-        style={{
-          cursor: "grab",
-          color: "#86909c",
-          padding: "4px 6px",
-          userSelect: "none",
-          marginTop: 2
-        }}
-        title="拖拽排序"
-      >
-        ⋮⋮
-      </span>
-      <Form.Item field={`${name}.label`} rules={[{ required: true, message: "标签必填" }]} noStyle>
-        <Input placeholder="标签,如 启用" style={{ width: 120 }} />
-      </Form.Item>
-      <Form.Item field={`${name}.value`} rules={[{ required: true, message: "值必填" }]} noStyle>
-        <Input placeholder="值,如 1" style={{ width: 100 }} />
-      </Form.Item>
-      <Form.Item field={`${name}.enabled`} noStyle triggerPropName="checked">
-        <Switch style={{ marginTop: 4 }} />
-      </Form.Item>
-      <Button size="mini" status="danger" onClick={onRemove} style={{ marginTop: 2 }}>
-        删除
-      </Button>
-    </div>
-  );
-}
-
-function emptyEntry(): EntryFormValue {
-  return { label: "", value: "", enabled: true };
 }
