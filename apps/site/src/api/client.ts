@@ -2,9 +2,15 @@ import Axios, { AxiosError, AxiosRequestConfig, AxiosResponse } from "axios";
 
 // 公开站请求客户端(orval axios 客户端的 mutator,见 docs/multi-audience-contracts.md):
 // 公开站无会话,token 注入与 401 跳转一概不做;只保留 {code, message, data} 解包与错误提示。
-// 契约路径自带 /site/v1 前缀,页面与 dev 代理同域访问,无需 baseURL。
+//
+// baseURL 双端规则(见 docs/site.md「SSR 注意事项」):
+// - SSR 服务端进程内没有"同源"概念,相对路径不可用,必须用绝对地址(env SITE_API_BASE,
+//   默认 http://127.0.0.1:8080 指向 Go server;dev 与生产部署各自注入);
+// - 浏览器端保持空串走同源相对路径(dev 由 Modern.js 代理 /api,生产由网关同域转发)。
+const isServer = typeof window === "undefined";
+const baseURL = isServer ? (process.env.SITE_API_BASE ?? "http://127.0.0.1:8080") : "";
 
-const axiosInstance = Axios.create();
+const axiosInstance = Axios.create({ baseURL });
 
 function isEnvelope(
   payload: unknown

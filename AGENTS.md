@@ -55,3 +55,10 @@ pnpm + Turborepo monorepo,两个应用:
 15. 提交信息遵循 Conventional Commits;代码风格交给仓库 prettier/eslint/gofmt 配置,不自创风格;文件与符号命名必须语义化(按资源/领域),禁止 stage/temp/new/copy 等过程性命名;
 16. 改代码前先查 `src/components`、`src/hooks`、`internal/` 是否已有可复用实现,先复用再新建;
 17. 测试纪律:做计划时先写测试用例并定义边界条件(空值/零值/越界/权限缺失/网络失败/非法状态迁移六类必查),用例与实现同批交付;测试栈与编排详见 [docs/development.md](docs/development.md)「测试体系」。
+
+### site(详见 [docs/site.md](docs/site.md))
+
+18. site 是 Modern.js SSR 对外网站(appTools + `server.ssr: true`),只消费 `openapi/site.yaml` 公开契约,client 双端 baseURL:SSR 服务端用绝对地址(env `SITE_API_BASE`),浏览器端同源相对路径,环境判断统一 `typeof window === "undefined"`;
+19. 服务端数据一律走路由 loader(`src/routes/*.data.ts` 具名导出 loader,组件用 `useLoaderData` 读取),loader 内禁止引用客户端状态、必须自捕获请求失败降级为 null;客户端全局状态用 zustand(`src/store/`),服务端数据不进 zustand,禁止 useEffect 手动拉接口;
+20. 响应式双端适配是硬要求:每页在 mobile(< 768px)与 desktop 双端可用,断点判断统一走 `src/hooks/use-breakpoint.ts` 的 `useIsMobile()`(SSR 固定按桌面渲染,挂载后同步,保证 hydration 一致);
+21. 禁止 `dangerouslySetInnerHTML`(富文本先过 DOMPurify);生产构建注入 CSP meta;RUM(`@arms/rum-browser`)仅客户端动态初始化,`RUM_ENDPOINT`/`RUM_PID` 任一缺失不初始化,dev 默认关闭。
