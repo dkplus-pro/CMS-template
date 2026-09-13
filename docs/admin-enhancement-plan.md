@@ -28,7 +28,9 @@
 
 规模:S ≈ 1-2 天,M ≈ 3-4 天,L ≈ 5-7 天。排序原则:先修阻塞性 bug 与可观测性(logID 是后续所有阶段排查问题的工具),再落安全与 UI 基线,最后做功能(分组 → 分片上传,两者都动上传弹窗,按序做避免返工)。
 
-## 阶段 9:稳定性与可观测性(菜单折叠 · ErrorBoundary · logID)
+## 阶段 9:稳定性与可观测性(菜单折叠 · ErrorBoundary · logID;**已交付并验收**)
+
+> **交付记录**:菜单受控回调按仓库实际 Arco 2.66.16 的 API 用 `onClickSubMenu` 第二参同步 `openKeys`(计划所写 `onOpenKeys` 在该版本不存在,typecheck 证实),意图一致;logID 采用 ResponseWriter wrapper 方案(接口断言穿透 Unwrap 链读取 logID),handler 调用点零改动;e2e 起的 server 需显式 `CSRF_ALLOWED_ORIGINS=http://127.0.0.1:18080`(阶段 10 中间件的联带配置)。
 
 ### A. 菜单折叠失效修复(bug)
 
@@ -66,7 +68,7 @@
 
 验收:curl 任意接口,响应体 `logID` 与响应头 `X-Log-Id` 一致,访问日志行含同一 `log_id`;前端任意报错 toast 含 logID;透传网关 `X-Request-Id` 生效。
 
-## 阶段 10:安全基线(XSS / CSRF 防御)
+## 阶段 10:安全基线(XSS / CSRF 防御;**已交付并验收**)
 
 ### 威胁模型(先说清楚)
 
@@ -98,7 +100,9 @@
 - Go 单测覆盖 OriginCheck 矩阵(白名单命中/未命中 403/无 Origin 放行/安全方法跳过);
 - e2e 回归同源请求(带合法 Origin)全部 200;`pnpm verify` 全绿。
 
-## 阶段 11:UI 规范与全量改版(先沉淀规范,再改存量)
+## 阶段 11:UI 规范与全量改版(先沉淀规范,再改存量;**已交付并验收**)
+
+> **交付记录**:`config/menu.ts` 改名 `menu.tsx`(icon 是 JSX 元素,.ts 无法承载,smoke 测试路径断言同步);媒体页契约暂无筛选参数,本期只对齐 PageContainer 与全量分页(要筛选先落契约)。
 
 ### 第一步:规范落文档(先于代码)
 
@@ -135,7 +139,9 @@
 
 验收:所有列表页分页含总数与 pageSize 切换;面包屑在内容区;菜单全量带图标且整栏可折叠;规范已进 docs/admin.md 与 AGENTS.md;`pnpm verify` 全绿。
 
-## 阶段 12:Dashboard 页(VChart + mock 数据)
+## 阶段 12:Dashboard 页(VChart + mock 数据;**已交付并验收**)
+
+> **交付记录**:VChart 仅存在于 `/` 路由异步 chunk(约 2.2MB / gzip 600KB),主包零增长(生产构建验证);统计卡三项真实 total + 存储用量 mock;mock queryKey 待落契约时迁入 queryKeys.ts 并换 `DashboardController.summary()`(TODO 已注明)。
 
 - **依赖**:`@visactor/react-vchart`(React 封装)+ `@visactor/vchart-arco-theme`(Arco 主题适配,入口执行一次 `initVChartArcoTheme()`,自动跟随 Arco 亮暗主题——见 [Arco × VChart 官方指引](https://arco.design/react/docs/vchart));
 - **页面**:`routes/page.tsx`(现欢迎页)改为 Dashboard,菜单首项"仪表盘"(`/`)+ 图标:
@@ -147,7 +153,9 @@
 
 验收:Dashboard 渲染统计卡 + 两图;主题切换/窗口 resize 正常;mock 数据处有明确 TODO;主包体积无明显增长;`pnpm verify` 全绿。
 
-## 阶段 13:媒体资源分组
+## 阶段 13:媒体资源分组(**已交付并验收**)
+
+> **交付记录**:e2e 起的 server 需显式 `CSRF_ALLOWED_ORIGINS`(阶段 10 联带,同阶段 9);分组权限码按计划挂 `menu:media:image` 单菜单。
 
 ### 契约(admin.yaml,media tag;先改契约 → gen:api)
 
@@ -176,7 +184,9 @@
 
 验收:建组→上传选组→按组筛选→移动→删组(资源回未分组)全流程可用;权限不足时分组管理按钮置灰、接口 403;操作日志出现分组相关人话条目;`pnpm verify` 全绿。
 
-## 阶段 14:大文件分片上传
+## 阶段 14:大文件分片上传(**已交付并验收**)
+
+> **交付记录**:e2e 用 12MB 伪视频(3×5MB 分片)代替 30MB 真视频,服务端只校验扩展名与大小、不做内容解析,不影响断言强度;取消用例曾出现"并行必挂、单跑必过"的竞争——进度块在 preparing 态就渲染、init 返回后"暂停"按钮插入使"取消上传"右移,Playwright 按旧坐标点击落在"暂停"上,表现为取消未生效;修复为点击前先等"暂停"按钮可见(状态确定后再操作)。COS 原生 multipart / 前端直传仍为后续演进 TODO。
 
 ### 协议(契约新增 `uploads` tag;分片仅视频启用,图片 ≤10MB 维持单发)
 
