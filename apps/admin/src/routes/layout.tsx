@@ -16,6 +16,8 @@ import zhCN from "@arco-design/web-react/es/locale/zh-CN";
 import { Navigate, Outlet, useLocation, useNavigate } from "@modern-js/runtime/router";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import ErrorBoundary from "../components/error-boundary";
+
 import { AuthController } from "../api/controllers.gen";
 import { queryKeys } from "../api/queryKeys";
 import { filterMenusByPermissions, matchMenuTitle, sidebarMenus } from "../config/menu";
@@ -30,11 +32,14 @@ import "./index.css";
 const { Sider, Header, Content } = ArcoLayout;
 
 // 全局根布局:Provider 必须在调用 useQuery 的组件之上,壳与守卫都放在 AppShell。
+// 根级 ErrorBoundary 放在 Provider 之下、壳之上,兜住壳层渲染错误(见 docs/admin-enhancement-plan.md 阶段 9B)。
 export default function Layout() {
   return (
     <QueryClientProvider client={queryClient}>
       <ConfigProvider locale={zhCN}>
-        <AppShell />
+        <ErrorBoundary>
+          <AppShell />
+        </ErrorBoundary>
       </ConfigProvider>
     </QueryClientProvider>
   );
@@ -174,7 +179,10 @@ function AppShell() {
             </div>
           </Header>
           <Content className="app-content">
-            <Outlet />
+            {/* 页面级 ErrorBoundary:页面崩溃时侧边栏/顶栏仍可用。 */}
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </Content>
         </ArcoLayout>
       </ArcoLayout>
