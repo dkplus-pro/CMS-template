@@ -20,7 +20,9 @@ export default defineConfig({
   webServer: [
     {
       // STORAGE_DRIVER=local 钉死本地存储,避免本地 .env.local(driver=cos)让 e2e 依赖外网
-      command: `rm -f /tmp/cms-e2e.db && SERVER_PORT=${E2E_SERVER_PORT} DATABASE_DSN=/tmp/cms-e2e.db SWAGGER_ENABLED=false STORAGE_DRIVER=local STORAGE_BASE_PATH=/tmp/cms-e2e-files go run ./cmd/server`,
+      // CSRF_ALLOWED_ORIGINS: e2e 的 admin 起在 127.0.0.1:18080,浏览器 Origin 不在服务端
+      // 默认白名单(localhost:8081)里,须显式放行(见 docs/server.md "CSRF 与会话安全")。
+      command: `rm -f /tmp/cms-e2e.db && SERVER_PORT=${E2E_SERVER_PORT} DATABASE_DSN=/tmp/cms-e2e.db SWAGGER_ENABLED=false STORAGE_DRIVER=local STORAGE_BASE_PATH=/tmp/cms-e2e-files CSRF_ALLOWED_ORIGINS=http://127.0.0.1:18080 go run ./cmd/server`,
       cwd: "./apps/server",
       url: `http://127.0.0.1:${E2E_SERVER_PORT}/api/admin/healthz`,
       reuseExistingServer: false,
