@@ -9,6 +9,7 @@ import { getMedia } from "./generated/media/media";
 import { getPermissions } from "./generated/permissions/permissions";
 import { getRoles } from "./generated/roles/roles";
 import { getSystem } from "./generated/system/system";
+import { getUploads } from "./generated/uploads/uploads";
 import { getUsers } from "./generated/users/users";
 
 export const AuthController = getAuth();
@@ -19,4 +20,5 @@ export const MediaController = getMedia();
 export const PermissionsController = getPermissions();
 export const RolesController = getRoles();
 export const SystemController = getSystem();
+export const UploadsController = getUploads();
 export const UsersController = getUsers();

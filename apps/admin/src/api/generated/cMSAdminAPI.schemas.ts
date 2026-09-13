@@ -413,6 +413,68 @@ export interface DictEntriesRequest {
   entries: DictEntryUpsertRequest[];
 }
 
+export interface InitUploadRequest {
+  /**
+     * 原始文件名(扩展名决定类型校验)
+     * @minLength 1
+     * @maxLength 255
+     */
+  fileName: string;
+  /**
+     * 文件总字节数
+     * @minimum 1
+     */
+  size: number;
+  /** 可选,上传到的分组 ID;缺省或 0 为未分组 */
+  groupId?: number;
+}
+
+/**
+ * 媒体类型
+ */
+export type UploadSessionKind = typeof UploadSessionKind[keyof typeof UploadSessionKind];
+
+
+export const UploadSessionKind = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface UploadSession {
+  /** 会话 ID,后续分片/状态/合并/中止均以此定位 */
+  uploadId: string;
+  /** 媒体类型 */
+  kind: UploadSessionKind;
+  fileName: string;
+  /** 文件总字节数 */
+  size: number;
+  /** 单片字节数(最后一片可小于该值) */
+  chunkSize: number;
+  /** 分片总数 */
+  chunkCount: number;
+  /** 已落盘分片索引(0 起,升序),断点续传据此跳过 */
+  uploadedIndexes: number[];
+}
+
+export type UploadedMediaKind = typeof UploadedMediaKind[keyof typeof UploadedMediaKind];
+
+
+export const UploadedMediaKind = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface UploadedMedia {
+  /** 媒体资源 ID */
+  id: number;
+  kind: UploadedMediaKind;
+  /** 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content */
+  url: string;
+  origName: string;
+  /** 字节 */
+  size: number;
+}
+
 export type PageParameter = number;
 
 export type PageSizeParameter = number;

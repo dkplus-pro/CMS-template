@@ -31,6 +31,8 @@ tags:
     description: 字典管理
   - name: media
     description: 媒体资源(图片/视频)
+  - name: uploads
+    description: 大文件分片上传(会话制;初始化按媒体类型拆分端点以静态绑定权限码)
 security:
   - bearerAuth: []
 paths:
@@ -1065,6 +1067,173 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/Error"
+  /api/admin/uploads/images:
+    post:
+      operationId: initImageUpload
+      summary: 初始化图片分片上传会话(权限码 media:image:upload)
+      tags:
+        - uploads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitUploadRequest"
+      responses:
+        "200":
+          description: 新建的上传会话
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSession"
+        "400":
+          description: 文件类型不支持、大小非法或分组不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/uploads/videos:
+    post:
+      operationId: initVideoUpload
+      summary: 初始化视频分片上传会话(权限码 media:video:upload;视频上限 2GB)
+      tags:
+        - uploads
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InitUploadRequest"
+      responses:
+        "200":
+          description: 新建的上传会话
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSession"
+        "400":
+          description: 文件类型不支持、大小非法或分组不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/uploads/{uploadId}/chunks/{index}:
+    put:
+      operationId: uploadChunk
+      summary: 上传分片(octet-stream;重复上传同一分片幂等覆盖;仅会话属主可用)
+      tags:
+        - uploads
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: index
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 0
+          description: 分片索引,0 起
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema:
+              type: string
+              format: binary
+      responses:
+        "204":
+          description: 分片已保存
+        "400":
+          description: 分片索引越界或单片超过 chunkSize
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 会话不存在(含非属主访问,不区分)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/uploads/{uploadId}:
+    get:
+      operationId: getUploadSession
+      summary: 查询上传会话状态(断点续传用;仅会话属主可用)
+      tags:
+        - uploads
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 会话状态
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadSession"
+        "404":
+          description: 会话不存在(含非属主访问,不区分)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: abortUpload
+      summary: 中止并清理上传会话(仅会话属主可用)
+      tags:
+        - uploads
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "204":
+          description: 会话已清理
+        "404":
+          description: 会话不存在(含非属主访问,不区分)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/uploads/{uploadId}/complete:
+    post:
+      operationId: completeUpload
+      summary: 合并分片并走媒体上传管线(校验/存储/提取/落库/操作日志;仅会话属主可用)
+      tags:
+        - uploads
+      parameters:
+        - name: uploadId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: 上传完成的媒体资源(精简字段)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadedMedia"
+        "400":
+          description: 分片不齐全或总大小不符
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 会话不存在(含非属主访问,不区分)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
 components:
   parameters:
     Id:
@@ -1808,3 +1977,84 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/DictEntryUpsertRequest"
+    InitUploadRequest:
+      type: object
+      required:
+        - fileName
+        - size
+      properties:
+        fileName:
+          type: string
+          minLength: 1
+          maxLength: 255
+          description: 原始文件名(扩展名决定类型校验)
+        size:
+          type: integer
+          format: int64
+          minimum: 1
+          description: 文件总字节数
+        groupId:
+          type: integer
+          format: int64
+          description: 可选,上传到的分组 ID;缺省或 0 为未分组
+    UploadSession:
+      type: object
+      required:
+        - uploadId
+        - kind
+        - fileName
+        - size
+        - chunkSize
+        - chunkCount
+        - uploadedIndexes
+      properties:
+        uploadId:
+          type: string
+          description: 会话 ID,后续分片/状态/合并/中止均以此定位
+        kind:
+          type: string
+          enum: [image, video]
+          description: 媒体类型
+        fileName:
+          type: string
+        size:
+          type: integer
+          format: int64
+          description: 文件总字节数
+        chunkSize:
+          type: integer
+          format: int64
+          description: 单片字节数(最后一片可小于该值)
+        chunkCount:
+          type: integer
+          description: 分片总数
+        uploadedIndexes:
+          type: array
+          description: 已落盘分片索引(0 起,升序),断点续传据此跳过
+          items:
+            type: integer
+    UploadedMedia:
+      type: object
+      required:
+        - id
+        - kind
+        - url
+        - origName
+        - size
+      properties:
+        id:
+          type: integer
+          format: int64
+          description: 媒体资源 ID
+        kind:
+          type: string
+          enum: [image, video]
+        url:
+          type: string
+          description: 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content
+        origName:
+          type: string
+        size:
+          type: integer
+          format: int64
+          description: 字节

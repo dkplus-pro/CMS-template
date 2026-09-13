@@ -43,6 +43,18 @@ const (
 	Menu PermissionNodeType = "menu"
 )
 
+// Defines values for UploadSessionKind.
+const (
+	UploadSessionKindImage UploadSessionKind = "image"
+	UploadSessionKindVideo UploadSessionKind = "video"
+)
+
+// Defines values for UploadedMediaKind.
+const (
+	UploadedMediaKindImage UploadedMediaKind = "image"
+	UploadedMediaKindVideo UploadedMediaKind = "video"
+)
+
 // Defines values for ConfigGroup.
 const (
 	ConfigGroupSystem ConfigGroup = "system"
@@ -198,6 +210,18 @@ type ImageListResponse struct {
 	Total int          `json:"total"`
 }
 
+// InitUploadRequest defines model for InitUploadRequest.
+type InitUploadRequest struct {
+	// FileName 原始文件名(扩展名决定类型校验)
+	FileName string `json:"fileName"`
+
+	// GroupId 可选,上传到的分组 ID;缺省或 0 为未分组
+	GroupId *int64 `json:"groupId,omitempty"`
+
+	// Size 文件总字节数
+	Size int64 `json:"size"`
+}
+
 // LoginRequest defines model for LoginRequest.
 type LoginRequest struct {
 	Password string `json:"password"`
@@ -335,6 +359,48 @@ type StatusRequest struct {
 type UpdateMediaGroupRequest struct {
 	Name string `json:"name"`
 }
+
+// UploadSession defines model for UploadSession.
+type UploadSession struct {
+	// ChunkCount 分片总数
+	ChunkCount int `json:"chunkCount"`
+
+	// ChunkSize 单片字节数(最后一片可小于该值)
+	ChunkSize int64  `json:"chunkSize"`
+	FileName  string `json:"fileName"`
+
+	// Kind 媒体类型
+	Kind UploadSessionKind `json:"kind"`
+
+	// Size 文件总字节数
+	Size int64 `json:"size"`
+
+	// UploadId 会话 ID,后续分片/状态/合并/中止均以此定位
+	UploadId string `json:"uploadId"`
+
+	// UploadedIndexes 已落盘分片索引(0 起,升序),断点续传据此跳过
+	UploadedIndexes []int `json:"uploadedIndexes"`
+}
+
+// UploadSessionKind 媒体类型
+type UploadSessionKind string
+
+// UploadedMedia defines model for UploadedMedia.
+type UploadedMedia struct {
+	// Id 媒体资源 ID
+	Id       int64             `json:"id"`
+	Kind     UploadedMediaKind `json:"kind"`
+	OrigName string            `json:"origName"`
+
+	// Size 字节
+	Size int64 `json:"size"`
+
+	// Url 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content
+	Url string `json:"url"`
+}
+
+// UploadedMediaKind defines model for UploadedMedia.Kind.
+type UploadedMediaKind string
 
 // UserCreateRequest defines model for UserCreateRequest.
 type UserCreateRequest struct {
@@ -580,6 +646,12 @@ type UpdateRoleJSONRequestBody = RoleRequest
 // UpdateRolePermissionsJSONRequestBody defines body for UpdateRolePermissions for application/json ContentType.
 type UpdateRolePermissionsJSONRequestBody = PermissionIdsRequest
 
+// InitImageUploadJSONRequestBody defines body for InitImageUpload for application/json ContentType.
+type InitImageUploadJSONRequestBody = InitUploadRequest
+
+// InitVideoUploadJSONRequestBody defines body for InitVideoUpload for application/json ContentType.
+type InitVideoUploadJSONRequestBody = InitUploadRequest
+
 // CreateUserJSONRequestBody defines body for CreateUser for application/json ContentType.
 type CreateUserJSONRequestBody = UserCreateRequest
 
@@ -708,6 +780,24 @@ type ServerInterface interface {
 	// 角色分配权限(全量覆盖)
 	// (PUT /api/admin/roles/{id}/permissions)
 	UpdateRolePermissions(w http.ResponseWriter, r *http.Request, id Id)
+	// 初始化图片分片上传会话(权限码 media:image:upload)
+	// (POST /api/admin/uploads/images)
+	InitImageUpload(w http.ResponseWriter, r *http.Request)
+	// 初始化视频分片上传会话(权限码 media:video:upload;视频上限 2GB)
+	// (POST /api/admin/uploads/videos)
+	InitVideoUpload(w http.ResponseWriter, r *http.Request)
+	// 中止并清理上传会话(仅会话属主可用)
+	// (DELETE /api/admin/uploads/{uploadId})
+	AbortUpload(w http.ResponseWriter, r *http.Request, uploadId string)
+	// 查询上传会话状态(断点续传用;仅会话属主可用)
+	// (GET /api/admin/uploads/{uploadId})
+	GetUploadSession(w http.ResponseWriter, r *http.Request, uploadId string)
+	// 上传分片(octet-stream;重复上传同一分片幂等覆盖;仅会话属主可用)
+	// (PUT /api/admin/uploads/{uploadId}/chunks/{index})
+	UploadChunk(w http.ResponseWriter, r *http.Request, uploadId string, index int)
+	// 合并分片并走媒体上传管线(校验/存储/提取/落库/操作日志;仅会话属主可用)
+	// (POST /api/admin/uploads/{uploadId}/complete)
+	CompleteUpload(w http.ResponseWriter, r *http.Request, uploadId string)
 	// 用户列表
 	// (GET /api/admin/users)
 	ListUsers(w http.ResponseWriter, r *http.Request, params ListUsersParams)
@@ -1869,6 +1959,179 @@ func (siw *ServerInterfaceWrapper) UpdateRolePermissions(w http.ResponseWriter, 
 	handler.ServeHTTP(w, r)
 }
 
+// InitImageUpload operation middleware
+func (siw *ServerInterfaceWrapper) InitImageUpload(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InitImageUpload(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// InitVideoUpload operation middleware
+func (siw *ServerInterfaceWrapper) InitVideoUpload(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.InitVideoUpload(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// AbortUpload operation middleware
+func (siw *ServerInterfaceWrapper) AbortUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uploadId" -------------
+	var uploadId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uploadId", r.PathValue("uploadId"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uploadId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.AbortUpload(w, r, uploadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// GetUploadSession operation middleware
+func (siw *ServerInterfaceWrapper) GetUploadSession(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uploadId" -------------
+	var uploadId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uploadId", r.PathValue("uploadId"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uploadId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.GetUploadSession(w, r, uploadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UploadChunk operation middleware
+func (siw *ServerInterfaceWrapper) UploadChunk(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uploadId" -------------
+	var uploadId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uploadId", r.PathValue("uploadId"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uploadId", Err: err})
+		return
+	}
+
+	// ------------- Path parameter "index" -------------
+	var index int
+
+	err = runtime.BindStyledParameterWithOptions("simple", "index", r.PathValue("index"), &index, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "index", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UploadChunk(w, r, uploadId, index)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CompleteUpload operation middleware
+func (siw *ServerInterfaceWrapper) CompleteUpload(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "uploadId" -------------
+	var uploadId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "uploadId", r.PathValue("uploadId"), &uploadId, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "uploadId", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CompleteUpload(w, r, uploadId)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
 // ListUsers operation middleware
 func (siw *ServerInterfaceWrapper) ListUsers(w http.ResponseWriter, r *http.Request) {
 
@@ -2419,6 +2682,12 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("GET "+options.BaseURL+"/api/admin/roles/{id}", wrapper.GetRole)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/admin/roles/{id}", wrapper.UpdateRole)
 	m.HandleFunc("PUT "+options.BaseURL+"/api/admin/roles/{id}/permissions", wrapper.UpdateRolePermissions)
+	m.HandleFunc("POST "+options.BaseURL+"/api/admin/uploads/images", wrapper.InitImageUpload)
+	m.HandleFunc("POST "+options.BaseURL+"/api/admin/uploads/videos", wrapper.InitVideoUpload)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/admin/uploads/{uploadId}", wrapper.AbortUpload)
+	m.HandleFunc("GET "+options.BaseURL+"/api/admin/uploads/{uploadId}", wrapper.GetUploadSession)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/admin/uploads/{uploadId}/chunks/{index}", wrapper.UploadChunk)
+	m.HandleFunc("POST "+options.BaseURL+"/api/admin/uploads/{uploadId}/complete", wrapper.CompleteUpload)
 	m.HandleFunc("GET "+options.BaseURL+"/api/admin/users", wrapper.ListUsers)
 	m.HandleFunc("POST "+options.BaseURL+"/api/admin/users", wrapper.CreateUser)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/admin/users/{id}", wrapper.DeleteUser)
