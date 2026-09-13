@@ -35,6 +35,7 @@ type MediaAsset struct {
 	FileID     int64     `gorm:"not null" json:"fileId"`
 	Title      string    `gorm:"size:255;not null" json:"title"`
 	Meta       string    `gorm:"type:text" json:"meta"`
+	GroupID    int64     `gorm:"not null;default:0;index" json:"groupId"` // 所属分组,0=未分组
 	UploaderID int64     `gorm:"not null;default:0" json:"uploaderId"`
 	CreatedAt  time.Time `gorm:"not null" json:"createdAt"`
 	UpdatedAt  time.Time `gorm:"not null" json:"updatedAt"`
@@ -92,9 +93,12 @@ func GetMediaAssetByID(ctx context.Context, db *gorm.DB, id int64) (MediaAsset, 
 	return asset, nil
 }
 
-// ListMediaAssets 媒体资源分页(按 kind)。
-func ListMediaAssets(ctx context.Context, db *gorm.DB, kind string, page, pageSize int) ([]MediaAsset, int64, error) {
+// ListMediaAssets 媒体资源分页(按 kind;groupID nil=全部,0=未分组,>0=指定分组)。
+func ListMediaAssets(ctx context.Context, db *gorm.DB, kind string, groupID *int64, page, pageSize int) ([]MediaAsset, int64, error) {
 	query := db.WithContext(ctx).Model(&MediaAsset{}).Where("kind = ?", kind)
+	if groupID != nil {
+		query = query.Where("group_id = ?", *groupID)
+	}
 
 	var total int64
 	if err := query.Count(&total).Error; err != nil {

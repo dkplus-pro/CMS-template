@@ -21,7 +21,7 @@ func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
 
 // ListImages GET /images。
 func (h *Handler) ListImages(w http.ResponseWriter, r *http.Request, params gen.ListImagesParams) {
-	h.listMedia(w, r, media.KindImage, params.Page, params.PageSize)
+	h.listMedia(w, r, media.KindImage, params.GroupId, params.Page, params.PageSize)
 }
 
 // GetImage GET /images/{id}。
@@ -41,7 +41,7 @@ func (h *Handler) UploadVideo(w http.ResponseWriter, r *http.Request) {
 
 // ListVideos GET /videos。
 func (h *Handler) ListVideos(w http.ResponseWriter, r *http.Request, params gen.ListVideosParams) {
-	h.listMedia(w, r, media.KindVideo, params.Page, params.PageSize)
+	h.listMedia(w, r, media.KindVideo, params.GroupId, params.Page, params.PageSize)
 }
 
 // GetVideo GET /videos/{id}。
@@ -54,7 +54,7 @@ func (h *Handler) DeleteVideo(w http.ResponseWriter, r *http.Request, id gen.Id)
 	h.deleteMedia(w, r, int64(id))
 }
 
-// uploadMedia multipart 上传(kind 决定类型校验与大小上限)。
+// uploadMedia multipart 上传(kind 决定类型校验与大小上限;groupId 可选,0=未分组)。
 func (h *Handler) uploadMedia(w http.ResponseWriter, r *http.Request, kind string) {
 	claims, _ := httpapi.ClaimsFromContext(r.Context())
 
@@ -65,7 +65,16 @@ func (h *Handler) uploadMedia(w http.ResponseWriter, r *http.Request, kind strin
 	}
 	defer file.Close()
 
-	asset, err := h.media.Upload(r.Context(), kind, header.Filename, header.Header.Get("Content-Type"), file, claims.UserID)
+	groupID := int64(0)
+	if raw := r.FormValue("groupId"); raw != "" {
+		groupID, err = strconv.ParseInt(raw, 10, 64)
+		if err != nil || groupID < 0 {
+			httpapi.WriteError(w, http.StatusBadRequest, "分组参数不合法")
+			return
+		}
+	}
+
+	asset, err := h.media.Upload(r.Context(), kind, header.Filename, header.Header.Get("Content-Type"), file, claims.UserID, groupID)
 	switch {
 	case errors.Is(err, media.ErrInvalidType):
 		httpapi.WriteError(w, http.StatusBadRequest, "不支持的文件类型")
@@ -86,10 +95,10 @@ func (h *Handler) uploadMedia(w http.ResponseWriter, r *http.Request, kind strin
 	httpapi.WriteJSON(w, http.StatusOK, toGenImage(asset))
 }
 
-// listMedia 分页列表。
-func (h *Handler) listMedia(w http.ResponseWriter, r *http.Request, kind string, page, pageSize *gen.Page) {
+// listMedia 分页列表(groupID nil=全部,0=未分组,>0=指定分组)。
+func (h *Handler) listMedia(w http.ResponseWriter, r *http.Request, kind string, groupID *int64, page, pageSize *gen.Page) {
 	p, ps := pageParams(page, pageSize)
-	assets, total, err := h.media.List(r.Context(), kind, p, ps)
+	assets, total, err := h.media.List(r.Context(), kind, groupID, p, ps)
 	if err != nil {
 		h.logger.Error("list media", "kind", kind, "error", err)
 		httpapi.WriteError(w, http.StatusInternalServerError, "internal server error")
@@ -204,6 +213,8 @@ func toGenImage(asset media.Asset) gen.ImageAsset {
 		Height:    height,
 		Format:    format,
 		Url:       asset.URL,
+		GroupId:   asset.GroupID,
+		GroupName: asset.GroupName,
 		CreatedAt: asset.CreatedAt,
 	}
 }
@@ -216,6 +227,8 @@ func toGenVideo(asset media.Asset) gen.VideoAsset {
 		OrigName:  asset.OrigName,
 		Size:      asset.Size,
 		Url:       asset.URL,
+		GroupId:   asset.GroupID,
+		GroupName: asset.GroupName,
 		CreatedAt: asset.CreatedAt,
 		// durationSeconds / resolution 预留,待 ffprobe 接入后填充
 	}

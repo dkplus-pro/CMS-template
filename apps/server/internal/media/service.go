@@ -53,6 +53,10 @@ var maxBytes = map[string]int64{
 var (
 	ErrInvalidType = errors.New("invalid media type")
 	ErrTooLarge    = errors.New("file too large")
+
+	ErrGroupNameExists  = errors.New("media group name exists") // 同类型下分组名重复
+	ErrInvalidGroup     = errors.New("invalid media group")     // 分组不存在或与媒体类型不匹配
+	ErrInvalidGroupName = errors.New("invalid media group name")
 )
 
 // ErrMediaNotFound 媒体资源不存在。
@@ -80,15 +84,20 @@ type Asset struct {
 	Width     int    // image
 	Height    int    // image
 	Format    string
+	GroupID   int64  // 所属分组,0=未分组
+	GroupName string // 所属分组名,未分组为空串
 	CreatedAt time.Time
 }
 
 // Upload 上传媒体:校验扩展名与大小 → 存介质 → files 记录 → 提取 → media_assets 记录。
 // 图片(≤10MB)先读入内存,Save 与宽高提取复用同一份字节,避免 OSS 上传后再回源下载;
-// 视频(≤200MB)流式上传,meta 暂无提取需求。
-func (s *Service) Upload(ctx context.Context, kind, origName, contentType string, r io.Reader, uploaderID int64) (Asset, error) {
+// 视频(≤200MB)流式上传,meta 暂无提取需求。groupID 为可选分组(0=未分组,须为同类型分组)。
+func (s *Service) Upload(ctx context.Context, kind, origName, contentType string, r io.Reader, uploaderID, groupID int64) (Asset, error) {
 	ext := strings.ToLower(filepath.Ext(origName))
 	if err := validateType(kind, ext); err != nil {
+		return Asset{}, err
+	}
+	if err := s.validateGroupOfKind(ctx, kind, groupID); err != nil {
 		return Asset{}, err
 	}
 
@@ -132,7 +141,7 @@ func (s *Service) Upload(ctx context.Context, kind, origName, contentType string
 
 	asset := repo.MediaAsset{
 		Kind: kind, FileID: file.ID, Title: file.OrigName,
-		Meta: encodeMeta(meta), UploaderID: uploaderID,
+		Meta: encodeMeta(meta), GroupID: groupID, UploaderID: uploaderID,
 	}
 	if err := repo.CreateMediaAsset(ctx, s.db, &asset); err != nil {
 		_ = s.storage.Delete(ctx, name)
@@ -145,12 +154,29 @@ func (s *Service) Upload(ctx context.Context, kind, origName, contentType string
 		Action: "media.upload", Resource: kind, ResourceID: fmt.Sprint(asset.ID),
 		Description: verb + title,
 	}, "")
-	return s.toAsset(asset, file), nil
+	groupName := ""
+	if groupID > 0 {
+		groupName = s.groupNameOf(ctx, groupID)
+	}
+	out := s.toAsset(asset, file)
+	out.GroupID, out.GroupName = groupID, groupName
+	return out, nil
 }
 
-// List 媒体分页(合并底层文件信息)。
-func (s *Service) List(ctx context.Context, kind string, page, pageSize int) ([]Asset, int64, error) {
-	assets, total, err := repo.ListMediaAssets(ctx, s.db, kind, page, pageSize)
+// List 媒体分页(合并底层文件信息;groupID nil=全部,0=未分组,>0=指定分组)。
+func (s *Service) List(ctx context.Context, kind string, groupID *int64, page, pageSize int) ([]Asset, int64, error) {
+	assets, total, err := repo.ListMediaAssets(ctx, s.db, kind, groupID, page, pageSize)
+	if err != nil {
+		return nil, 0, err
+	}
+	// 批量富化分组名,避免逐条回查。
+	groupIDs := make([]int64, 0, len(assets))
+	for _, asset := range assets {
+		if asset.GroupID > 0 {
+			groupIDs = append(groupIDs, asset.GroupID)
+		}
+	}
+	groupNames, err := repo.GetMediaGroupNames(ctx, s.db, kind, groupIDs)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -160,6 +186,8 @@ func (s *Service) List(ctx context.Context, kind string, page, pageSize int) ([]
 		if err != nil {
 			return nil, 0, err
 		}
+		item.GroupID = asset.GroupID
+		item.GroupName = groupNames[asset.GroupID]
 		items = append(items, item)
 	}
 	return items, total, nil
@@ -171,7 +199,15 @@ func (s *Service) Get(ctx context.Context, id int64) (Asset, error) {
 	if err != nil {
 		return Asset{}, err
 	}
-	return s.toAssetE(ctx, asset)
+	out, err := s.toAssetE(ctx, asset)
+	if err != nil {
+		return Asset{}, err
+	}
+	out.GroupID = asset.GroupID
+	if asset.GroupID > 0 {
+		out.GroupName = s.groupNameOf(ctx, asset.GroupID)
+	}
+	return out, nil
 }
 
 // GetFile 底层文件记录(内容流端点用)。

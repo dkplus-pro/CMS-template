@@ -20,6 +20,7 @@ var autoMigrateModels = []any{
 	&DictEntry{},
 	&File{},
 	&MediaAsset{},
+	&MediaGroup{},
 }
 
 // AutoMigrate 按声明顺序幂等建表。

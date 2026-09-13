@@ -59,6 +59,15 @@ var RoutePermissions = []RoutePermission{
 	{"POST", "/api/admin/images", "media:image:upload", "上传图片", "menu:media:image", "图片管理"},
 	{"GET", "/api/admin/images/{id}", "media:image:list", "图片列表", "menu:media:image", "图片管理"},
 	{"DELETE", "/api/admin/images/{id}", "media:image:delete", "删除图片", "menu:media:image", "图片管理"},
+	// 媒体分组为图片/视频共用能力,权限码独立为 media:group:*;
+	// 注册表的 ParentMenu 是单值字段,统一挂"图片管理"菜单(计划文档已注明此取舍)。
+	{"GET", "/api/admin/media-groups", "media:group:list", "媒体分组列表", "menu:media:image", "图片管理"},
+	{"POST", "/api/admin/media-groups", "media:group:create", "创建媒体分组", "menu:media:image", "图片管理"},
+	{"PUT", "/api/admin/media-groups/{id}", "media:group:update", "编辑媒体分组", "menu:media:image", "图片管理"},
+	{"DELETE", "/api/admin/media-groups/{id}", "media:group:delete", "删除媒体分组", "menu:media:image", "图片管理"},
+	// 移动分组按资源类型复用各自的 update 权限码,不新增移动专用码。
+	{"PATCH", "/api/admin/images/{id}/group", "media:image:update", "移动图片分组", "menu:media:image", "图片管理"},
+	{"PATCH", "/api/admin/videos/{id}/group", "media:video:update", "移动视频分组", "menu:media:video", "视频管理"},
 	{"GET", "/api/admin/videos", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
 	{"POST", "/api/admin/videos", "media:video:upload", "上传视频", "menu:media:video", "视频管理"},
 	{"GET", "/api/admin/videos/{id}", "media:video:list", "视频列表", "menu:media:video", "视频管理"},
