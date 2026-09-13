@@ -33,7 +33,7 @@ pnpm + Turborepo monorepo,两个应用:
 4. UI 优先用 `@arco-design/web-react` 基础组件,不满足才自定义;
 5. 页面照抄 arco-design-pro 范式:列表页 = `Card` + 查询 `Form` + `Table` + `Pagination`,新建编辑用 `Modal` + `Form`;
    5a. 菜单项必须带图标(`config/menu.tsx` 的 `MenuConfig.icon`),新菜单禁止裸文字;
-   5b. 新页面必须套 `PageContainer`(`src/components/page-container.tsx`),面包屑/页头放内容区顶部,禁止放顶栏;
+   5b. 新页面必须套 `PageContainer`(`src/components/page-container.tsx`),面包屑/操作区放内容区顶部,禁止放顶栏,PageContainer 不渲染页内标题;
    5c. 列表分页必须全量(经 `src/hooks/use-table-query.ts`:总数 + 每页数量切换 10/20/50/100 + 跳页,切 pageSize 重置第 1 页);
    5d. 列表页照抄 arco-pro search-table 范式(查询 Form 含查询/重置按钮、loading、空态);表单按复杂度二分:简单 `Modal`+`Form`,复杂用分组表单页(`Card` 分组 + 底部固定操作栏,范例见系统配置页);
 6. 目录分区:`src/api`(client.ts / controllers.ts / queryKeys.ts / generated)/ `components` / `hooks` / `routes`(页面)/ `store`(全局状态)/ `utils` / `constants` / `config`;
@@ -53,4 +53,5 @@ pnpm + Turborepo monorepo,两个应用:
 ### 通用
 
 15. 提交信息遵循 Conventional Commits;代码风格交给仓库 prettier/eslint/gofmt 配置,不自创风格;文件与符号命名必须语义化(按资源/领域),禁止 stage/temp/new/copy 等过程性命名;
-16. 改代码前先查 `src/components`、`src/hooks`、`internal/` 是否已有可复用实现,先复用再新建。
+16. 改代码前先查 `src/components`、`src/hooks`、`internal/` 是否已有可复用实现,先复用再新建;
+17. 测试纪律:做计划时先写测试用例并定义边界条件(空值/零值/越界/权限缺失/网络失败/非法状态迁移六类必查),用例与实现同批交付;测试栈与编排详见 [docs/development.md](docs/development.md)「测试体系」。
