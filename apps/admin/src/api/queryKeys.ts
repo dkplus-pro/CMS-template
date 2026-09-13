@@ -1,4 +1,4 @@
-import type { ListOperationLogsStatus } from "../api/generated/cMSAdminAPI.schemas";
+import type { ListOperationLogsStatus, MediaGroupKind } from "../api/generated/cMSAdminAPI.schemas";
 
 // TanStack Query 的 queryKey 集中定义(规范见 docs/admin.md):
 // 结构为 [模块, 资源, ...参数],与 Controller 模块一一对应,禁止在页面里裸写字符串 key。
@@ -40,7 +40,14 @@ export const queryKeys = {
     items: (code: string) => ["dicts", "items", code] as const
   },
   media: {
-    images: (page: number, pageSize: number) => ["media", "images", { page, pageSize }] as const,
-    videos: (page: number, pageSize: number) => ["media", "videos", { page, pageSize }] as const
+    // 媒体模块统一失效前缀:分组增删改会同时影响分组列表与资源列表的 groupName/归属。
+    all: ["media"] as const,
+    // 分组列表按 kind 过滤(图片/视频各一份)。
+    groups: (kind: MediaGroupKind) => ["media", "groups", { kind }] as const,
+    // groupId:不传=全部,0=未分组,>0=分组 ID(与契约 ListImagesParams/ListVideosParams 口径一致)。
+    images: (page: number, pageSize: number, groupId?: number) =>
+      ["media", "images", { page, pageSize, groupId }] as const,
+    videos: (page: number, pageSize: number, groupId?: number) =>
+      ["media", "videos", { page, pageSize, groupId }] as const
   }
 };

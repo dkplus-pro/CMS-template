@@ -1,4 +1,4 @@
-import { Button, Card, Drawer, Message, Modal, Space, Table, Upload } from "@arco-design/web-react";
+import { Button, Card, Drawer, Message, Modal, Space, Table } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 
@@ -6,22 +6,27 @@ import { MediaController } from "../../../api/controllers.gen";
 import type { VideoAsset } from "../../../api/generated/cMSAdminAPI.schemas";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
+import MediaGroupPanel from "../../../components/media-group-panel";
+import MediaMoveGroupModal from "../../../components/media-move-group-modal";
+import MediaUploadModal from "../../../components/media-upload-modal";
 import PageContainer from "../../../components/page-container";
 import { useFileURL } from "../../../hooks/use-file-url";
 import { useTableQuery } from "../../../hooks/use-table-query";
 
-// 视频管理:列表 + 上传 + 内嵌播放(抽屉)+ 删除(见 docs/mvp-plan.md 阶段 5)。
-// 查询/分页对齐 UI 规范(docs/admin.md)。
+// 视频管理:左侧分组栏 + 右侧列表(上传/内嵌播放/移动分组/删除,阶段 13)。
+// 查询/分页对齐 UI 规范(docs/admin.md);groupId 口径:不传=全部,0=未分组。
 export default function VideosPage() {
   const queryClient = useQueryClient();
   const [uploadVisible, setUploadVisible] = useState(false);
   const [playing, setPlaying] = useState<VideoAsset | null>(null);
+  const [moveTarget, setMoveTarget] = useState<VideoAsset | null>(null);
+  const [groupId, setGroupId] = useState<number | undefined>(undefined);
 
-  const { page, pageSize, pagination, setTotal } = useTableQuery();
+  const { page, pageSize, pagination, setTotal, resetPage } = useTableQuery();
 
   const listQuery = useQuery({
-    queryKey: queryKeys.media.videos(page, pageSize),
-    queryFn: () => MediaController.listVideos({ page, pageSize })
+    queryKey: queryKeys.media.videos(page, pageSize, groupId),
+    queryFn: () => MediaController.listVideos({ page, pageSize, groupId })
   });
 
   useEffect(() => {
@@ -32,7 +37,7 @@ export default function VideosPage() {
     mutationFn: (id: number) => MediaController.deleteVideo(id),
     onSuccess: () => {
       Message.success("视频已删除");
-      void queryClient.invalidateQueries({ queryKey: ["media"] });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.media.all });
     }
   });
 
@@ -44,10 +49,22 @@ export default function VideosPage() {
     });
   };
 
+  // 切换分组回第 1 页(分组栏筛选,阶段 13)。
+  const handleGroupChange = (next: number | undefined) => {
+    setGroupId(next);
+    resetPage();
+  };
+
   const videos = listQuery.data?.list ?? [];
 
   const columns = [
     { title: "标题", dataIndex: "title" },
+    {
+      title: "分组",
+      dataIndex: "groupName",
+      width: 140,
+      render: (value: string) => value || "未分组"
+    },
     {
       title: "大小",
       dataIndex: "size",
@@ -56,12 +73,17 @@ export default function VideosPage() {
     },
     {
       title: "操作",
-      width: 200,
+      width: 260,
       render: (_: unknown, record: VideoAsset) => (
         <Space>
           <Button size="mini" onClick={() => setPlaying(record)}>
             播放
           </Button>
+          <AuthGate permission="media:video:update">
+            <Button size="mini" onClick={() => setMoveTarget(record)}>
+              移动分组
+            </Button>
+          </AuthGate>
           <AuthGate permission="media:video:delete">
             <Button size="mini" status="danger" onClick={() => deleteVideo(record)}>
               删除
@@ -82,15 +104,19 @@ export default function VideosPage() {
         </AuthGate>
       }
     >
-      <Card>
-        <Table
-          rowKey="id"
-          loading={listQuery.isPending}
-          columns={columns}
-          data={videos}
-          pagination={pagination}
-        />
-      </Card>
+      <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+        <MediaGroupPanel kind="video" value={groupId} onChange={handleGroupChange} />
+
+        <Card style={{ flex: 1, minWidth: 0 }}>
+          <Table
+            rowKey="id"
+            loading={listQuery.isPending}
+            columns={columns}
+            data={videos}
+            pagination={pagination}
+          />
+        </Card>
+      </div>
 
       <Drawer
         width={640}
@@ -102,7 +128,12 @@ export default function VideosPage() {
         {playing ? <VideoPlayer video={playing} /> : null}
       </Drawer>
 
-      <UploadModal visible={uploadVisible} onClose={() => setUploadVisible(false)} />
+      <MediaUploadModal
+        kind="video"
+        visible={uploadVisible}
+        onClose={() => setUploadVisible(false)}
+      />
+      <MediaMoveGroupModal kind="video" asset={moveTarget} onClose={() => setMoveTarget(null)} />
     </PageContainer>
   );
 }
@@ -110,34 +141,7 @@ export default function VideosPage() {
 function VideoPlayer({ video }: { video: VideoAsset }) {
   const url = useFileURL(video.fileId, video.url);
   if (!url) {
-    return <div style={{ color: "#86909c" }}>加载中…</div>;
+    return <div style={{ color: "var(--color-text-3)" }}>加载中…</div>;
   }
   return <video src={url} controls style={{ width: "100%" }} />;
-}
-
-function UploadModal({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const queryClient = useQueryClient();
-
-  const uploadMutation = useMutation({
-    mutationFn: (file: File) => MediaController.uploadVideo({ file }),
-    onSuccess: () => {
-      Message.success("视频已上传");
-      void queryClient.invalidateQueries({ queryKey: ["media"] });
-      onClose();
-    }
-  });
-
-  return (
-    <Modal title="上传视频" visible={visible} footer={null} onCancel={onClose} unmountOnExit>
-      <Upload
-        drag
-        accept="video/mp4,video/webm,video/quicktime"
-        customRequest={(options) => {
-          uploadMutation.mutate(options.file);
-          options.onSuccess?.();
-        }}
-        tip="支持 MP4 / WebM / MOV,单个不超过 200MB"
-      />
-    </Modal>
-  );
 }
