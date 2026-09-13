@@ -56,7 +56,7 @@ MVP 目标:交付一个可登录、按角色控权、可管理用户/角色/菜�
 
 规模:S ≈ 1-2 天,M ≈ 3-4 天,L ≈ 5-7 天(单人有效开发时间,仅用于排期参考)。
 
-> MVP 阶段(0-8)已全部交付。MVP 之后的后台增强需求(菜单折叠修复、ErrorBoundary、logID 链路、XSS/CSRF 防御、UI 规范改版、Dashboard、媒体分组、分片上传)以阶段 9-14 继续分阶段推进,方案与验收见 [admin-enhancement-plan.md](./admin-enhancement-plan.md)。
+> MVP 阶段(0-8)已全部交付。MVP 之后的后台增强需求(菜单折叠修复、ErrorBoundary、logID 链路、XSS/CSRF 防御、UI 规范改版、Dashboard、媒体分组、分片上传)以阶段 9-14 继续分阶段推进,方案与验收见 [admin-enhancement-plan.md](./admin-enhancement-plan.md);后续批次(全仓测试体系、Admin UI 打磨、Site SSR 基座)为阶段 15-19,见 [quality-and-site-plan.md](./quality-and-site-plan.md)。
 
 ## 阶段 0:工程基座
 

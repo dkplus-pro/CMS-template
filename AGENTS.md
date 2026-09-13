@@ -8,7 +8,7 @@ pnpm + Turborepo monorepo,两个应用:
 
 - `apps/admin` — Modern.js + React 19 + Arco Design 管理后台
 - `apps/server` — Go API 服务(admin 与 site 双受众,见 multi-audience-contracts)
-- `apps/site` — 对外网站 app 脚手架(当前仅 API 客户端,消费 `openapi/site.yaml`)
+- `apps/site` — Modern.js SSR 对外网站(消费 `openapi/site.yaml`,规范见 [docs/site.md](docs/site.md))
 
 `openapi/` 目录是前后端唯一接口契约,按受众分文件:`admin.yaml` 供 `apps/admin` 与 server 的 gen/admin,`site.yaml` 供 `apps/site` 与 server 的 gen/site;两侧代码均由对应契约生成。
 当前按 [docs/mvp-plan.md](docs/mvp-plan.md) 分阶段交付管理后台 MVP;新增功能先改 `openapi/` 下对应受众契约落契约,再写实现。
