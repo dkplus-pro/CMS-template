@@ -26,6 +26,14 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   // 顶栏显示当前用户昵称(/auth/me 数据)。
   await expect(page.getByText("管理员")).toBeVisible();
 
+  // 侧边栏目录默认全展开(权限码就绪后仅初始化一次),点击目录可收起、可再展开
+  // (回归:受控 openKeys 缺 onOpenKeys 导致展开/收起失效,见 admin-enhancement-plan 阶段 9A)。
+  await expect(page.getByText("用户管理")).toBeVisible();
+  await page.getByText("系统管理").click();
+  await expect(page.getByText("用户管理")).not.toBeVisible();
+  await page.getByText("系统管理").click();
+  await expect(page.getByText("用户管理")).toBeVisible();
+
   // 兜底 404 页(arco Result 风格),返回首页可用。
   await page.goto("/admin/no-such-page");
   await expect(page.getByText("抱歉,您访问的页面不存在")).toBeVisible();

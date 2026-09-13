@@ -14,7 +14,7 @@ import { IconDown, IconUser } from "@arco-design/web-react/icon";
 import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import zhCN from "@arco-design/web-react/es/locale/zh-CN";
 import { Navigate, Outlet, useLocation, useNavigate } from "@modern-js/runtime/router";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { AuthController } from "../api/controllers.gen";
 import { queryKeys } from "../api/queryKeys";
@@ -69,13 +69,28 @@ function AppShell() {
   }, [meQuery.data]);
 
   // 侧边栏 = 静态菜单声明 × 当前用户权限码过滤(见 docs/admin.md 阶段 3 修订方案)。
-  const visibleMenus = filterMenusByPermissions(sidebarMenus, user?.permissions);
+  const visibleMenus = useMemo(
+    () => filterMenusByPermissions(sidebarMenus, user?.permissions),
+    [user?.permissions]
+  );
   // 受控展开:SubMenu 的 defaultOpenKeys 只在挂载时读一次,而权限码异步就绪会导致
-  // 挂载后才出现的 SubMenu 收不起/展不开,因此用受控 openKeys 全量展开目录。
+  // 挂载后才出现的 SubMenu 收不起/展不开,因此用受控 openKeys + onOpenKeys 双向绑定。
   const [openKeys, setOpenKeys] = useState<string[]>([]);
+  const openKeysInitializedRef = useRef(false);
   useEffect(() => {
+    // 登出/切换账号(user 置空)时重置初始化标记,下次登录重新执行一次全量展开。
+    if (!user?.permissions) {
+      openKeysInitializedRef.current = false;
+      return;
+    }
+    // 权限码就绪后仅在首次初始化时全量展开目录,此后展开/收起完全交给用户点击交互,
+    // 避免权限变化触发 effect 时把用户手动收起的目录再次强制展开。
+    if (openKeysInitializedRef.current) {
+      return;
+    }
+    openKeysInitializedRef.current = true;
     setOpenKeys(visibleMenus.filter((node) => node.children?.length).map((node) => node.path));
-  }, [user?.permissions]);
+  }, [user, visibleMenus]);
   // 路由守卫:未登录访问业务页跳 /login,已登录访问 /login 跳首页。
   if (isLoginPage) {
     if (token) {
@@ -113,6 +128,9 @@ function AppShell() {
           <Menu
             selectedKeys={[appPathname]}
             openKeys={openKeys}
+            // 当前 Arco 版本(2.66)受控展开的回调是 onClickSubMenu(第二参即最新 openKeys),
+            // 修复受控模式下点击目录展开/收起失效的问题(阶段 9A)。
+            onClickSubMenu={(_, nextOpenKeys) => setOpenKeys(nextOpenKeys)}
             onClickMenuItem={(key) => navigate(key)}
             style={{ width: "100%" }}
           >
