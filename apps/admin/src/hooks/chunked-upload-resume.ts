@@ -13,15 +13,29 @@ function resumeStorageKey(file: File): string {
 }
 
 function readResumableUploadId(file: File): string | null {
-  return localStorage.getItem(resumeStorageKey(file));
+  // localStorage 抛异常(隐私模式等)时按无记录处理,不向上冒泡
+  try {
+    return localStorage.getItem(resumeStorageKey(file));
+  } catch {
+    return null;
+  }
 }
 
 export function saveResumableUploadId(file: File, uploadId: string): void {
-  localStorage.setItem(resumeStorageKey(file), uploadId);
+  // 写入失败(隐私模式等)只影响断点续传,不得中断上传主流程
+  try {
+    localStorage.setItem(resumeStorageKey(file), uploadId);
+  } catch {
+    return;
+  }
 }
 
 export function clearResumableUploadId(file: File): void {
-  localStorage.removeItem(resumeStorageKey(file));
+  try {
+    localStorage.removeItem(resumeStorageKey(file));
+  } catch {
+    return;
+  }
 }
 
 // 识别该文件是否有可续传的未完成会话:有指纹记录则查会话状态;会话已被服务端清理
