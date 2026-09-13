@@ -31,10 +31,30 @@ function normalizeGitHubPagesBasePath(basePath?: string) {
   return `/${trimmedBasePath.replace(/^\/+|\/+$/g, "")}/`;
 }
 
+// 生产构建注入 CSP meta(XSS 防御,见 docs/admin-enhancement-plan.md 阶段 10)。
+// 仅生产注入:dev 的 HMR/内联脚本会被 CSP 破坏;Arco 大量内联 style,style-src 需
+// 'unsafe-inline';媒体 CDN 走 https:。托管层(nginx/Pages)响应头 CSP 为权威配置,
+// meta 为兜底。
+const productionCSP = [
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: https:",
+  "font-src 'self' data:",
+  "connect-src 'self'"
+].join("; ");
+
+const productionCSPMeta = {
+  "Content-Security-Policy": {
+    "http-equiv": "Content-Security-Policy",
+    content: productionCSP
+  }
+};
+
 export default defineConfig({
   html: {
     outputStructure: "flat",
-    title: "Monorepo Template admin"
+    title: "Monorepo Template admin",
+    ...(process.env.NODE_ENV === "production" ? { meta: productionCSPMeta } : {})
   },
   output: {
     distPath: {
