@@ -19,6 +19,13 @@ type Config struct {
 	JWT       JWTConfig
 	AccessLog AccessLogConfig
 	Storage   StorageConfig
+	CSRF      CSRFConfig
+}
+
+// CSRFConfig Origin 校验白名单配置(CSRF 纵深防御,见 docs/server.md "CSRF 与会话安全")。
+type CSRFConfig struct {
+	// AllowedOrigins 精确匹配的 Origin 白名单(带 scheme 与端口,形如 https://admin.example.com)。
+	AllowedOrigins []string
 }
 
 // AccessLogConfig HTTP 访问日志文件配置(不入库,见 docs/database.md)。
@@ -118,6 +125,11 @@ func Load() (Config, error) {
 				Prefix:    os.Getenv("COS_PREFIX"),
 			},
 		},
+		CSRF: CSRFConfig{
+			// 默认 http://localhost:8081:dev 代理下 admin 的 Origin(开箱即用,
+			// changeOrigin 只改 Host 不改 Origin);生产部署必须显式注入真实域名。
+			AllowedOrigins: parseOrigins(envOr("CSRF_ALLOWED_ORIGINS", "http://localhost:8081")),
+		},
 	}
 
 	switch cfg.Database.Driver {
@@ -165,6 +177,18 @@ func envOr(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+// parseOrigins 解析逗号分隔的 Origin 白名单:逐段 trim 空格、忽略空段(如 "a,,b" / "a, b")。
+func parseOrigins(raw string) []string {
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if origin := strings.TrimSpace(part); origin != "" {
+			origins = append(origins, origin)
+		}
+	}
+	return origins
 }
 
 func envBool(key string, fallback bool) bool {

@@ -146,16 +146,21 @@ func main() {
 	mux := http.NewServeMux()
 	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
 	// 公开链:site 契约路径自带 /api/site 前缀,无鉴权、只读;管理链挂在 /api/admin 下。
+	// 安全响应头两条链都挂;Origin 校验只挂 admin 链(RequestID 之后、JWTAuth 之前,见
+	// docs/server.md "CSRF 与会话安全")。
 	mux.Handle("/api/site/", httpapi.Chain(siteMux,
 		httpapi.RequestID(),
 		httpapi.ClientIP(),
+		httpapi.SecurityHeaders(),
 		httpapi.Logging(logger),
 		httpapi.Recover(logger),
 	))
 	mux.Handle("/api/admin/", httpapi.Chain(adminMux,
 		httpapi.RequestID(),
 		httpapi.ClientIP(),
+		httpapi.SecurityHeaders(),
 		httpapi.Logging(logger),
+		httpapi.OriginCheck(cfg.CSRF.AllowedOrigins, logger),
 		httpapi.JWTAuth(logger, cfg.JWT.Secret, jwtSkip),
 		httpapi.PermissionCheck(loadPermissionCodes, logger),
 		httpapi.Recover(logger),
