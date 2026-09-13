@@ -9,6 +9,7 @@
 MVP 版本的功能范围与分阶段交付计划见 [MVP 交付计划](./mvp-plan.md)。
 数据库表结构与 SQLite → MySQL 迁移方案见 [数据库设计](./database.md)。
 接口与页面的全量核对清单见 [接口与页面清单](./api-pages.md)。
+MVP 之后的后台增强分阶段计划见 [后台增强计划](./admin-enhancement-plan.md)。
 
 ## 目录结构
 
