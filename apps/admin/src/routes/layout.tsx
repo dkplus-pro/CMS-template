@@ -3,14 +3,13 @@
 import "@arco-design/web-react/es/_util/react-19-adapter";
 import {
   Avatar,
-  Breadcrumb,
   ConfigProvider,
   Dropdown,
   Layout as ArcoLayout,
   Menu,
   Space
 } from "@arco-design/web-react";
-import { IconDown, IconUser } from "@arco-design/web-react/icon";
+import { IconDown, IconMenuFold, IconMenuUnfold, IconUser } from "@arco-design/web-react/icon";
 import { QueryClientProvider, useQuery, useQueryClient } from "@tanstack/react-query";
 import zhCN from "@arco-design/web-react/es/locale/zh-CN";
 import { Navigate, Outlet, useLocation, useNavigate } from "@modern-js/runtime/router";
@@ -20,7 +19,7 @@ import ErrorBoundary from "../components/error-boundary";
 
 import { AuthController } from "../api/controllers.gen";
 import { queryKeys } from "../api/queryKeys";
-import { filterMenusByPermissions, matchMenuTitle, sidebarMenus } from "../config/menu";
+import { filterMenusByPermissions, sidebarMenus } from "../config/menu";
 import { queryClient } from "../config/queryClient";
 import { APP_BASENAME, SYSTEM_NAME } from "../constants";
 import { useAuthStore } from "../store/auth";
@@ -52,6 +51,8 @@ function AppShell() {
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
   const [passwordModalVisible, setPasswordModalVisible] = useState(false);
+  // 侧边栏整栏折叠(UI 规范见 docs/admin.md):折叠宽度 60,折叠态仅图标 + Tooltip。
+  const [siderCollapsed, setSiderCollapsed] = useState(false);
 
   // 应用内路径 = 剥离 basename 后的剩余段(URL /admin/{页面} 对应路由 {页面})。
   // 路由匹配(navigate/menu key/面包屑)全程用应用内路径,basename 由 router 统一叠加。
@@ -107,8 +108,6 @@ function AppShell() {
     return <Navigate to="/login" replace />;
   }
 
-  const currentTitle = matchMenuTitle(appPathname);
-
   const handleUserMenu = async (key: string) => {
     if (key === "password") {
       setPasswordModalVisible(true);
@@ -128,11 +127,20 @@ function AppShell() {
   return (
     <>
       <ArcoLayout className="app-shell">
-        <Sider className="app-sider" width={220}>
-          <div className="app-logo">{SYSTEM_NAME}</div>
+        <Sider className="app-sider" width={220} collapsedWidth={60} collapsed={siderCollapsed}>
+          <div className="app-logo">{siderCollapsed ? SYSTEM_NAME.slice(0, 1) : SYSTEM_NAME}</div>
+          <div
+            className="app-sider-trigger"
+            role="button"
+            aria-label={siderCollapsed ? "展开侧边栏" : "收起侧边栏"}
+            onClick={() => setSiderCollapsed((collapsed) => !collapsed)}
+          >
+            {siderCollapsed ? <IconMenuUnfold /> : <IconMenuFold />}
+          </div>
           <Menu
             selectedKeys={[appPathname]}
             openKeys={openKeys}
+            collapse={siderCollapsed}
             // 当前 Arco 版本(2.66)受控展开的回调是 onClickSubMenu(第二参即最新 openKeys),
             // 修复受控模式下点击目录展开/收起失效的问题(阶段 9A)。
             onClickSubMenu={(_, nextOpenKeys) => setOpenKeys(nextOpenKeys)}
@@ -141,23 +149,34 @@ function AppShell() {
           >
             {visibleMenus.map((node) =>
               node.children?.length ? (
-                <Menu.SubMenu key={node.path} title={node.title}>
+                <Menu.SubMenu
+                  key={node.path}
+                  title={
+                    <>
+                      {node.icon}
+                      <span>{node.title}</span>
+                    </>
+                  }
+                >
                   {node.children.map((child) => (
-                    <Menu.Item key={child.path}>{child.title}</Menu.Item>
+                    <Menu.Item key={child.path} renderItemInTooltip={() => child.title}>
+                      {child.icon}
+                      <span>{child.title}</span>
+                    </Menu.Item>
                   ))}
                 </Menu.SubMenu>
               ) : (
-                <Menu.Item key={node.path}>{node.title}</Menu.Item>
+                <Menu.Item key={node.path} renderItemInTooltip={() => node.title}>
+                  {node.icon}
+                  <span>{node.title}</span>
+                </Menu.Item>
               )
             )}
           </Menu>
         </Sider>
         <ArcoLayout>
+          {/* 顶栏只保留用户区;面包屑/页头由 PageContainer 放内容区顶部(UI 规范见 docs/admin.md)。 */}
           <Header className="app-header">
-            <Breadcrumb>
-              <Breadcrumb.Item>{SYSTEM_NAME}</Breadcrumb.Item>
-              {currentTitle ? <Breadcrumb.Item>{currentTitle}</Breadcrumb.Item> : null}
-            </Breadcrumb>
             <div className="app-header-right">
               <Dropdown
                 position="br"

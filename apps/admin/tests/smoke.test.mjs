@@ -29,7 +29,7 @@ test("admin uses static permission-filtered menus and generated controller layer
   assert.match(notFoundSource, /Result/);
   assert.match(notFoundSource, /status="404"/);
 
-  const menuSource = await readFile(new URL("../src/config/menu.ts", import.meta.url), "utf8");
+  const menuSource = await readFile(new URL("../src/config/menu.tsx", import.meta.url), "utf8");
   assert.match(menuSource, /filterMenusByPermissions/);
   assert.match(menuSource, /"menu:system:user"/);
   assert.match(menuSource, /hasMenuPermission/);

@@ -35,6 +35,24 @@ body {
   font-size: 16px;
   font-weight: 700;
   border-bottom: 1px solid #e5e6eb;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* 侧边栏整栏折叠触发器(UI 规范见 docs/admin.md)。 */
+.app-sider-trigger {
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #4e5969;
+  border-bottom: 1px solid #e5e6eb;
+}
+
+.app-sider-trigger:hover {
+  background: #f2f3f5;
+  color: #1d2129;
 }
 
 .app-header {
@@ -71,6 +89,37 @@ body {
 
 .app-content {
   padding: 24px;
+}
+
+/* PageContainer:面包屑 + 页头在内容区顶部(UI 规范见 docs/admin.md)。 */
+.page-breadcrumb {
+  margin-bottom: 12px;
+}
+
+.page-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.page-title {
+  margin: 0;
+  color: #1d2129;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+/* 分组表单页底部固定操作栏(arco-pro form/group 范式,见 docs/admin.md)。 */
+.form-footer-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin: 16px -24px -24px;
+  padding: 12px 24px;
+  background: #ffffff;
+  border-top: 1px solid #e5e6eb;
+  text-align: center;
 }
 
 .hero {
