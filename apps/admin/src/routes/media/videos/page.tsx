@@ -1,25 +1,32 @@
 import { Button, Card, Drawer, Message, Modal, Space, Table, Upload } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { MediaController } from "../../../api/controllers.gen";
 import type { VideoAsset } from "../../../api/generated/cMSAdminAPI.schemas";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
+import PageContainer from "../../../components/page-container";
 import { useFileURL } from "../../../hooks/use-file-url";
+import { useTableQuery } from "../../../hooks/use-table-query";
 
 // 视频管理:列表 + 上传 + 内嵌播放(抽屉)+ 删除(见 docs/mvp-plan.md 阶段 5)。
+// 查询/分页对齐 UI 规范(docs/admin.md)。
 export default function VideosPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
   const [uploadVisible, setUploadVisible] = useState(false);
   const [playing, setPlaying] = useState<VideoAsset | null>(null);
+
+  const { page, pageSize, pagination, setTotal } = useTableQuery();
 
   const listQuery = useQuery({
     queryKey: queryKeys.media.videos(page, pageSize),
     queryFn: () => MediaController.listVideos({ page, pageSize })
   });
+
+  useEffect(() => {
+    setTotal(listQuery.data?.total ?? 0);
+  }, [listQuery.data?.total, setTotal]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => MediaController.deleteVideo(id),
@@ -38,7 +45,6 @@ export default function VideosPage() {
   };
 
   const videos = listQuery.data?.list ?? [];
-  const total = listQuery.data?.total ?? 0;
 
   const columns = [
     { title: "标题", dataIndex: "title" },
@@ -67,8 +73,7 @@ export default function VideosPage() {
   ];
 
   return (
-    <Card
-      title="视频管理"
+    <PageContainer
       extra={
         <AuthGate permission="media:video:upload">
           <Button type="primary" onClick={() => setUploadVisible(true)}>
@@ -77,21 +82,15 @@ export default function VideosPage() {
         </AuthGate>
       }
     >
-      <Table
-        rowKey="id"
-        loading={listQuery.isPending}
-        columns={columns}
-        data={videos}
-        pagination={{
-          total,
-          current: page,
-          pageSize,
-          onChange: (current, size) => {
-            setPage(current);
-            setPageSize(size);
-          }
-        }}
-      />
+      <Card>
+        <Table
+          rowKey="id"
+          loading={listQuery.isPending}
+          columns={columns}
+          data={videos}
+          pagination={pagination}
+        />
+      </Card>
 
       <Drawer
         width={640}
@@ -104,7 +103,7 @@ export default function VideosPage() {
       </Drawer>
 
       <UploadModal visible={uploadVisible} onClose={() => setUploadVisible(false)} />
-    </Card>
+    </PageContainer>
   );
 }
 

@@ -1,39 +1,42 @@
-import { Button, Card, Input, Message, Space } from "@arco-design/web-react";
+import { Button, Card, Form, Input, Message, Space } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import type { ConfigItem } from "../../../api/generated/cMSAdminAPI.schemas";
 import { ConfigsController } from "../../../api/controllers.gen";
 import { queryKeys } from "../../../api/queryKeys";
+import PageContainer from "../../../components/page-container";
 
-// 系统配置:展示站点信息(通用 KV 表单,整组读取与保存)。
+// 系统配置:复杂表单页范例(UI 规范见 docs/admin.md 表单范式)——
+// PageContainer + Card 分组(站点信息一组)+ 底部固定操作栏,后续新表单页照此。
 // 存储配置属运维项,已迁环境变量(.env.local,改后重启生效),不再是配置组(见 docs/mvp-plan.md 阶段 6)。
 export default function ConfigsPage() {
   return (
-    <Card>
-      <ConfigGroupForm group="system" />
-    </Card>
+    <PageContainer>
+      <SiteConfigForm group="system" />
+    </PageContainer>
   );
 }
 
-function ConfigGroupForm({ group }: { group: "system" }) {
+function SiteConfigForm({ group }: { group: "system" }) {
+  const [form] = Form.useForm<Record<string, string>>();
   const queryClient = useQueryClient();
-  const [values, setValues] = useState<Record<string, string>>({});
 
   const groupQuery = useQuery({
     queryKey: queryKeys.configs.group(group),
     queryFn: () => ConfigsController.getConfig(group)
   });
 
+  // 查询成功后回填表单(服务端状态同步,非 useEffect 手动拉接口)。
   useEffect(() => {
     if (groupQuery.data) {
-      setValues(
+      form.setFieldsValue(
         Object.fromEntries(
           (groupQuery.data.items ?? []).map((item) => [item.key, item.value ?? ""])
         )
       );
     }
-  }, [groupQuery.data]);
+  }, [groupQuery.data, form]);
 
   const saveMutation = useMutation({
     mutationFn: (items: ConfigItem[]) => ConfigsController.updateConfig(group, { items }),
@@ -44,30 +47,40 @@ function ConfigGroupForm({ group }: { group: "system" }) {
   });
 
   const items = groupQuery.data?.items ?? [];
-  const handleSave = () => {
+
+  const handleSubmit = (values: Record<string, string>) => {
     saveMutation.mutate(
       items.map((item) => ({ key: item.key, value: values[item.key] ?? "", remark: item.remark }))
     );
   };
 
+  const handleReset = () => {
+    form.setFieldsValue(Object.fromEntries(items.map((item) => [item.key, item.value ?? ""])));
+  };
+
   return (
-    <Space direction="vertical" style={{ width: "100%", maxWidth: 560 }}>
-      {items.map((item) => (
-        <Space key={item.key} style={{ justifyContent: "space-between", width: "100%" }}>
-          <span style={{ width: 140, color: "#4e5969" }} title={item.key}>
-            {item.remark || item.key}
-          </span>
-          <Input
-            style={{ width: 340 }}
-            value={values[item.key] ?? ""}
-            onChange={(value) => setValues((prev) => ({ ...prev, [item.key]: value }))}
-            placeholder={item.key}
-          />
+    <Form form={form} layout="vertical" onSubmit={handleSubmit} style={{ maxWidth: 640 }}>
+      <Card title="站点信息">
+        {items.map((item) => (
+          <Form.Item
+            key={item.key}
+            field={item.key}
+            label={item.remark || item.key}
+            tooltip={item.remark ? item.key : undefined}
+          >
+            <Input placeholder={item.key} />
+          </Form.Item>
+        ))}
+      </Card>
+      {/* 底部固定操作栏(arco-pro form/group 范式)。 */}
+      <div className="form-footer-bar">
+        <Space>
+          <Button type="primary" htmlType="submit" loading={saveMutation.isPending}>
+            保存
+          </Button>
+          <Button onClick={handleReset}>重置</Button>
         </Space>
-      ))}
-      <Button type="primary" loading={saveMutation.isPending} onClick={handleSave}>
-        保存
-      </Button>
-    </Space>
+      </div>
+    </Form>
   );
 }

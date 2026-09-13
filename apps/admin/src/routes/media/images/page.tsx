@@ -4,29 +4,37 @@ import {
   Image as ArcoImage,
   Message,
   Modal,
+  Pagination,
   Space,
   Upload
 } from "@arco-design/web-react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import { MediaController } from "../../../api/controllers.gen";
 import type { ImageAsset } from "../../../api/generated/cMSAdminAPI.schemas";
 import { queryKeys } from "../../../api/queryKeys";
 import AuthGate from "../../../components/auth-gate";
+import PageContainer from "../../../components/page-container";
 import { useFileURL } from "../../../hooks/use-file-url";
+import { useTableQuery } from "../../../hooks/use-table-query";
 
 // 图片管理:网格缩略图 + 上传 + 预览大图 + 删除(底层是通用文件存储,见 docs/mvp-plan.md 阶段 5)。
+// 查询/分页对齐 UI 规范(docs/admin.md);网格布局保留。
 export default function ImagesPage() {
   const queryClient = useQueryClient();
-  const [page, setPage] = useState(1);
-  const pageSize = 12;
   const [uploadVisible, setUploadVisible] = useState(false);
+
+  const { page, pageSize, pagination, setTotal } = useTableQuery();
 
   const listQuery = useQuery({
     queryKey: queryKeys.media.images(page, pageSize),
     queryFn: () => MediaController.listImages({ page, pageSize })
   });
+
+  useEffect(() => {
+    setTotal(listQuery.data?.total ?? 0);
+  }, [listQuery.data?.total, setTotal]);
 
   const deleteMutation = useMutation({
     mutationFn: (id: number) => MediaController.deleteImage(id),
@@ -45,11 +53,9 @@ export default function ImagesPage() {
   };
 
   const images = listQuery.data?.list ?? [];
-  const total = listQuery.data?.total ?? 0;
 
   return (
-    <Card
-      title="图片管理"
+    <PageContainer
       extra={
         <AuthGate permission="media:image:upload">
           <Button type="primary" onClick={() => setUploadVisible(true)}>
@@ -58,31 +64,32 @@ export default function ImagesPage() {
         </AuthGate>
       }
     >
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-          gap: 16
-        }}
-      >
-        {images.map((image) => (
-          <ImageCard key={image.id} image={image} onDelete={deleteImage} />
-        ))}
-      </div>
-      {images.length === 0 && !listQuery.isPending ? (
-        <div style={{ color: "#86909c", textAlign: "center", padding: "40px 0" }}>
-          暂无图片,点击右上角上传
+      <Card>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
+            gap: 16
+          }}
+        >
+          {images.map((image) => (
+            <ImageCard key={image.id} image={image} onDelete={deleteImage} />
+          ))}
         </div>
-      ) : null}
+        {images.length === 0 && !listQuery.isPending ? (
+          <div style={{ color: "#86909c", textAlign: "center", padding: "40px 0" }}>
+            暂无图片,点击右上角上传
+          </div>
+        ) : null}
 
-      <Space style={{ marginTop: 16, justifyContent: "flex-end", width: "100%" }}>
-        <Button disabled={total <= page * pageSize} onClick={() => setPage(page + 1)}>
-          下一页
-        </Button>
-      </Space>
+        {/* 全量分页(总数 + 每页数量切换 + 跳页),经 use-table-query 统一编排。 */}
+        <Space style={{ marginTop: 16, justifyContent: "flex-end", width: "100%" }}>
+          <Pagination {...pagination} />
+        </Space>
+      </Card>
 
       <UploadModal visible={uploadVisible} onClose={() => setUploadVisible(false)} />
-    </Card>
+    </PageContainer>
   );
 }
 
