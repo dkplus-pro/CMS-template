@@ -1,4 +1,105 @@
-import { expect, test } from "@playwright/test";
+import { randomBytes } from "node:crypto";
+
+import { expect, test, type Locator, type Page } from "@playwright/test";
+
+// 登录种子管理员进入仪表盘(与首条用例的前置一致,供视频分片上传用例复用)。
+async function loginAsAdmin(page: Page): Promise<void> {
+  await page.goto("/admin");
+  await expect(page).toHaveURL(/\/admin\/login$/);
+  await page.getByPlaceholder("用户名").fill("admin");
+  await page.getByPlaceholder("密码").fill("admin123");
+  await page.getByRole("button", { name: "登录" }).click();
+  await expect(page).toHaveURL(/\/admin\/?$/);
+}
+
+// 从侧边栏进入视频管理并打开上传弹窗。
+async function openVideoUploadDialog(page: Page): Promise<Locator> {
+  await page.getByText("视频管理").click();
+  await expect(page.getByRole("button", { name: "上传视频" })).toBeVisible();
+  await page.getByRole("button", { name: "上传视频" }).click();
+  const dialog = page.getByRole("dialog", { name: "上传视频" });
+  await expect(dialog).toBeVisible();
+  return dialog;
+}
+
+// 伪视频文件(代码内生成,不落仓库):服务端只校验扩展名与大小上限(2GB),不做内容解析;
+// 12MB 配服务端 5MB 分片(5<<20)= 3 片,足以证明分片路径且不拖慢 CI。
+function fakeVideoBuffer(): Buffer {
+  return randomBytes(12 * 1024 * 1024);
+}
+
+test("video chunked upload uploads a 12MB file in chunks and lists it", async ({ page }) => {
+  await loginAsAdmin(page);
+  const dialog = await openVideoUploadDialog(page);
+
+  const fileName = "chunked-e2e-video.mp4";
+  // 记录分片 PUT 请求的索引:完成时应恰好覆盖 12MB=3 片的全部索引,证明走了分片路径。
+  const chunkIndexes = new Set<number>();
+  page.on("request", (request) => {
+    const match = request.url().match(/\/api\/admin\/uploads\/[^/]+\/chunks\/(\d+)$/);
+    if (request.method() === "PUT" && match) {
+      chunkIndexes.add(Number(match[1]));
+    }
+  });
+
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: fileName,
+    mimeType: "video/mp4",
+    buffer: fakeVideoBuffer()
+  });
+
+  // 本地分片上传过快,中间进度态难以稳定断言,以完成后的成功 Message 为准;
+  // 伪文件不可解码,不做播放断言,列表出现文件名 + 记录存在即视为达成。
+  await expect(page.getByText(`视频「${fileName}」已上传`)).toBeVisible({ timeout: 15_000 });
+  expect([...chunkIndexes].sort((a, b) => a - b)).toEqual([0, 1, 2]);
+
+  // 上传弹窗成功后不自动关闭,点关闭按钮后列表出现该文件(标题 = 原始文件名)。
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("cell", { name: fileName })).toBeVisible();
+});
+
+test("video chunked upload cancel mid-way resets state and re-upload succeeds from scratch", async ({
+  page
+}) => {
+  await loginAsAdmin(page);
+  const dialog = await openVideoUploadDialog(page);
+
+  const fileName = "chunked-cancel-video.mp4";
+  // 阻断分片 PUT(永不放行)把上传钉在进行中,让"取消"可确定性点击;
+  // 取消会从客户端 abort 这些在途请求,pending 的路由处理器随后随 unroute 丢弃。
+  await page.route("**/api/admin/uploads/*/chunks/*", () => new Promise<void>(() => {}));
+
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: fileName,
+    mimeType: "video/mp4",
+    buffer: fakeVideoBuffer()
+  });
+
+  // 进行中状态:进度条显示 0%(分片被阻断),取消按钮可用。
+  await expect(page.getByText("0% (0.0MB/12.0MB)")).toBeVisible({ timeout: 15_000 });
+  // "暂停"按钮只在 uploading 态渲染;进度块在 preparing 态就已出现。若不等它就点击,
+  // init 返回、暂停按钮插入会使"取消上传"右移,点击落点漂到"暂停"上(并行时 init 变慢
+  // 放大窗口,表现为"取消未生效"),必须等状态确定后再点。
+  await expect(page.getByRole("button", { name: "暂停" })).toBeVisible();
+  await page.getByRole("button", { name: "取消上传" }).click();
+
+  // 取消后回到可重新上传状态:进度条与取消按钮整体消失(状态复位为 cancelled)。
+  await expect(page.getByText("0% (0.0MB/12.0MB)")).toBeHidden();
+  await expect(page.getByRole("button", { name: "取消上传" })).toBeHidden();
+
+  // 取消已清除断点续传指纹,重选同一文件应从头正常上传
+  // (若指纹未清会弹"发现未完成的视频上传"对账框,上传不会开始,成功提示不会出现)。
+  await page.unroute("**/api/admin/uploads/*/chunks/*");
+  await dialog.locator('input[type="file"]').setInputFiles({
+    name: fileName,
+    mimeType: "video/mp4",
+    buffer: fakeVideoBuffer()
+  });
+  await expect(page.getByText(`视频「${fileName}」已上传`)).toBeVisible({ timeout: 15_000 });
+
+  await dialog.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("cell", { name: fileName })).toBeVisible();
+});
 
 test("admin requires login, then renders the landing page", async ({ page }) => {
   // 后台网页整体挂在 /admin 下(basename,见 docs/mvp-plan.md 阶段 8)。
