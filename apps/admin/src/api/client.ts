@@ -38,7 +38,7 @@ axiosInstance.interceptors.response.use(
     const isLoginRequest = error.config?.url?.includes("/auth/login");
     if (error.response?.status === 401 && !isLoginRequest) {
       useAuthStore.getState().clear();
-      Message.error("登录已过期,请重新登录");
+      Message.error(withLogID("登录已过期,请重新登录", error.response));
       // 阶段 1 登录页上线后在此跳转 /login。
     } else if (error.response) {
       Message.error(readErrorMessage(error.response));
@@ -49,16 +49,37 @@ axiosInstance.interceptors.response.use(
   }
 );
 
+// 从错误响应中取 logID:优先错误体 envelope 的 logID 字段,兜底 X-Log-Id 响应头;
+// 用户报障时把该值提供给开发,可在服务端 logs/ 访问日志中直查整条请求链路。
+function readLogID(response: AxiosResponse): string {
+  const payload = response.data;
+  if (
+    typeof payload === "object" &&
+    payload !== null &&
+    typeof (payload as { logID?: unknown }).logID === "string"
+  ) {
+    return (payload as { logID: string }).logID;
+  }
+  const header = response.headers?.["x-log-id"];
+  return typeof header === "string" ? header : "";
+}
+
+function withLogID(message: string, response: AxiosResponse): string {
+  const logID = readLogID(response);
+  return logID ? `${message} (logID: ${logID})` : message;
+}
+
 function readErrorMessage(response: AxiosResponse): string {
   const payload: unknown = response.data;
+  let message = `请求失败(${response.status})`;
   if (
     typeof payload === "object" &&
     payload !== null &&
     typeof (payload as { message?: unknown }).message === "string"
   ) {
-    return (payload as { message: string }).message;
+    message = (payload as { message: string }).message;
   }
-  return `请求失败(${response.status})`;
+  return withLogID(message, response);
 }
 
 // orval axios 客户端 mutator:生成代码调用 customInstance<T>(config),返回解包后的 data。

@@ -147,11 +147,13 @@ func main() {
 	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
 	// 公开链:site 契约路径自带 /api/site 前缀,无鉴权、只读;管理链挂在 /api/admin 下。
 	mux.Handle("/api/site/", httpapi.Chain(siteMux,
+		httpapi.RequestID(),
 		httpapi.ClientIP(),
 		httpapi.Logging(logger),
 		httpapi.Recover(logger),
 	))
 	mux.Handle("/api/admin/", httpapi.Chain(adminMux,
+		httpapi.RequestID(),
 		httpapi.ClientIP(),
 		httpapi.Logging(logger),
 		httpapi.JWTAuth(logger, cfg.JWT.Secret, jwtSkip),

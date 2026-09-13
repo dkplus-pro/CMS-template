@@ -8,7 +8,9 @@ info:
     修改流程:改本文件 → `pnpm gen:api` 双端生成 → 双端实现。
     生成物(apps/admin/src/api/generated/、apps/server/gen/)禁止手改。
 
-    响应包装:传输层统一为 `{code, message, data}`(code 等于 HTTP 状态码);
+    响应包装:传输层统一为 `{code, message, data, logID}`(code 等于 HTTP 状态码;
+    logID 为本次请求的日志关联 ID,同时回传在 `X-Log-Id` 响应头,客户端可经
+    `X-Request-Id` 请求头透传网关生成的 ID);错误响应为 `{code, message, logID}`。
     本契约描述的是 data 载荷,admin 在 mutator(src/api/client.ts)统一解包。
 tags:
   - name: system

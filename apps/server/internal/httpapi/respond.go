@@ -9,7 +9,24 @@ import (
 	"time"
 )
 
-// WriteJSON 以统一响应包装写出:`{code, message, data}`(code 等于 HTTP 状态码)。
+// logIDFromWriter 经接口断言逐层穿透 ResponseWriter wrapper,读取
+// RequestID 中间件挂上的 logID(无中间件或为空时返回空串)。
+func logIDFromWriter(w http.ResponseWriter) string {
+	for depth := 0; depth < 8; depth++ {
+		if carrier, ok := w.(interface{ LogID() string }); ok {
+			return carrier.LogID()
+		}
+		inner, ok := w.(interface{ Unwrap() http.ResponseWriter })
+		if !ok {
+			return ""
+		}
+		w = inner.Unwrap()
+	}
+	return ""
+}
+
+// WriteJSON 以统一响应包装写出:`{code, message, data, logID}`(code 等于 HTTP 状态码,
+// logID 来自 RequestID 中间件,无则省略)。
 // 契约描述的是 data 载荷,解包由 admin 的 mutator 统一处理(见 openapi/admin.yaml 说明)。
 func WriteJSON(w http.ResponseWriter, status int, body any) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
@@ -17,20 +34,28 @@ func WriteJSON(w http.ResponseWriter, status int, body any) {
 	if status == http.StatusNoContent || body == nil {
 		return
 	}
-	if err := json.NewEncoder(w).Encode(map[string]any{
+	envelope := map[string]any{
 		"code":    status,
 		"message": "ok",
 		"data":    body,
-	}); err != nil {
+	}
+	if logID := logIDFromWriter(w); logID != "" {
+		envelope["logID"] = logID
+	}
+	if err := json.NewEncoder(w).Encode(envelope); err != nil {
 		slog.Error("write json response", "error", err)
 	}
 }
 
-// WriteError 写出契约中定义的 Error 结构(错误不套 data 包装)。
+// WriteError 写出契约中定义的 Error 结构(错误不套 data 包装,附带 logID)。
 func WriteError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
-	if err := json.NewEncoder(w).Encode(map[string]any{"code": status, "message": message}); err != nil {
+	envelope := map[string]any{"code": status, "message": message}
+	if logID := logIDFromWriter(w); logID != "" {
+		envelope["logID"] = logID
+	}
+	if err := json.NewEncoder(w).Encode(envelope); err != nil {
 		slog.Error("write error response", "error", err)
 	}
 }
@@ -65,7 +90,10 @@ func (r *statusRecorder) WriteHeader(status int) {
 	r.ResponseWriter.WriteHeader(status)
 }
 
-// Logging 请求日志:方法、路径、状态码与耗时。
+// Unwrap 供响应包装层穿透到内层 wrapper(如 requestIDWriter)读取 logID。
+func (r *statusRecorder) Unwrap() http.ResponseWriter { return r.ResponseWriter }
+
+// Logging 请求日志:方法、路径、状态码、耗时与 log_id(便于按 logID 检索单次请求)。
 func Logging(logger *slog.Logger) Middleware {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -73,6 +101,7 @@ func Logging(logger *slog.Logger) Middleware {
 			rec := &statusRecorder{ResponseWriter: w, status: http.StatusOK}
 			next.ServeHTTP(rec, r)
 			logger.Info("http request",
+				"log_id", RequestIDFromContext(r.Context()),
 				"method", r.Method,
 				"path", r.URL.Path,
 				"status", rec.status,
@@ -88,7 +117,10 @@ func Recover(logger *slog.Logger) Middleware {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if rec := recover(); rec != nil {
-					logger.Error("http panic recovered", "panic", rec, "path", r.URL.Path)
+					logger.Error("http panic recovered",
+						"log_id", RequestIDFromContext(r.Context()),
+						"panic", rec,
+						"path", r.URL.Path)
 					WriteError(w, http.StatusInternalServerError, "internal server error")
 				}
 			}()
