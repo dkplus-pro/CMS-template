@@ -7,16 +7,24 @@
  * 修改流程:改本文件 → `pnpm gen:api` 双端生成 → 双端实现。
  * 生成物(apps/admin/src/api/generated/、apps/server/gen/)禁止手改。
  *
- * 响应包装:传输层统一为 `{code, message, data}`(code 等于 HTTP 状态码);
+ * 响应包装:传输层统一为 `{code, message, data, logID}`(code 等于 HTTP 状态码;
+ * logID 为本次请求的日志关联 ID,同时回传在 `X-Log-Id` 响应头,客户端可经
+ * `X-Request-Id` 请求头透传网关生成的 ID);错误响应为 `{code, message, logID}`。
  * 本契约描述的是 data 载荷,admin 在 mutator(src/api/client.ts)统一解包。
  *
  * OpenAPI spec version: 0.2.0
  */
 import type {
+  CreateMediaGroupRequest,
   ImageAsset,
   ImageListResponse,
   ListImagesParams,
+  ListMediaGroupsParams,
   ListVideosParams,
+  MediaGroup,
+  MediaGroupListResponse,
+  MediaGroupMoveRequest,
+  UpdateMediaGroupRequest,
   UploadImageBody,
   UploadVideoBody,
   VideoAsset,
@@ -35,6 +43,9 @@ const uploadImage = (
     uploadImageBody: UploadImageBody,
  ) => {const formData = new FormData();
 formData.append(`file`, uploadImageBody.file);
+if(uploadImageBody.groupId !== undefined) {
+ formData.append(`groupId`, uploadImageBody.groupId.toString())
+ }
 
       return customInstance<ImageAsset>(
       {url: `/api/admin/images`, method: 'POST',
@@ -84,6 +95,9 @@ const uploadVideo = (
     uploadVideoBody: UploadVideoBody,
  ) => {const formData = new FormData();
 formData.append(`file`, uploadVideoBody.file);
+if(uploadVideoBody.groupId !== undefined) {
+ formData.append(`groupId`, uploadVideoBody.groupId.toString())
+ }
 
       return customInstance<VideoAsset>(
       {url: `/api/admin/videos`, method: 'POST',
@@ -127,6 +141,84 @@ const deleteVideo = (
       );
     }
   /**
+ * @summary 媒体分组列表(按类型过滤,含组内资源计数)
+ */
+const listMediaGroups = (
+    params: ListMediaGroupsParams,
+ ) => {
+      return customInstance<MediaGroupListResponse>(
+      {url: `/api/admin/media-groups`, method: 'GET',
+        params
+    },
+      );
+    }
+  /**
+ * @summary 新建媒体分组(同类型内名称唯一)
+ */
+const createMediaGroup = (
+    createMediaGroupRequest: CreateMediaGroupRequest,
+ ) => {
+      return customInstance<MediaGroup>(
+      {url: `/api/admin/media-groups`, method: 'POST',
+      headers: {'Content-Type': 'application/json', },
+      data: createMediaGroupRequest
+    },
+      );
+    }
+  /**
+ * @summary 重命名媒体分组(同类型内名称唯一)
+ */
+const updateMediaGroup = (
+    id: number,
+    updateMediaGroupRequest: UpdateMediaGroupRequest,
+ ) => {
+      return customInstance<MediaGroup>(
+      {url: `/api/admin/media-groups/${id}`, method: 'PUT',
+      headers: {'Content-Type': 'application/json', },
+      data: updateMediaGroupRequest
+    },
+      );
+    }
+  /**
+ * @summary 删除媒体分组(组内资源移回未分组,不删资源)
+ */
+const deleteMediaGroup = (
+    id: number,
+ ) => {
+      return customInstance<void>(
+      {url: `/api/admin/media-groups/${id}`, method: 'DELETE'
+    },
+      );
+    }
+  /**
+ * @summary 移动图片到指定分组(0=移出分组)
+ */
+const moveImageGroup = (
+    id: number,
+    mediaGroupMoveRequest: MediaGroupMoveRequest,
+ ) => {
+      return customInstance<ImageAsset>(
+      {url: `/api/admin/images/${id}/group`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: mediaGroupMoveRequest
+    },
+      );
+    }
+  /**
+ * @summary 移动视频到指定分组(0=移出分组)
+ */
+const moveVideoGroup = (
+    id: number,
+    mediaGroupMoveRequest: MediaGroupMoveRequest,
+ ) => {
+      return customInstance<VideoAsset>(
+      {url: `/api/admin/videos/${id}/group`, method: 'PATCH',
+      headers: {'Content-Type': 'application/json', },
+      data: mediaGroupMoveRequest
+    },
+      );
+    }
+  /**
  * @summary 文件内容流(图片预览/视频播放共用;登录即可)
  */
 const getFileContent = (
@@ -138,7 +230,7 @@ const getFileContent = (
     },
       );
     }
-  return {uploadImage,listImages,getImage,deleteImage,uploadVideo,listVideos,getVideo,deleteVideo,getFileContent}};
+  return {uploadImage,listImages,getImage,deleteImage,uploadVideo,listVideos,getVideo,deleteVideo,listMediaGroups,createMediaGroup,updateMediaGroup,deleteMediaGroup,moveImageGroup,moveVideoGroup,getFileContent}};
 export type UploadImageResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['uploadImage']>>>
 export type ListImagesResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['listImages']>>>
 export type GetImageResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['getImage']>>>
@@ -147,4 +239,10 @@ export type UploadVideoResult = NonNullable<Awaited<ReturnType<ReturnType<typeof
 export type ListVideosResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['listVideos']>>>
 export type GetVideoResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['getVideo']>>>
 export type DeleteVideoResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['deleteVideo']>>>
+export type ListMediaGroupsResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['listMediaGroups']>>>
+export type CreateMediaGroupResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['createMediaGroup']>>>
+export type UpdateMediaGroupResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['updateMediaGroup']>>>
+export type DeleteMediaGroupResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['deleteMediaGroup']>>>
+export type MoveImageGroupResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['moveImageGroup']>>>
+export type MoveVideoGroupResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['moveVideoGroup']>>>
 export type GetFileContentResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getMedia>['getFileContent']>>>

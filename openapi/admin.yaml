@@ -743,6 +743,10 @@ paths:
                 file:
                   type: string
                   format: binary
+                groupId:
+                  type: integer
+                  format: int64
+                  description: 可选,上传到的分组 ID;缺省或 0 为未分组
       responses:
         "200":
           description: 上传后的图片资源
@@ -751,7 +755,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/ImageAsset"
         "400":
-          description: 非图片类型或超过大小限制
+          description: 非图片类型、超过大小限制或分组不存在
           content:
             application/json:
               schema:
@@ -764,6 +768,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/MediaGroupId"
       responses:
         "200":
           description: 图片分页
@@ -814,6 +819,10 @@ paths:
                 file:
                   type: string
                   format: binary
+                groupId:
+                  type: integer
+                  format: int64
+                  description: 可选,上传到的分组 ID;缺省或 0 为未分组
       responses:
         "200":
           description: 上传后的视频资源
@@ -822,7 +831,7 @@ paths:
               schema:
                 $ref: "#/components/schemas/VideoAsset"
         "400":
-          description: 非视频类型或超过大小限制
+          description: 非视频类型、超过大小限制或分组不存在
           content:
             application/json:
               schema:
@@ -835,6 +844,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/Page"
         - $ref: "#/components/parameters/PageSize"
+        - $ref: "#/components/parameters/MediaGroupId"
       responses:
         "200":
           description: 视频分页
@@ -867,6 +877,172 @@ paths:
       responses:
         "204":
           description: 删除成功
+  /api/admin/media-groups:
+    get:
+      operationId: listMediaGroups
+      summary: 媒体分组列表(按类型过滤,含组内资源计数)
+      tags:
+        - media
+      parameters:
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+            enum: [image, video]
+          description: 分组所属媒体类型
+      responses:
+        "200":
+          description: 分组列表(含组内资源计数)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaGroupListResponse"
+    post:
+      operationId: createMediaGroup
+      summary: 新建媒体分组(同类型内名称唯一)
+      tags:
+        - media
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateMediaGroupRequest"
+      responses:
+        "200":
+          description: 新建后的分组
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaGroup"
+        "400":
+          description: 参数不合法(类型/名称)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 同类型下分组名已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/media-groups/{id}:
+    put:
+      operationId: updateMediaGroup
+      summary: 重命名媒体分组(同类型内名称唯一)
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateMediaGroupRequest"
+      responses:
+        "200":
+          description: 重命名后的分组
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MediaGroup"
+        "404":
+          description: 分组不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "409":
+          description: 同类型下分组名已存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+    delete:
+      operationId: deleteMediaGroup
+      summary: 删除媒体分组(组内资源移回未分组,不删资源)
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: 删除成功
+        "404":
+          description: 分组不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/images/{id}/group:
+    patch:
+      operationId: moveImageGroup
+      summary: 移动图片到指定分组(0=移出分组)
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaGroupMoveRequest"
+      responses:
+        "200":
+          description: 更新后的图片资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ImageAsset"
+        "400":
+          description: 目标分组不存在或不属于图片类型
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 图片不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+  /api/admin/videos/{id}/group:
+    patch:
+      operationId: moveVideoGroup
+      summary: 移动视频到指定分组(0=移出分组)
+      tags:
+        - media
+      parameters:
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MediaGroupMoveRequest"
+      responses:
+        "200":
+          description: 更新后的视频资源
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/VideoAsset"
+        "400":
+          description: 目标分组不存在或不属于视频类型
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
+        "404":
+          description: 视频不存在
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
   /api/admin/files/{id}/content:
     get:
       operationId: getFileContent
@@ -913,6 +1089,13 @@ components:
         minimum: 1
         maximum: 100
         default: 20
+    MediaGroupId:
+      name: groupId
+      in: query
+      schema:
+        type: integer
+        format: int64
+      description: 按分组过滤;不传=全部,0=未分组
     ConfigGroup:
       name: group
       in: path
@@ -1435,6 +1618,8 @@ components:
         - origName
         - size
         - url
+        - groupId
+        - groupName
         - createdAt
       properties:
         id:
@@ -1464,6 +1649,13 @@ components:
         url:
           type: string
           description: 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content
+        groupId:
+          type: integer
+          format: int64
+          description: 所属分组 ID,0=未分组
+        groupName:
+          type: string
+          description: 所属分组名,未分组为空串
         createdAt:
           type: string
           format: date-time
@@ -1488,6 +1680,8 @@ components:
         - origName
         - size
         - url
+        - groupId
+        - groupName
         - createdAt
       properties:
         id:
@@ -1515,6 +1709,13 @@ components:
         url:
           type: string
           description: 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content
+        groupId:
+          type: integer
+          format: int64
+          description: 所属分组 ID,0=未分组
+        groupName:
+          type: string
+          description: 所属分组名,未分组为空串
         createdAt:
           type: string
           format: date-time
@@ -1530,6 +1731,74 @@ components:
             $ref: "#/components/schemas/VideoAsset"
         total:
           type: integer
+    MediaGroup:
+      type: object
+      required:
+        - id
+        - kind
+        - name
+        - mediaCount
+        - createdAt
+      properties:
+        id:
+          type: integer
+          format: int64
+        kind:
+          type: string
+          enum: [image, video]
+          description: 分组所属媒体类型
+        name:
+          type: string
+        mediaCount:
+          type: integer
+          description: 组内资源数
+        createdAt:
+          type: string
+          format: date-time
+    MediaGroupListResponse:
+      type: object
+      required:
+        - list
+        - total
+      properties:
+        list:
+          type: array
+          items:
+            $ref: "#/components/schemas/MediaGroup"
+        total:
+          type: integer
+    CreateMediaGroupRequest:
+      type: object
+      required:
+        - kind
+        - name
+      properties:
+        kind:
+          type: string
+          enum: [image, video]
+          description: 分组所属媒体类型
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+    UpdateMediaGroupRequest:
+      type: object
+      required:
+        - name
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 64
+    MediaGroupMoveRequest:
+      type: object
+      required:
+        - groupId
+      properties:
+        groupId:
+          type: integer
+          format: int64
+          description: 目标分组 ID,0=移出分组
     DictEntriesRequest:
       type: object
       required:

@@ -7,7 +7,9 @@
  * 修改流程:改本文件 → `pnpm gen:api` 双端生成 → 双端实现。
  * 生成物(apps/admin/src/api/generated/、apps/server/gen/)禁止手改。
  *
- * 响应包装:传输层统一为 `{code, message, data}`(code 等于 HTTP 状态码);
+ * 响应包装:传输层统一为 `{code, message, data, logID}`(code 等于 HTTP 状态码;
+ * logID 为本次请求的日志关联 ID,同时回传在 `X-Log-Id` 响应头,客户端可经
+ * `X-Request-Id` 请求头透传网关生成的 ID);错误响应为 `{code, message, logID}`。
  * 本契约描述的是 data 载荷,admin 在 mutator(src/api/client.ts)统一解包。
  *
  * OpenAPI spec version: 0.2.0
@@ -304,6 +306,10 @@ export interface ImageAsset {
   format?: string;
   /** 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content */
   url: string;
+  /** 所属分组 ID,0=未分组 */
+  groupId: number;
+  /** 所属分组名,未分组为空串 */
+  groupName: string;
   createdAt: string;
 }
 
@@ -331,12 +337,76 @@ export interface VideoAsset {
   resolution?: string | null;
   /** 外网访问地址(CDN 直链);local 存储为空串,前端回退 /files/{fileId}/content */
   url: string;
+  /** 所属分组 ID,0=未分组 */
+  groupId: number;
+  /** 所属分组名,未分组为空串 */
+  groupName: string;
   createdAt: string;
 }
 
 export interface VideoListResponse {
   list: VideoAsset[];
   total: number;
+}
+
+/**
+ * 分组所属媒体类型
+ */
+export type MediaGroupKind = typeof MediaGroupKind[keyof typeof MediaGroupKind];
+
+
+export const MediaGroupKind = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface MediaGroup {
+  id: number;
+  /** 分组所属媒体类型 */
+  kind: MediaGroupKind;
+  name: string;
+  /** 组内资源数 */
+  mediaCount: number;
+  createdAt: string;
+}
+
+export interface MediaGroupListResponse {
+  list: MediaGroup[];
+  total: number;
+}
+
+/**
+ * 分组所属媒体类型
+ */
+export type CreateMediaGroupRequestKind = typeof CreateMediaGroupRequestKind[keyof typeof CreateMediaGroupRequestKind];
+
+
+export const CreateMediaGroupRequestKind = {
+  image: 'image',
+  video: 'video',
+} as const;
+
+export interface CreateMediaGroupRequest {
+  /** 分组所属媒体类型 */
+  kind: CreateMediaGroupRequestKind;
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  name: string;
+}
+
+export interface UpdateMediaGroupRequest {
+  /**
+     * @minLength 1
+     * @maxLength 64
+     */
+  name: string;
+}
+
+export interface MediaGroupMoveRequest {
+  /** 目标分组 ID,0=移出分组 */
+  groupId: number;
 }
 
 export interface DictEntriesRequest {
@@ -346,6 +416,11 @@ export interface DictEntriesRequest {
 export type PageParameter = number;
 
 export type PageSizeParameter = number;
+
+/**
+ * 按分组过滤;不传=全部,0=未分组
+ */
+export type MediaGroupIdParameter = number;
 
 export type ListUsersParams = {
 /**
@@ -425,6 +500,8 @@ keyword?: string;
 
 export type UploadImageBody = {
   file: Blob | File;
+  /** 可选,上传到的分组 ID;缺省或 0 为未分组 */
+  groupId?: number;
 };
 
 export type ListImagesParams = {
@@ -437,10 +514,16 @@ page?: PageParameter;
  * @maximum 100
  */
 pageSize?: PageSizeParameter;
+/**
+ * 按分组过滤;不传=全部,0=未分组
+ */
+groupId?: MediaGroupIdParameter;
 };
 
 export type UploadVideoBody = {
   file: Blob | File;
+  /** 可选,上传到的分组 ID;缺省或 0 为未分组 */
+  groupId?: number;
 };
 
 export type ListVideosParams = {
@@ -453,5 +536,24 @@ page?: PageParameter;
  * @maximum 100
  */
 pageSize?: PageSizeParameter;
+/**
+ * 按分组过滤;不传=全部,0=未分组
+ */
+groupId?: MediaGroupIdParameter;
 };
+
+export type ListMediaGroupsParams = {
+/**
+ * 分组所属媒体类型
+ */
+kind: ListMediaGroupsKind;
+};
+
+export type ListMediaGroupsKind = typeof ListMediaGroupsKind[keyof typeof ListMediaGroupsKind];
+
+
+export const ListMediaGroupsKind = {
+  image: 'image',
+  video: 'video',
+} as const;
 

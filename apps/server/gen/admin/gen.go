@@ -19,6 +19,18 @@ const (
 	BearerAuthScopes = "bearerAuth.Scopes"
 )
 
+// Defines values for CreateMediaGroupRequestKind.
+const (
+	CreateMediaGroupRequestKindImage CreateMediaGroupRequestKind = "image"
+	CreateMediaGroupRequestKindVideo CreateMediaGroupRequestKind = "video"
+)
+
+// Defines values for MediaGroupKind.
+const (
+	MediaGroupKindImage MediaGroupKind = "image"
+	MediaGroupKindVideo MediaGroupKind = "video"
+)
+
 // Defines values for OperationLogItemStatus.
 const (
 	OperationLogItemStatusFailed  OperationLogItemStatus = "failed"
@@ -44,6 +56,12 @@ const (
 // Defines values for UpdateConfigParamsGroup.
 const (
 	System UpdateConfigParamsGroup = "system"
+)
+
+// Defines values for ListMediaGroupsParamsKind.
+const (
+	Image ListMediaGroupsParamsKind = "image"
+	Video ListMediaGroupsParamsKind = "video"
 )
 
 // Defines values for ListOperationLogsParamsStatus.
@@ -77,6 +95,16 @@ type ConfigItem struct {
 type ConfigUpdateRequest struct {
 	Items []ConfigItem `json:"items"`
 }
+
+// CreateMediaGroupRequest defines model for CreateMediaGroupRequest.
+type CreateMediaGroupRequest struct {
+	// Kind 分组所属媒体类型
+	Kind CreateMediaGroupRequestKind `json:"kind"`
+	Name string                      `json:"name"`
+}
+
+// CreateMediaGroupRequestKind 分组所属媒体类型
+type CreateMediaGroupRequestKind string
 
 // Dict defines model for Dict.
 type Dict struct {
@@ -142,6 +170,12 @@ type ImageAsset struct {
 	// Format 实际格式,如 png / jpeg
 	Format *string `json:"format,omitempty"`
 
+	// GroupId 所属分组 ID,0=未分组
+	GroupId int64 `json:"groupId"`
+
+	// GroupName 所属分组名,未分组为空串
+	GroupName string `json:"groupName"`
+
 	// Height 提取的高(px)
 	Height   *int   `json:"height,omitempty"`
 	Id       int64  `json:"id"`
@@ -176,6 +210,34 @@ type LoginResponse struct {
 	ExpiresAt time.Time `json:"expiresAt"`
 	Token     string    `json:"token"`
 	User      UserInfo  `json:"user"`
+}
+
+// MediaGroup defines model for MediaGroup.
+type MediaGroup struct {
+	CreatedAt time.Time `json:"createdAt"`
+	Id        int64     `json:"id"`
+
+	// Kind 分组所属媒体类型
+	Kind MediaGroupKind `json:"kind"`
+
+	// MediaCount 组内资源数
+	MediaCount int    `json:"mediaCount"`
+	Name       string `json:"name"`
+}
+
+// MediaGroupKind 分组所属媒体类型
+type MediaGroupKind string
+
+// MediaGroupListResponse defines model for MediaGroupListResponse.
+type MediaGroupListResponse struct {
+	List  []MediaGroup `json:"list"`
+	Total int          `json:"total"`
+}
+
+// MediaGroupMoveRequest defines model for MediaGroupMoveRequest.
+type MediaGroupMoveRequest struct {
+	// GroupId 目标分组 ID,0=移出分组
+	GroupId int64 `json:"groupId"`
 }
 
 // OperationLogItem defines model for OperationLogItem.
@@ -269,6 +331,11 @@ type StatusRequest struct {
 	Status bool `json:"status"`
 }
 
+// UpdateMediaGroupRequest defines model for UpdateMediaGroupRequest.
+type UpdateMediaGroupRequest struct {
+	Name string `json:"name"`
+}
+
 // UserCreateRequest defines model for UserCreateRequest.
 type UserCreateRequest struct {
 	Email    *string  `json:"email,omitempty"`
@@ -327,8 +394,14 @@ type VideoAsset struct {
 	// DurationSeconds 时长(秒);MVP 未接 ffprobe 时为空
 	DurationSeconds *float32 `json:"durationSeconds"`
 	FileId          int64    `json:"fileId"`
-	Id              int64    `json:"id"`
-	OrigName        string   `json:"origName"`
+
+	// GroupId 所属分组 ID,0=未分组
+	GroupId int64 `json:"groupId"`
+
+	// GroupName 所属分组名,未分组为空串
+	GroupName string `json:"groupName"`
+	Id        int64  `json:"id"`
+	OrigName  string `json:"origName"`
 
 	// Resolution 分辨率,如 1920x1080;MVP 未接 ffprobe 时为空
 	Resolution *string `json:"resolution"`
@@ -353,6 +426,9 @@ type ConfigGroup string
 // Id defines model for Id.
 type Id = int64
 
+// MediaGroupId defines model for MediaGroupId.
+type MediaGroupId = int64
+
 // Page defines model for Page.
 type Page = int
 
@@ -374,12 +450,27 @@ type ListDictsParams struct {
 type ListImagesParams struct {
 	Page     *Page     `form:"page,omitempty" json:"page,omitempty"`
 	PageSize *PageSize `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// GroupId 按分组过滤;不传=全部,0=未分组
+	GroupId *MediaGroupId `form:"groupId,omitempty" json:"groupId,omitempty"`
 }
 
 // UploadImageMultipartBody defines parameters for UploadImage.
 type UploadImageMultipartBody struct {
 	File openapi_types.File `json:"file"`
+
+	// GroupId 可选,上传到的分组 ID;缺省或 0 为未分组
+	GroupId *int64 `json:"groupId,omitempty"`
 }
+
+// ListMediaGroupsParams defines parameters for ListMediaGroups.
+type ListMediaGroupsParams struct {
+	// Kind 分组所属媒体类型
+	Kind ListMediaGroupsParamsKind `form:"kind" json:"kind"`
+}
+
+// ListMediaGroupsParamsKind defines parameters for ListMediaGroups.
+type ListMediaGroupsParamsKind string
 
 // ListOperationLogsParams defines parameters for ListOperationLogs.
 type ListOperationLogsParams struct {
@@ -428,11 +519,17 @@ type ListUsersParams struct {
 type ListVideosParams struct {
 	Page     *Page     `form:"page,omitempty" json:"page,omitempty"`
 	PageSize *PageSize `form:"pageSize,omitempty" json:"pageSize,omitempty"`
+
+	// GroupId 按分组过滤;不传=全部,0=未分组
+	GroupId *MediaGroupId `form:"groupId,omitempty" json:"groupId,omitempty"`
 }
 
 // UploadVideoMultipartBody defines parameters for UploadVideo.
 type UploadVideoMultipartBody struct {
 	File openapi_types.File `json:"file"`
+
+	// GroupId 可选,上传到的分组 ID;缺省或 0 为未分组
+	GroupId *int64 `json:"groupId,omitempty"`
 }
 
 // LoginJSONRequestBody defines body for Login for application/json ContentType.
@@ -465,6 +562,15 @@ type UpdateDictStatusJSONRequestBody = StatusRequest
 // UploadImageMultipartRequestBody defines body for UploadImage for multipart/form-data ContentType.
 type UploadImageMultipartRequestBody UploadImageMultipartBody
 
+// MoveImageGroupJSONRequestBody defines body for MoveImageGroup for application/json ContentType.
+type MoveImageGroupJSONRequestBody = MediaGroupMoveRequest
+
+// CreateMediaGroupJSONRequestBody defines body for CreateMediaGroup for application/json ContentType.
+type CreateMediaGroupJSONRequestBody = CreateMediaGroupRequest
+
+// UpdateMediaGroupJSONRequestBody defines body for UpdateMediaGroup for application/json ContentType.
+type UpdateMediaGroupJSONRequestBody = UpdateMediaGroupRequest
+
 // CreateRoleJSONRequestBody defines body for CreateRole for application/json ContentType.
 type CreateRoleJSONRequestBody = RoleRequest
 
@@ -488,6 +594,9 @@ type UpdateUserStatusJSONRequestBody = StatusRequest
 
 // UploadVideoMultipartRequestBody defines body for UploadVideo for multipart/form-data ContentType.
 type UploadVideoMultipartRequestBody UploadVideoMultipartBody
+
+// MoveVideoGroupJSONRequestBody defines body for MoveVideoGroup for application/json ContentType.
+type MoveVideoGroupJSONRequestBody = MediaGroupMoveRequest
 
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
@@ -557,6 +666,21 @@ type ServerInterface interface {
 	// 图片详情
 	// (GET /api/admin/images/{id})
 	GetImage(w http.ResponseWriter, r *http.Request, id Id)
+	// 移动图片到指定分组(0=移出分组)
+	// (PATCH /api/admin/images/{id}/group)
+	MoveImageGroup(w http.ResponseWriter, r *http.Request, id Id)
+	// 媒体分组列表(按类型过滤,含组内资源计数)
+	// (GET /api/admin/media-groups)
+	ListMediaGroups(w http.ResponseWriter, r *http.Request, params ListMediaGroupsParams)
+	// 新建媒体分组(同类型内名称唯一)
+	// (POST /api/admin/media-groups)
+	CreateMediaGroup(w http.ResponseWriter, r *http.Request)
+	// 删除媒体分组(组内资源移回未分组,不删资源)
+	// (DELETE /api/admin/media-groups/{id})
+	DeleteMediaGroup(w http.ResponseWriter, r *http.Request, id Id)
+	// 重命名媒体分组(同类型内名称唯一)
+	// (PUT /api/admin/media-groups/{id})
+	UpdateMediaGroup(w http.ResponseWriter, r *http.Request, id Id)
 	// 操作日志分页列表
 	// (GET /api/admin/operation-logs)
 	ListOperationLogs(w http.ResponseWriter, r *http.Request, params ListOperationLogsParams)
@@ -617,6 +741,9 @@ type ServerInterface interface {
 	// 视频详情
 	// (GET /api/admin/videos/{id})
 	GetVideo(w http.ResponseWriter, r *http.Request, id Id)
+	// 移动视频到指定分组(0=移出分组)
+	// (PATCH /api/admin/videos/{id}/group)
+	MoveVideoGroup(w http.ResponseWriter, r *http.Request, id Id)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -1158,6 +1285,14 @@ func (siw *ServerInterfaceWrapper) ListImages(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// ------------- Optional query parameter "groupId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "groupId", r.URL.Query(), &params.GroupId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListImages(w, r, params)
 	}))
@@ -1242,6 +1377,159 @@ func (siw *ServerInterfaceWrapper) GetImage(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetImage(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MoveImageGroup operation middleware
+func (siw *ServerInterfaceWrapper) MoveImageGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MoveImageGroup(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// ListMediaGroups operation middleware
+func (siw *ServerInterfaceWrapper) ListMediaGroups(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params ListMediaGroupsParams
+
+	// ------------- Required query parameter "kind" -------------
+
+	if paramValue := r.URL.Query().Get("kind"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "kind"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "kind", r.URL.Query(), &params.Kind)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "kind", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.ListMediaGroups(w, r, params)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// CreateMediaGroup operation middleware
+func (siw *ServerInterfaceWrapper) CreateMediaGroup(w http.ResponseWriter, r *http.Request) {
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.CreateMediaGroup(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// DeleteMediaGroup operation middleware
+func (siw *ServerInterfaceWrapper) DeleteMediaGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.DeleteMediaGroup(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// UpdateMediaGroup operation middleware
+func (siw *ServerInterfaceWrapper) UpdateMediaGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.UpdateMediaGroup(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -1843,6 +2131,14 @@ func (siw *ServerInterfaceWrapper) ListVideos(w http.ResponseWriter, r *http.Req
 		return
 	}
 
+	// ------------- Optional query parameter "groupId" -------------
+
+	err = runtime.BindQueryParameter("form", true, false, "groupId", r.URL.Query(), &params.GroupId)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "groupId", Err: err})
+		return
+	}
+
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.ListVideos(w, r, params)
 	}))
@@ -1927,6 +2223,37 @@ func (siw *ServerInterfaceWrapper) GetVideo(w http.ResponseWriter, r *http.Reque
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.GetVideo(w, r, id)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// MoveVideoGroup operation middleware
+func (siw *ServerInterfaceWrapper) MoveVideoGroup(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// ------------- Path parameter "id" -------------
+	var id Id
+
+	err = runtime.BindStyledParameterWithOptions("simple", "id", r.PathValue("id"), &id, runtime.BindStyledParameterOptions{ParamLocation: runtime.ParamLocationPath, Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "id", Err: err})
+		return
+	}
+
+	ctx := r.Context()
+
+	ctx = context.WithValue(ctx, BearerAuthScopes, []string{})
+
+	r = r.WithContext(ctx)
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.MoveVideoGroup(w, r, id)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -2078,6 +2405,11 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/api/admin/images", wrapper.UploadImage)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/admin/images/{id}", wrapper.DeleteImage)
 	m.HandleFunc("GET "+options.BaseURL+"/api/admin/images/{id}", wrapper.GetImage)
+	m.HandleFunc("PATCH "+options.BaseURL+"/api/admin/images/{id}/group", wrapper.MoveImageGroup)
+	m.HandleFunc("GET "+options.BaseURL+"/api/admin/media-groups", wrapper.ListMediaGroups)
+	m.HandleFunc("POST "+options.BaseURL+"/api/admin/media-groups", wrapper.CreateMediaGroup)
+	m.HandleFunc("DELETE "+options.BaseURL+"/api/admin/media-groups/{id}", wrapper.DeleteMediaGroup)
+	m.HandleFunc("PUT "+options.BaseURL+"/api/admin/media-groups/{id}", wrapper.UpdateMediaGroup)
 	m.HandleFunc("GET "+options.BaseURL+"/api/admin/operation-logs", wrapper.ListOperationLogs)
 	m.HandleFunc("GET "+options.BaseURL+"/api/admin/permissions", wrapper.ListPermissions)
 	m.HandleFunc("GET "+options.BaseURL+"/api/admin/roles", wrapper.ListRoles)
@@ -2098,6 +2430,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	m.HandleFunc("POST "+options.BaseURL+"/api/admin/videos", wrapper.UploadVideo)
 	m.HandleFunc("DELETE "+options.BaseURL+"/api/admin/videos/{id}", wrapper.DeleteVideo)
 	m.HandleFunc("GET "+options.BaseURL+"/api/admin/videos/{id}", wrapper.GetVideo)
+	m.HandleFunc("PATCH "+options.BaseURL+"/api/admin/videos/{id}/group", wrapper.MoveVideoGroup)
 
 	return m
 }
