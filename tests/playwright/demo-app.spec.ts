@@ -15,13 +15,12 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await page.getByRole("button", { name: "登录" }).click();
   await expect(page.getByText("用户名或密码错误")).toBeVisible();
 
-  // 种子管理员登录成功进入欢迎页,healthz 经代理连通。
+  // 种子管理员登录成功进入仪表盘,统计卡为真实接口数据(healthz 经代理连通由各页请求隐式覆盖)。
   await page.getByPlaceholder("密码").fill("admin123");
   await page.getByRole("button", { name: "登录" }).click();
   await expect(page).toHaveURL(/\/admin\/?$/);
-  await expect(page.getByRole("heading", { name: /hello from the admin app/i })).toBeVisible();
-  await expect(page.getByText("Turborepo + pnpm template")).toBeVisible();
-  await expect(page.getByText("在线")).toBeVisible();
+  await expect(page.getByText("用户总数")).toBeVisible();
+  await expect(page.getByText("近 30 天上传趋势")).toBeVisible();
 
   // 顶栏显示当前用户昵称(/auth/me 数据)。
   await expect(page.getByText("管理员")).toBeVisible();
@@ -38,7 +37,7 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
   await page.goto("/admin/no-such-page");
   await expect(page.getByText("抱歉,您访问的页面不存在")).toBeVisible();
   await page.getByRole("button", { name: "返回首页" }).click();
-  await expect(page.getByRole("heading", { name: /hello from the admin app/i })).toBeVisible();
+  await expect(page.getByText("用户总数")).toBeVisible();
 
   // 用户管理:列表加载种子管理员,新建用户成功后出现在表格中。
   await page.getByText("用户管理").click();
@@ -87,6 +86,11 @@ test("admin requires login, then renders the landing page", async ({ page }) => 
     buffer: PNG_1X1
   });
   await expect(page.getByText("logo.png").first()).toBeVisible();
+  // 上传弹窗为拖拽批量范式,成功后不自动关闭,点关闭按钮继续后续操作。
+  await page
+    .getByRole("dialog", { name: "上传图片" })
+    .getByRole("button", { name: "Close" })
+    .click();
 
   // 视频管理页面可达。
   await page.getByText("视频管理").click();
