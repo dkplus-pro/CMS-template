@@ -126,3 +126,39 @@ src/routes/article/
 - 单文件超过约 **300 行**必须拆分;
 - 页面主入口(`page.tsx`)保持"数据编排"角色,查询表单、表格列渲染、弹窗拆成子文件;
 - 为页面拓展留位:列表页的查询条件、表格列以配置数组描述,新增字段改配置而非改结构。
+
+## 测试
+
+admin 的测试栈为 **Vitest + React Testing Library(jsdom)**,配置在 `vitest.config.ts` + `tests/setup.ts`,`pnpm --filter @monorepo-template/admin test`(即 `vitest run`)执行,turbo `test` 任务自动收纳。既有 e2e(Playwright)继续覆盖关键用户流程。
+
+### 测试分层
+
+| 层           | 工具                                  | 放什么                                             |
+| ------------ | ------------------------------------- | -------------------------------------------------- |
+| 纯函数       | Vitest(`// @vitest-environment node`) | 权限判定、菜单过滤/面包屑链等无 DOM 逻辑           |
+| 状态机 hooks | Vitest + `renderHook`                 | 分页编排、分片上传状态机、断点续传指纹等有状态逻辑 |
+| 组件交互     | Vitest + RTL(`render`/`userEvent`)    | AuthGate、ErrorBoundary 等渲染与交互语义           |
+| 关键用户流程 | Playwright e2e                        | 登录、列表增删改查、上传等端到端链路               |
+
+用例文件放 `apps/admin/tests/`,与被测对象按目录对应(`tests/hooks/`、`tests/components/`、`tests/api/`、`tests/config/`);`src/api/generated/` 生成物不写用例。jsdom 缺失的浏览器 API(`matchMedia`、`ResizeObserver`、`createObjectURL` 等)统一在 `tests/setup.ts` 补 shim,不在用例内散补。
+
+### mock 边界
+
+- **只 mock 模块边界,不 mock 内部实现细节**:Controller 层用 `vi.mock` mock `src/api/controllers.gen`,axios 传输层用 adapter mock 或 mock `client.ts` 导出的 `axiosInstance` 挂到真实拦截器上;禁止为通过测试而 mock hook/组件内部函数;
+- 横切逻辑(token 注入、envelope 解包、401 处理、logID 拼接)属于 `client.ts` 本体,测试必须走真实实现(经 adapter mock 驱动);
+- 全局副作用(localStorage、`Message.error`、定时器)在每个用例前后清理或还原,避免用例间串扰。
+
+### 计划期用例纪律
+
+**做计划时先列测试用例清单与边界条件表,实现与用例同批交付**(本仓库各阶段方案文档即按此示范)。不允许"先实现后补测试"或"计划里只有实现点没有边界条件"。
+
+### 六类边界必查清单
+
+写任何用例清单时,以下六类边界逐项过一遍,命中即必须有用例覆盖:
+
+1. **空值** — 参数为 `undefined`/`null`/空数组/空串(如 permissions 未下发、total=0);
+2. **零值** — 数值为 0 但语义合法(如 0 字节文件、第 0 页收敛);
+3. **越界** — 超出有效范围需收敛(如页码超出 maxPage 回退、末片不足 chunkSize);
+4. **权限缺失** — 无权限码/权限未加载(如 AuthGate 置灰、菜单隐藏、登录中态);
+5. **网络失败** — 请求失败/超时/404(如重试耗尽、对账失败降级、错误文案);
+6. **非法状态迁移** — 状态机不允许的路径不得发生(如取消后旧 complete 返回不得覆盖新状态、暂停中不可误报 failed)。
