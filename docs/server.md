@@ -70,3 +70,16 @@ Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通�
 - `main.go` 保持装配职责,超过约 **100 行**说明依赖组装该抽 `internal/config` 或 wire 函数了;
 - 任何单文件超过约 **400 行**,按资源或职责拆分;
 - 新增接口的固定动作:改对应受众契约(admin 为 `openapi/admin.yaml`)→ `gen:api` → 建 handler 文件 → 写 service 方法 →(需要时)扩 repo。
+
+## CSRF 与会话安全
+
+(安全基线方案见 [admin-enhancement-plan.md](./admin-enhancement-plan.md) 阶段 10。)
+
+**结构性前提**:当前认证是 **JWT Bearer + localStorage + `Authorization` 请求头**——跨站页面/表单无法附加自定义请求头,服务端也不读 Cookie,经典 CSRF(依赖浏览器自动携带 Cookie)在结构上不成立。
+
+**硬约束**:**禁止把会话迁往 Cookie**。若未来确需迁移,必须在同一变更中同步落地 `SameSite=Lax/Strict` + CSRF token(双提交或同步器模式),否则不得合并——Cookie 会被浏览器跨站自动携带,没有配套防御的迁移等于直接引入 CSRF 漏洞。
+
+在此基础上,server 已落地的纵深防御(`internal/httpapi`,中间件链见 `cmd/server/main.go`):
+
+- `OriginCheck(allowedOrigins)`:只挂 **admin 链**(site 链公开只读不挂),位置在 `RequestID` 之后、`JWTAuth` 之前。非安全方法(GET/HEAD/OPTIONS 之外)且请求带 `Origin` 头时,Origin 必须精确命中白名单,否则 403;不带 `Origin` 的非浏览器调用(curl、服务间)放行。白名单来自环境变量 `CSRF_ALLOWED_ORIGINS`(逗号分隔,精确匹配 scheme+host+port),默认 `http://localhost:8081`(dev 代理下 admin 的 Origin,开箱即用);生产部署必须注入真实后台域名。
+- `SecurityHeaders()`:admin 与 site 两条链都挂,统一输出 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: strict-origin-when-cross-origin`、`Cache-Control: no-store`。CSP 暂不施加(策略源在 admin 托管层,构建期以 meta 兜底);Swagger 页面注册在 root mux、不经过链,无需处理。
