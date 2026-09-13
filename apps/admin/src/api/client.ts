@@ -86,3 +86,9 @@ function readErrorMessage(response: AxiosResponse): string {
 export function customInstance<T>(config: AxiosRequestConfig): Promise<T> {
   return axiosInstance.request(config).then((response) => response.data as T);
 }
+
+// 适配导出(docs/admin.md:mutator 能力不足时在 client.ts 内加适配导出):
+// 分片上传(use-chunked-upload)需要 AbortSignal 实现暂停/取消,orval 生成函数不透传
+// signal,故直接复用本实例按契约路径发起分片 PUT;token 注入、401 处理、envelope 解包
+// 等横切逻辑仍只在本文件生效,禁止在其他文件另建 axios 实例。
+export { axiosInstance };
