@@ -5,7 +5,10 @@
 // - 动态 import:SDK 不阻塞首屏,也避免与 SSR 构建耦合;
 // - env `RUM_ENDPOINT` 与 `RUM_PID` 任一缺失即不初始化——dev 默认关闭,
 //   生产部署注入(占位见 apps/site/.env.example);
-// - spaMode history(SPA PV 上报),version 取应用版本。
+// - spaMode history(SPA PV 上报),version 取应用版本;
+// - 客户端 bundle 里不存在 Node 的 process:默认 env 由 defaultEnv() 按成员访问
+//   process.env.RUM_*,该表达式由 modern.config.ts 的 source.define 构建期内联为
+//   字面量(未配置为空串);SSR/测试下读真实 process.env(vi.stubEnv 可覆盖)。
 import { useEffect } from "react";
 
 import packageJson from "../../package.json";
@@ -16,9 +19,17 @@ export interface RumConfig {
   version: string;
 }
 
+// 默认 env 源:按成员访问 RUM_*(source.define 构建期内联),禁止裸 process.env 引用。
+function defaultEnv(): Record<string, string | undefined> {
+  return {
+    RUM_PID: process.env.RUM_PID,
+    RUM_ENDPOINT: process.env.RUM_ENDPOINT
+  };
+}
+
 // 从环境读取 RUM 配置;endpoint 与 pid 缺任一项返回 null(不初始化)。
 export function readRumConfig(
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = defaultEnv()
 ): RumConfig | null {
   const pid = env.RUM_PID;
   const endpoint = env.RUM_ENDPOINT;
@@ -36,7 +47,7 @@ interface RumSdk {
 let initialized = false;
 
 export async function initRum(
-  env: Record<string, string | undefined> = process.env
+  env: Record<string, string | undefined> = defaultEnv()
 ): Promise<boolean> {
   const config = readRumConfig(env);
   // SSR 服务端或配置缺失:不初始化。

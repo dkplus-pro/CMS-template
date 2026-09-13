@@ -27,7 +27,19 @@ const productionCSPMeta = {
   }
 };
 
+// RUM 配置构建期内联:客户端 bundle 不存在 Node 的 process,裸 process.env 引用会
+// ReferenceError(实测踩过),因此把 process.env.RUM_* 显式内联为字面量;
+// 未配置时内联为空串,readRumConfig 判空即不初始化(dev 默认关闭,见 docs/site.md「监控」)。
+// 构建期内联意味着部署时 RUM_ENDPOINT/RUM_PID 需在构建(CI)阶段注入,而非仅运行时。
+const rumDefine = {
+  "process.env.RUM_PID": JSON.stringify(process.env.RUM_PID ?? ""),
+  "process.env.RUM_ENDPOINT": JSON.stringify(process.env.RUM_ENDPOINT ?? "")
+};
+
 export default defineConfig({
+  source: {
+    define: rumDefine
+  },
   html: {
     title: "CMS Template",
     ...(process.env.NODE_ENV === "production" ? { meta: productionCSPMeta } : {})

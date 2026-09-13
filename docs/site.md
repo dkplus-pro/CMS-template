@@ -106,11 +106,14 @@ apps/site/
   env `RUM_ENDPOINT` 与 `RUM_PID` 均存在,任一缺失即不初始化——**dev 默认关闭**,
   生产部署注入(占位见 `apps/site/.env.example`);`spaMode: "history"`,
   `version` 取应用版本;
+- **客户端配置走构建期内联**(`modern.config.ts` 的 `source.define` 把
+  `process.env.RUM_*` 内联为字面量——浏览器无 `process`,裸 `process.env` 引用会
+  ReferenceError):部署时 RUM 变量须在**构建(CI)阶段**注入,仅运行时注入对浏览器端无效;
 - 上报内容:PV、JS 错误、Web 性能(SDK 默认采集),不做自定义埋点。
 
 ## 环境变量
 
 - `SITE_API_BASE` — SSR 服务端请求 Go server 的绝对地址(默认 `http://127.0.0.1:8080`);
 - `API_PROXY_TARGET` — dev 代理目标(默认 `http://localhost:8080`);
-- `RUM_ENDPOINT` / `RUM_PID` — RUM 上报端点与站点 PID(均缺失则不初始化);
+- `RUM_ENDPOINT` / `RUM_PID` — RUM 上报端点与站点 PID(均缺失则不初始化;构建期内联,须构建时注入);
 - 占位见 `apps/site/.env.example`;`.env.*` 已 gitignore,禁止提交真实密钥。
