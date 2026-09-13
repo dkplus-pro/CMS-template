@@ -1,7 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// e2e 起独立端口的 server(18085)与 admin(18080),admin 通过 API_PROXY_TARGET 指向它。
+// e2e 起独立端口的 server(18085)与 admin(18080)、site(18081)。
 const E2E_SERVER_PORT = 18085;
+const E2E_SITE_PORT = 18081;
 
 export default defineConfig({
   testDir: "./tests/playwright",
@@ -33,12 +34,26 @@ export default defineConfig({
       url: "http://127.0.0.1:18080",
       reuseExistingServer: false,
       timeout: 120_000
+    },
+    {
+      // site 的 SSR 数据不经过 dev 代理,直接按 SITE_API_BASE 打 Go server(见 docs/site.md)。
+      command: `PORT=${E2E_SITE_PORT} API_PROXY_TARGET=http://127.0.0.1:${E2E_SERVER_PORT} SITE_API_BASE=http://127.0.0.1:${E2E_SERVER_PORT} pnpm --filter @monorepo-template/site run dev`,
+      url: `http://127.0.0.1:${E2E_SITE_PORT}`,
+      reuseExistingServer: false,
+      timeout: 120_000
     }
   ],
   projects: [
     {
       name: "chromium",
+      testIgnore: /site-app\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] }
+    },
+    {
+      // site 用例:baseURL 指向 site dev(18081),后端复用同一 e2e server(18085)。
+      name: "site",
+      testMatch: /site-app\.spec\.ts/,
+      use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${E2E_SITE_PORT}` }
     }
   ]
 });

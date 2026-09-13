@@ -7,6 +7,7 @@ import { Outlet, useLoaderData } from "@modern-js/runtime/router";
 
 import SiteFooter from "../components/site-footer";
 import SiteHeader from "../components/site-header";
+import { useRum } from "../config/rum";
 import { FALLBACK_SITE_NAME } from "../constants";
 import type { SiteLayoutData } from "./layout.data";
 
@@ -15,6 +16,8 @@ import "./layout.css";
 
 // 全局根布局:页头(站名/Logo/导航,数据来自本路由的 layout.data loader)+ 页面 + 页脚。
 export default function SiteLayout() {
+  // RUM 仅客户端初始化(useEffect 不在 SSR 执行;env 缺失时为 no-op)。
+  useRum();
   const siteInfo = useLoaderData() as SiteLayoutData;
   const siteName = siteInfo?.siteName || FALLBACK_SITE_NAME;
 
