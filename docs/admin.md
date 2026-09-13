@@ -37,14 +37,44 @@ src/routes/article/
 ## UI 规范
 
 - **组件优先级**:一律优先使用 Arco Design 基础组件,确实不满足再自定义,以降低维护成本;
-- **页面风格**:照抄 [Arco Design Pro 列表页](https://react-pro.arco.design/list/search-table) 的成熟范式:
-  - 列表页 = `Card` + 查询 `Form` + `Table` + `Pagination`;
-  - 详情页 = `PageHeader` / `Descriptions`;
-  - 新建编辑 = `Modal` + `Form`(简单场景不单独开页面);
 - 主题色、圆角等走 Arco 的 `ConfigProvider` token 定制,组件内不写死颜色;
-- 布局(侧边栏 + 顶栏 + 内容区)在全局 layout 中实现一次,页面只写内容区;
-- **菜单是静态声明 + 权限过滤**(阶段 3 修订):`config/menu.ts` 声明菜单树(路径/名称/所需权限码),layout 按 `/auth/me` 的权限码过滤显隐;**最小颗粒度判定**:拥有菜单权限点本身,或该模块下任一 api 权限码(如仅有 `system:user:list`)即显示菜单,见 `hasMenuPermission`;路由是 Modern.js 约定式静态路由;页面新增 = 契约 + routes 页面 + menu.ts 一行声明。**不使用服务端下发菜单或动态路由**,管理端也不提供菜单管理界面(使用方为非技术人员,不允许配置路径/组件 key)。
-- **权限码一致性**:menu.ts 的权限码必须与服务端路由注册表(`internal/httpapi/permission.go` 的 Menu 字段)同名,由代码评审保证。
+- 布局(侧边栏 + 顶栏 + 内容区)在全局 layout 中实现一次,页面只写内容区。
+
+### 布局与菜单
+
+- **侧边栏整栏可折叠**:折叠触发器在侧边栏顶部(`IconMenuFold`/`IconMenuUnfold`),折叠宽度 60;折叠态菜单项仅显示图标,悬停经 Tooltip/弹出层显示标题;折叠只影响整栏显隐,不重置受控 `openKeys`(目录展开状态保留);
+- **菜单项必须声明图标**:`config/menu.tsx` 的 `MenuConfig` 带 `icon` 字段(取 `@arco-design/web-react/icon` 实际导出),layout 渲染时挂到 `Menu.Item`/`SubMenu`;**新增菜单禁止裸文字**;
+- **顶栏只保留用户区**(当前用户/退出登录),不放面包屑;
+- **菜单是静态声明 + 权限过滤**(阶段 3 修订):`config/menu.tsx` 声明菜单树(路径/名称/图标/所需权限码),layout 按 `/auth/me` 的权限码过滤显隐;**最小颗粒度判定**:拥有菜单权限点本身,或该模块下任一 api 权限码(如仅有 `system:user:list`)即显示菜单,见 `hasMenuPermission`;路由是 Modern.js 约定式静态路由;页面新增 = 契约 + routes 页面 + menu.tsx 一行声明。**不使用服务端下发菜单或动态路由**,管理端也不提供菜单管理界面(使用方为非技术人员,不允许配置路径/组件 key);
+- **权限码一致性**:menu.tsx 的权限码必须与服务端路由注册表(`internal/httpapi/permission.go` 的 Menu 字段)同名,由代码评审保证。
+
+### 页面骨架(PageContainer)
+
+- 面包屑与页头放**内容区顶部**(PageContainer 模式),不放顶栏;新页面必须套 `src/components/page-container.tsx`:
+  - 面包屑自动取 `config/menu.tsx` 的标题链(首页 / 系统管理 / 用户管理),页面不手写;
+  - `title` 为页面标题(缺省取菜单链叶子标题),`extra` 为右侧操作区插槽(如"新建"按钮);
+- 详情类内容可继续用 `Descriptions` 等组件,但外层同样套 PageContainer。
+
+### 分页(统一全量)
+
+- 所有分页状态经 `src/hooks/use-table-query.ts` 编排(page/pageSize/total/pagination props/重置页码),页面不手写分页 state;
+- 分页 props 必须全量:`showTotal`(共 x 条)+ `showPageSize`/`sizeCanChange`(10/20/50/100)+ `showJumper`;切 pageSize 重置回第 1 页(`pageSizeChangeResetCurrent`);
+- 无服务端分页的列表(如字典)也配全量分页,用 Arco Table 客户端切片(total 取数据长度);
+- 禁止自制"上一页/下一页"按钮替代分页组件。
+
+### 列表页(arco-pro search-table 范式)
+
+照抄 [Arco Design Pro 列表页](https://react-pro.arco.design/list/search-table) 的成熟范式,结构 = `Card` + 查询 `Form` + `Table` + `Pagination`:
+
+- 查询条件入 `Form`(`onSubmit` 触发查询),按钮区含"查询"(primary)与"重置"(清空表单 + 回到第 1 页);新建/上传等主动作放工具栏右侧(或 PageContainer 的 `extra`);
+- `Table` 必须有 `loading` 与空态;分页按上一节全量;操作按钮用 `AuthGate` 包裹;
+- 网格型列表(如图片)保留网格布局,但查询区与分页同样对齐本节规范。
+
+### 表单(按复杂度二分)
+
+- **简单表单**(单组、字段少):`Modal` + `Form`,不单独开页面;
+- **复杂表单**(多分组/长表单):分组表单页,照 [arco-pro form/group](https://react-pro.arco.design/form/group) 范式——`PageContainer` + `Card` 分组 + 底部固定操作栏(提交/重置,sticky 吸底);落地范例见系统配置页(`routes/system/configs/page.tsx`),后续新表单页照此;
+- 详情页 = `Descriptions`。
 
 ## 状态管理
 

@@ -32,6 +32,10 @@ pnpm + Turborepo monorepo,两个应用:
 
 4. UI 优先用 `@arco-design/web-react` 基础组件,不满足才自定义;
 5. 页面照抄 arco-design-pro 范式:列表页 = `Card` + 查询 `Form` + `Table` + `Pagination`,新建编辑用 `Modal` + `Form`;
+   5a. 菜单项必须带图标(`config/menu.tsx` 的 `MenuConfig.icon`),新菜单禁止裸文字;
+   5b. 新页面必须套 `PageContainer`(`src/components/page-container.tsx`),面包屑/页头放内容区顶部,禁止放顶栏;
+   5c. 列表分页必须全量(经 `src/hooks/use-table-query.ts`:总数 + 每页数量切换 10/20/50/100 + 跳页,切 pageSize 重置第 1 页);
+   5d. 列表页照抄 arco-pro search-table 范式(查询 Form 含查询/重置按钮、loading、空态);表单按复杂度二分:简单 `Modal`+`Form`,复杂用分组表单页(`Card` 分组 + 底部固定操作栏,范例见系统配置页);
 6. 目录分区:`src/api`(client.ts / controllers.ts / queryKeys.ts / generated)/ `components` / `hooks` / `routes`(页面)/ `store`(全局状态)/ `utils` / `constants` / `config`;
 7. 复用规则:2 个及以上页面用 → 提到 `src/components`、`src/hooks`;单页面用 → 留在页面目录内;客户端全局状态 → zustand(`src/store/`,每个领域一个 `useXxxStore`),不与 Modern.js model 等其他方案混用;
 8. 服务端状态一律 TanStack Query(`useQuery`/`useMutation` + `SystemController.xxx()` 直调,queryKey 集中在 `src/api/queryKeys.ts`),禁止 useEffect 手动拉接口、禁止 ahooks 的 useRequest;操作按钮用 `<AuthGate permission="...">` 包裹(无权限置灰 + Tooltip),菜单可见性按最小颗粒度判定(模块下任一 api 权限码即可);
