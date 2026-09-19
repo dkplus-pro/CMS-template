@@ -208,6 +208,9 @@ importers:
       electron:
         specifier: ^44.4.3
         version: 44.4.3
+      electron-log:
+        specifier: ^5.4.4
+        version: 5.4.4
       electron-vite:
         specifier: ^5.0.0
         version: 5.0.0(@swc/core@1.15.41(@swc/helpers@0.5.23))(vite@7.3.6(@types/node@24.13.2)(jiti@2.6.1)(less@4.6.7)(lightningcss@1.33.0)(sass-embedded@1.100.0)(sass@1.100.0)(stylus@0.64.0)(terser@5.48.0)(yaml@2.9.0))
@@ -5963,6 +5966,10 @@ packages:
 
   ee-first@1.1.1:
     resolution: {integrity: sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow==}
+
+  electron-log@5.4.4:
+    resolution: {integrity: sha512-istWgaXjBfURBSS8LWVW9C3jsc6+ac+tY1lXrQEOTp0lVj+a4OlO1Tmqb36GgnEUDv92DGC9VI1HNXwJinWpgA==}
+    engines: {node: '>= 14'}
 
   electron-to-chromium@1.5.388:
     resolution: {integrity: sha512-Pl/aJaqOOxYxda3vcx1IKSJimwYXHDkEnGn0F+kG2EE68dDtx2uCinaS+Vih8Z91B9t8CSAbiF/HKyWcnXjhzw==}
@@ -16846,6 +16853,8 @@ snapshots:
   eastasianwidth@0.2.0: {}
 
   ee-first@1.1.1: {}
+
+  electron-log@5.4.4: {}
 
   electron-to-chromium@1.5.388: {}
 

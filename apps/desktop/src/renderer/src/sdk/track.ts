@@ -66,6 +66,7 @@ export function flushTrackQueue(): Promise<boolean> {
   try {
     const bridge = getDesktopBridge();
     if (!bridge?.report) {
+      // eslint-disable-next-line no-console -- 无桥降级观测(卡片要求的静默降级通道)
       console.debug(`[track] desktop 桥缺失,丢弃 ${batch.length} 条埋点`);
       return Promise.resolve(false);
     }

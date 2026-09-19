@@ -35,6 +35,7 @@ function sendError(payload: MonitorErrorPayload): void {
   try {
     const bridge = getDesktopBridge();
     if (!bridge?.report) {
+      // eslint-disable-next-line no-console -- 无桥降级观测(卡片要求的静默降级通道)
       console.debug("[monitor] desktop 桥缺失,错误仅本地记录:", payload.message);
       return;
     }

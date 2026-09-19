@@ -19,8 +19,14 @@ for script in lint typecheck test; do
   ci_endgroup
 done
 
+ci_group "Run desktop e2e (apps/desktop)"
+if [ "$PM" = pnpm ]; then
+  (cd apps/desktop && pnpm run build && pnpm run test:e2e)
+fi
+ci_endgroup
+
 ci_group "Run miniapp size gate (apps/miniapp)"
-run_package_script_if_present "$PM" "check:size"
+(cd apps/miniapp && node scripts/check-size.mjs)
 ci_endgroup
 
 ci_group "Run flutter checks (apps/mobile)"

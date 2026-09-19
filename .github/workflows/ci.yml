@@ -54,5 +54,8 @@ jobs:
       - name: Build
         run: pnpm run build
 
+      - name: Desktop e2e
+        run: xvfb-run --auto-servernum pnpm --filter @monorepo-template/desktop test:e2e
+
       - name: Site bundle budget
         run: node apps/site/scripts/check-budgets.mjs --dist apps/site/dist/static
