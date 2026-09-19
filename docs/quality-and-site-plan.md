@@ -178,3 +178,11 @@
 - **契约**:本批次预期零契约改动;任何线若发现必须改 `openapi/`,先停下在计划文档登记再动;
 - **时序约定**:16 不依赖 15 可立即开工(只改组件/CSS/常量,不动 package.json);16 的组件用例补跑以 15 基座合入为前置;18 以 17 的应用骨架为前置;19 以 16 完成为前置(避免与 C 自身的 AGENTS.md/development.md 编辑交错);
 - 每阶段独立提交(Conventional Commits),`pnpm verify` 绿后再合入下一阶段。
+
+## 交付记录(2026-09-19,site 壳建设)
+
+- 阶段 1-8 按 [docs/site-shell-plan.md](./site-shell-plan.md) 交付:依赖钉版与 transformImport(P1)、
+  Arco CSS 按需收口 562→82 kB(P2)、zod env/特性开关/站点配置收口(P3)、tracking facade+
+  web-vitals+CSP 联动(P4)、双层 ErrorBoundary/loading 骨架/client 韧性(P5)、覆盖率门禁与
+  快照/a11y(P6)、AGENTS.md 与本文档收口(P7)、预算门禁进 CI 与总收口(P8);
+- 编排与逐卡验收记录见 [docs/shell-exec-runbook.md](./shell-exec-runbook.md) 台账(site 行)。
