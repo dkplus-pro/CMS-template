@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'api.dart';
 
 void main() {
-  runApp(const CmsMobileApp());
+  // 最小装配雏形(M1.3):ProviderScope 先挂上,M3.1 在此追加 overrides
+  // (按 AppConfig 选择 core 实现)与 Sentry 条件初始化、runZonedGuarded 收口。
+  runApp(const ProviderScope(child: CmsMobileApp()));
 }
 
 /// 应用入口:MaterialApp hello world,首页展示 ping 结果。
