@@ -14,7 +14,12 @@ A pnpm + Turborepo monorepo template with an OpenAPI-driven stack: a Go API serv
 apps/
   admin/                  Modern.js React + Arco Design admin app
   server/                 Go API server (oapi-codegen + GORM)
-openapi/                  API contracts, one file per audience (admin.yaml; site.yaml)
+  site/                   Modern.js SSR public website
+  h5/                     Modern.js SSR campaign H5 (audience: h5)
+  desktop/                electron-vite + React desktop app (audience: app)
+  miniapp/                Taro 4 + React WeChat mini program (audience: app)
+  mobile/                 Flutter app placeholder (audience: app; not in pnpm workspace)
+openapi/                  API contracts, one per audience (admin.yaml, site.yaml single files; app/, h5/ multi-file skeletons)
 docs/                     Development docs (dev guide, MVP plan, database design)
 packages/
   tsconfig/              Shared TypeScript presets
@@ -38,6 +43,7 @@ tests/
 - Node.js `>=20.19.5` (Node 22 LTS recommended; `.nvmrc` uses `lts/jod`)
 - pnpm via Corepack (`packageManager` pins pnpm)
 - Go `>=1.24` (for `apps/server`; uses the `go tool` directive for oapi-codegen)
+- Flutter SDK (stable) only for `apps/mobile` (optional locally; CI runs its checks via flutter-action)
 
 ```bash
 corepack enable
@@ -57,10 +63,15 @@ pnpm install
 pnpm dev
 ```
 
-One command starts both workspaces via Turborepo:
+One command starts the workspaces via Turborepo (persistent dev tasks run in parallel):
 
 - admin at <http://localhost:8081/> (dev-proxies `/api` to the server)
 - Go server at <http://localhost:8080/> (Swagger UI at <http://localhost:8080/swagger/>)
+- site at <http://localhost:8082/>
+- h5 at <http://localhost:18082/>
+- desktop (Electron window; renderer dev server at <http://localhost:18083/>)
+- miniapp (Taro weapp watch build into `apps/miniapp/dist`, preview via WeChat DevTools)
+- mobile is a Flutter app outside the pnpm workspace — run it from `apps/mobile` with the Flutter SDK (see its README)
 
 Default admin account: `admin` / `admin123` (change it via the avatar menu after first login).
 
@@ -73,10 +84,10 @@ pnpm --filter @monorepo-template/server run dev
 
 ## API contract workflow
 
-`openapi/` is the single source of truth for API contracts — one file per audience (`admin.yaml` today; `site.yaml` for the public site, see `docs/multi-audience-contracts.md`). After changing a contract, regenerate both sides:
+`openapi/` is the single source of truth for API contracts — one per audience (`admin.yaml`, `site.yaml` as single files; `app/`, `h5/` as multi-file skeleton directories; see `docs/multi-audience-contracts.md`). After changing a contract, regenerate all sides:
 
 ```bash
-pnpm gen:api   # server: apps/server/gen (oapi-codegen); admin: apps/admin/src/api/generated (orval)
+pnpm gen:api   # server: apps/server/gen (oapi-codegen; app/h5 bundled via redocly first); JS apps via orval (admin, site, h5, desktop, miniapp)
 ```
 
 Generated files must never be hand-edited. See `docs/development.md` for the full convention.

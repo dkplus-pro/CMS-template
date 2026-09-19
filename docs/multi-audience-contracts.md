@@ -260,11 +260,48 @@ srv := &http.Server{Addr: cfg.HTTP.Addr, Handler: mux, ReadHeaderTimeout: 5 * ti
 
 ---
 
+## 受众登记:app 与 h5(monorepo 扩展,**已执行**)
+
+[monorepo-expansion-plan.md](monorepo-expansion-plan.md) 扩展新增两个匿名受众,登记进同一套规则体系。现状:
+
+| 受众 | 契约                       | 路由前缀   | server 侧                          | 消费端                                                                                |
+| ---- | -------------------------- | ---------- | ---------------------------------- | ------------------------------------------------------------------------------------- |
+| app  | `openapi/app/`(多文件骨架) | `/api/app` | `gen/app` + `internal/handler/app` | `apps/mobile`(Flutter 手写 http)、`apps/desktop`(electron-vite)、`apps/miniapp`(Taro) |
+| h5   | `openapi/h5/`(多文件骨架)  | `/api/h5`  | `gen/h5` + `internal/handler/h5`   | `apps/h5`(Modern.js SSR)                                                              |
+
+### 边界与规则
+
+- **匿名只读边界与 site 一致**:占坑期端点一律匿名且只读;main.go 中 `/api/app/`、`/api/h5/` 与 `/api/site/` 同款匿名链(RequestID→ClientIP→SecurityHeaders→Logging→Recover),不注入 JWT/权限;app/h5 路由同样**禁止**进入 RoutePermissions(无权限码);
+- **认证预留槽位**:两份契约的 `components.securitySchemes` 预定义 `bearerAuth`(http bearer JWT),`security` 默认指向它,占坑期端点以 `security: []` 逐个覆盖匿名放行;server 侧装配预留 user JWT 中间件插入位,C 端用户体系落地时启用(见方案「后续阶段」);
+- **公开契约只加不改**(下文维护规则 3)对 site/app/h5 三者生效,破坏性变更整体协商替换前缀;
+- **网关放行清单**在 `/api/site/*` 基础上新增 `/api/app/*`、`/api/h5/*`;admin 路径(其余全部)仍仅内网或 VPN 可达;
+- DTO 独立命名与裁剪规则同 site:按对外需要裁剪、不互相 `$ref`、不原样暴露 admin 模型、媒体字段直接给 CDN 直链。
+
+### 多文件骨架约定
+
+与 admin/site 单文件不同,`app/` 与 `h5/` 从第一天起按多文件骨架组织:
+
+```
+openapi/app/
+  openapi.yaml              # 入口:info / servers / tags / securitySchemes / paths 聚合
+  paths/*.yaml              # 每路径一个文件(Path Item Object)
+  components/schemas/*.yaml # schema 按域分文件
+openapi/h5/                 # 同构
+```
+
+新增端点 = 新增 `paths/` 文件 + 在入口 `$ref` 聚合(必要时在 `components/schemas/` 加域文件)。**禁止跨契约 `$ref`** 对 4 份契约全部生效;触发式迁移预期:`admin.yaml`/`site.yaml` 任一超 800 行或该受众新增业务域时,按同构约定拆分,新旧并存无迁移顺序依赖。
+
+### 生成链
+
+- **server 侧**:oapi-codegen(kin-openapi)不支持 schema 片段跨文件 `$ref`,server 的 `gen:api` 对 app/h5 先 `redocly bundle`(产物写 `.gen-bundle/` 中间目录)再 oapi-codegen(`oapi.app.cfg.yaml`/`oapi.h5.cfg.yaml` → `gen/app`、`gen/h5`);
+- **JS 侧**:orval 以 `input.parserOptions.externalRefs.allow: ["*"]` 直接解析多文件入口,无需 bundle;admin/site 生成链不变;
+- 生成物禁止手改的规则(AGENTS.md 规则 2)覆盖全部生成目标(`apps/server/gen/`、各端 `src/api/generated/` 与 `controllers.gen.ts`)。
+
 ## 维护规则(执行后长期生效)
 
-1. 新端点先问受众:进 `admin.yaml` 还是 `site.yaml`;**同一操作禁止在两份契约重复定义**(对外需要的 admin 能力,按对外 DTO 在 site.yaml 重新声明,不互相 $ref);
-2. 权限码只属于 admin 契约与 RoutePermissions;site 无权限概念,公开边界靠"只读 + 网关放行前缀";
-3. site 契约变更视同对外承诺:**只加不删**;阶段 8 起 site 严格无版本位(`/api/site/...`),出现必须破坏的变更时整体协商替换前缀;
+1. 新端点先问受众:进 `admin.yaml`、`site.yaml`、`app/` 还是 `h5/`;**同一操作禁止在多份契约重复定义**(对外需要的 admin 能力,按对外 DTO 在对应公开契约重新声明,不互相 $ref);
+2. 权限码只属于 admin 契约与 RoutePermissions;site/app/h5 无权限概念,公开边界靠"只读 + 网关放行前缀";
+3. 公开契约(site/app/h5)变更视同对外承诺:**只加不删**;site 阶段 8 起严格无版本位(`/api/site/...`),app/h5 路径字面带 `/api/app`、`/api/h5` 前缀,出现必须破坏的变更时整体协商替换前缀;
 4. `docs/api-pages.md` 按受众分章节维护;`AGENTS.md` 契约工作流条目指向本文。
 
 ## 何时升级为多服务(方案 C)
