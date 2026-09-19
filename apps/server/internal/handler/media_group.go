@@ -2,12 +2,19 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/httpapi"
 	"github.com/cms-template/server/internal/media"
 )
+
+// MediaGroupHandler MediaGroup资源处理器,只注入本资源所需依赖。
+type MediaGroupHandler struct {
+	logger *slog.Logger
+	media  *media.Service
+}
 
 // 媒体分组:图片/视频共用能力,handler 按 kind 分派(契约见 openapi/admin.yaml 阶段 13)。
 
@@ -22,7 +29,7 @@ func toGenMediaGroup(group media.Group) gen.MediaGroup {
 }
 
 // ListMediaGroups GET /media-groups?kind=image|video。
-func (h *Handler) ListMediaGroups(w http.ResponseWriter, r *http.Request, params gen.ListMediaGroupsParams) {
+func (h *MediaGroupHandler) ListMediaGroups(w http.ResponseWriter, r *http.Request, params gen.ListMediaGroupsParams) {
 	groups, err := h.media.ListGroups(r.Context(), string(params.Kind))
 	switch {
 	case errors.Is(err, media.ErrInvalidType):
@@ -41,7 +48,7 @@ func (h *Handler) ListMediaGroups(w http.ResponseWriter, r *http.Request, params
 }
 
 // CreateMediaGroup POST /media-groups。
-func (h *Handler) CreateMediaGroup(w http.ResponseWriter, r *http.Request) {
+func (h *MediaGroupHandler) CreateMediaGroup(w http.ResponseWriter, r *http.Request) {
 	var req gen.CreateMediaGroupRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -64,7 +71,7 @@ func (h *Handler) CreateMediaGroup(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateMediaGroup PUT /media-groups/{id}(重命名)。
-func (h *Handler) UpdateMediaGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaGroupHandler) UpdateMediaGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.UpdateMediaGroupRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -90,7 +97,7 @@ func (h *Handler) UpdateMediaGroup(w http.ResponseWriter, r *http.Request, id ge
 }
 
 // DeleteMediaGroup DELETE /media-groups/{id}(组内资源移回未分组)。
-func (h *Handler) DeleteMediaGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaGroupHandler) DeleteMediaGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	err := h.media.DeleteGroup(r.Context(), int64(id))
 	switch {
 	case errors.Is(err, media.ErrMediaGroupNotFound):
@@ -105,17 +112,17 @@ func (h *Handler) DeleteMediaGroup(w http.ResponseWriter, r *http.Request, id ge
 }
 
 // MoveImageGroup PATCH /images/{id}/group。
-func (h *Handler) MoveImageGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaGroupHandler) MoveImageGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	h.moveMediaGroup(w, r, media.KindImage, id)
 }
 
 // MoveVideoGroup PATCH /videos/{id}/group。
-func (h *Handler) MoveVideoGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaGroupHandler) MoveVideoGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	h.moveMediaGroup(w, r, media.KindVideo, id)
 }
 
 // moveMediaGroup 移动媒体资源分组(kind 决定资源类型与响应 schema)。
-func (h *Handler) moveMediaGroup(w http.ResponseWriter, r *http.Request, kind string, id gen.Id) {
+func (h *MediaGroupHandler) moveMediaGroup(w http.ResponseWriter, r *http.Request, kind string, id gen.Id) {
 	var req gen.MediaGroupMoveRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")

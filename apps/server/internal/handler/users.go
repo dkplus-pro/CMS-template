@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	gen "github.com/cms-template/server/gen/admin"
@@ -9,6 +10,12 @@ import (
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
+
+// UsersHandler Users资源处理器,只注入本资源所需依赖。
+type UsersHandler struct {
+	logger *slog.Logger
+	users  *service.UserService
+}
 
 // toGenUserItem 领域模型 → 契约生成物。
 func toGenUserItem(item types.UserItem) gen.UserItem {
@@ -34,14 +41,8 @@ func toGenUserItem(item types.UserItem) gen.UserItem {
 	}
 }
 
-// claimsUserID 当前登录用户 ID(自我操作守卫用)。
-func claimsUserID(r *http.Request) (int64, bool) {
-	claims, ok := httpapi.ClaimsFromContext(r.Context())
-	return claims.UserID, ok
-}
-
 // ListUsers GET /users。
-func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request, params gen.ListUsersParams) {
+func (h *UsersHandler) ListUsers(w http.ResponseWriter, r *http.Request, params gen.ListUsersParams) {
 	page, pageSize := pageParams(params.Page, params.PageSize)
 	keyword := derefString(params.Keyword)
 	status := derefBool(params.Status)
@@ -61,7 +62,7 @@ func (h *Handler) ListUsers(w http.ResponseWriter, r *http.Request, params gen.L
 }
 
 // CreateUser POST /users。
-func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (h *UsersHandler) CreateUser(w http.ResponseWriter, r *http.Request) {
 	var req gen.UserCreateRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -84,7 +85,7 @@ func (h *Handler) CreateUser(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetUser GET /users/{id}。
-func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *UsersHandler) GetUser(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	item, err := h.users.Get(r.Context(), int64(id))
 	if err != nil {
 		h.logger.Error("get user", "error", err)
@@ -95,7 +96,7 @@ func (h *Handler) GetUser(w http.ResponseWriter, r *http.Request, id gen.Id) {
 }
 
 // UpdateUser PUT /users/{id}。
-func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *UsersHandler) UpdateUser(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.UserUpdateRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -112,7 +113,7 @@ func (h *Handler) UpdateUser(w http.ResponseWriter, r *http.Request, id gen.Id) 
 }
 
 // DeleteUser DELETE /users/{id}。
-func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *UsersHandler) DeleteUser(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	operatorID, _ := claimsUserID(r)
 	err := h.users.Delete(r.Context(), operatorID, int64(id))
 	switch {
@@ -134,7 +135,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request, id gen.Id) 
 }
 
 // UpdateUserStatus PATCH /users/{id}/status。
-func (h *Handler) UpdateUserStatus(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *UsersHandler) UpdateUserStatus(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.StatusRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -162,7 +163,7 @@ func (h *Handler) UpdateUserStatus(w http.ResponseWriter, r *http.Request, id ge
 }
 
 // UpdateUserRoles PUT /users/{id}/roles。
-func (h *Handler) UpdateUserRoles(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *UsersHandler) UpdateUserRoles(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.RoleIdsRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -175,63 +176,4 @@ func (h *Handler) UpdateUserRoles(w http.ResponseWriter, r *http.Request, id gen
 		return
 	}
 	httpapi.WriteJSON(w, http.StatusNoContent, nil)
-}
-
-// 通用小工具:分页与可选参数解引用。
-func pageParams(page, pageSize *gen.Page) (int, int) {
-	p, ps := 1, 20
-	if page != nil {
-		p = int(*page)
-	}
-	if pageSize != nil {
-		ps = int(*pageSize)
-	}
-	return p, ps
-}
-
-func derefString(v *string) string {
-	if v == nil {
-		return ""
-	}
-	return *v
-}
-
-func derefBool(v *bool) *bool {
-	return v
-}
-
-func derefBoolDefault(v *bool, fallback bool) bool {
-	if v == nil {
-		return fallback
-	}
-	return *v
-}
-
-func derefStatus(v *gen.ListOperationLogsParamsStatus) *string {
-	if v == nil {
-		return nil
-	}
-	status := string(*v)
-	return &status
-}
-
-func genOptsString(v string) *string {
-	if v == "" {
-		return nil
-	}
-	return &v
-}
-
-func derefInt(v *int) int {
-	if v == nil {
-		return 0
-	}
-	return *v
-}
-
-func derefInts(v *[]int64) []int64 {
-	if v == nil {
-		return []int64{}
-	}
-	return *v
 }

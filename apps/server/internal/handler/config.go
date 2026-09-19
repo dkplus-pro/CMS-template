@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	gen "github.com/cms-template/server/gen/admin"
@@ -9,6 +10,12 @@ import (
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
+
+// ConfigsHandler Configs资源处理器,只注入本资源所需依赖。
+type ConfigsHandler struct {
+	logger  *slog.Logger
+	configs *service.ConfigService
+}
 
 func toGenConfigItem(item types.ConfigItem) gen.ConfigItem {
 	return gen.ConfigItem{
@@ -20,7 +27,7 @@ func toGenConfigItem(item types.ConfigItem) gen.ConfigItem {
 
 // toGenDict 领域模型 → 契约生成物。
 
-func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request, group gen.GetConfigParamsGroup) {
+func (h *ConfigsHandler) GetConfig(w http.ResponseWriter, r *http.Request, group gen.GetConfigParamsGroup) {
 	items, err := h.configs.Get(r.Context(), string(group))
 	switch {
 	case errors.Is(err, service.ErrInvalidConfigGroup):
@@ -41,7 +48,7 @@ func (h *Handler) GetConfig(w http.ResponseWriter, r *http.Request, group gen.Ge
 
 // UpdateConfig PUT /configs/{group}。
 
-func (h *Handler) UpdateConfig(w http.ResponseWriter, r *http.Request, group gen.UpdateConfigParamsGroup) {
+func (h *ConfigsHandler) UpdateConfig(w http.ResponseWriter, r *http.Request, group gen.UpdateConfigParamsGroup) {
 	var req gen.ConfigUpdateRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")

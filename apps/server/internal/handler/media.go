@@ -3,6 +3,7 @@ package handler
 import (
 	"errors"
 	"io"
+	"log/slog"
 	"net/http"
 	"os"
 	"strconv"
@@ -12,50 +13,56 @@ import (
 	"github.com/cms-template/server/internal/media"
 )
 
+// MediaHandler Media资源处理器,只注入本资源所需依赖。
+type MediaHandler struct {
+	logger *slog.Logger
+	media  *media.Service
+}
+
 // 媒体 kind → 上传/列表操作名(kind 本身即路由语义,handler 按方法分派)。
 
 // UploadImage POST /images。
-func (h *Handler) UploadImage(w http.ResponseWriter, r *http.Request) {
+func (h *MediaHandler) UploadImage(w http.ResponseWriter, r *http.Request) {
 	h.uploadMedia(w, r, media.KindImage)
 }
 
 // ListImages GET /images。
-func (h *Handler) ListImages(w http.ResponseWriter, r *http.Request, params gen.ListImagesParams) {
+func (h *MediaHandler) ListImages(w http.ResponseWriter, r *http.Request, params gen.ListImagesParams) {
 	h.listMedia(w, r, media.KindImage, params.GroupId, params.Page, params.PageSize)
 }
 
 // GetImage GET /images/{id}。
-func (h *Handler) GetImage(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaHandler) GetImage(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	h.getMedia(w, r, int64(id))
 }
 
 // DeleteImage DELETE /images/{id}。
-func (h *Handler) DeleteImage(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaHandler) DeleteImage(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	h.deleteMedia(w, r, int64(id))
 }
 
 // UploadVideo POST /videos。
-func (h *Handler) UploadVideo(w http.ResponseWriter, r *http.Request) {
+func (h *MediaHandler) UploadVideo(w http.ResponseWriter, r *http.Request) {
 	h.uploadMedia(w, r, media.KindVideo)
 }
 
 // ListVideos GET /videos。
-func (h *Handler) ListVideos(w http.ResponseWriter, r *http.Request, params gen.ListVideosParams) {
+func (h *MediaHandler) ListVideos(w http.ResponseWriter, r *http.Request, params gen.ListVideosParams) {
 	h.listMedia(w, r, media.KindVideo, params.GroupId, params.Page, params.PageSize)
 }
 
 // GetVideo GET /videos/{id}。
-func (h *Handler) GetVideo(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaHandler) GetVideo(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	h.getMedia(w, r, int64(id))
 }
 
 // DeleteVideo DELETE /videos/{id}。
-func (h *Handler) DeleteVideo(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaHandler) DeleteVideo(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	h.deleteMedia(w, r, int64(id))
 }
 
 // uploadMedia multipart 上传(kind 决定类型校验与大小上限;groupId 可选,0=未分组)。
-func (h *Handler) uploadMedia(w http.ResponseWriter, r *http.Request, kind string) {
+func (h *MediaHandler) uploadMedia(w http.ResponseWriter, r *http.Request, kind string) {
 	claims, _ := httpapi.ClaimsFromContext(r.Context())
 
 	file, header, err := r.FormFile("file")
@@ -96,7 +103,7 @@ func (h *Handler) uploadMedia(w http.ResponseWriter, r *http.Request, kind strin
 }
 
 // listMedia 分页列表(groupID nil=全部,0=未分组,>0=指定分组)。
-func (h *Handler) listMedia(w http.ResponseWriter, r *http.Request, kind string, groupID *int64, page, pageSize *gen.Page) {
+func (h *MediaHandler) listMedia(w http.ResponseWriter, r *http.Request, kind string, groupID *int64, page, pageSize *gen.Page) {
 	p, ps := pageParams(page, pageSize)
 	assets, total, err := h.media.List(r.Context(), kind, groupID, p, ps)
 	if err != nil {
@@ -121,7 +128,7 @@ func (h *Handler) listMedia(w http.ResponseWriter, r *http.Request, kind string,
 }
 
 // getMedia 详情。
-func (h *Handler) getMedia(w http.ResponseWriter, r *http.Request, id int64) {
+func (h *MediaHandler) getMedia(w http.ResponseWriter, r *http.Request, id int64) {
 	asset, err := h.media.Get(r.Context(), id)
 	if err != nil {
 		if errors.Is(err, media.ErrMediaNotFound) {
@@ -136,7 +143,7 @@ func (h *Handler) getMedia(w http.ResponseWriter, r *http.Request, id int64) {
 }
 
 // deleteMedia 删除(级联底层文件)。
-func (h *Handler) deleteMedia(w http.ResponseWriter, r *http.Request, id int64) {
+func (h *MediaHandler) deleteMedia(w http.ResponseWriter, r *http.Request, id int64) {
 	err := h.media.Delete(r.Context(), id)
 	switch {
 	case errors.Is(err, media.ErrMediaNotFound):
@@ -152,7 +159,7 @@ func (h *Handler) deleteMedia(w http.ResponseWriter, r *http.Request, id int64) 
 
 // GetFileContent GET /files/{id}/content:文件内容(图片预览/视频播放共用;登录即可)。
 // OSS 记录(files.url 非空)302 到 CDN 直链;local 记录流式输出并保留 Range。
-func (h *Handler) GetFileContent(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *MediaHandler) GetFileContent(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	file, err := h.media.GetFile(r.Context(), int64(id))
 	if err != nil {
 		if errors.Is(err, media.ErrMediaNotFound) {

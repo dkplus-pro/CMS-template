@@ -1,12 +1,20 @@
 package handler
 
 import (
+	"log/slog"
 	"net/http"
 
 	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/httpapi"
+	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
+
+// LogsHandler Logs资源处理器,只注入本资源所需依赖。
+type LogsHandler struct {
+	logger *slog.Logger
+	logs   *service.LogService
+}
 
 // toGenOperationLog 领域模型 → 契约生成物。
 func toGenOperationLog(item types.OperationLogItem) gen.OperationLogItem {
@@ -25,7 +33,7 @@ func toGenOperationLog(item types.OperationLogItem) gen.OperationLogItem {
 }
 
 // ListOperationLogs GET /operation-logs。
-func (h *Handler) ListOperationLogs(w http.ResponseWriter, r *http.Request, params gen.ListOperationLogsParams) {
+func (h *LogsHandler) ListOperationLogs(w http.ResponseWriter, r *http.Request, params gen.ListOperationLogsParams) {
 	page, pageSize := pageParams(params.Page, params.PageSize)
 
 	startTime, endTime := params.StartTime, params.EndTime

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	gen "github.com/cms-template/server/gen/admin"
@@ -9,6 +10,12 @@ import (
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
+
+// RolesHandler Roles资源处理器,只注入本资源所需依赖。
+type RolesHandler struct {
+	logger *slog.Logger
+	roles  *service.RoleService
+}
 
 // toGenRoleItem 领域模型 → 契约生成物。
 func toGenRoleItem(item types.RoleItem) gen.RoleItem {
@@ -32,7 +39,7 @@ func toGenRoleItem(item types.RoleItem) gen.RoleItem {
 }
 
 // ListRoles GET /roles。
-func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request, params gen.ListRolesParams) {
+func (h *RolesHandler) ListRoles(w http.ResponseWriter, r *http.Request, params gen.ListRolesParams) {
 	page, pageSize := pageParams(params.Page, params.PageSize)
 	keyword := derefString(params.Keyword)
 	status := derefBool(params.Status)
@@ -52,7 +59,7 @@ func (h *Handler) ListRoles(w http.ResponseWriter, r *http.Request, params gen.L
 }
 
 // ListAllRoles GET /roles/all。
-func (h *Handler) ListAllRoles(w http.ResponseWriter, r *http.Request) {
+func (h *RolesHandler) ListAllRoles(w http.ResponseWriter, r *http.Request) {
 	briefs, err := h.roles.All(r.Context())
 	if err != nil {
 		h.logger.Error("list all roles", "error", err)
@@ -68,7 +75,7 @@ func (h *Handler) ListAllRoles(w http.ResponseWriter, r *http.Request) {
 }
 
 // CreateRole POST /roles。
-func (h *Handler) CreateRole(w http.ResponseWriter, r *http.Request) {
+func (h *RolesHandler) CreateRole(w http.ResponseWriter, r *http.Request) {
 	var req gen.RoleRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -89,7 +96,7 @@ func (h *Handler) CreateRole(w http.ResponseWriter, r *http.Request) {
 }
 
 // GetRole GET /roles/{id}。
-func (h *Handler) GetRole(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *RolesHandler) GetRole(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	item, err := h.roles.Get(r.Context(), int64(id))
 	if err != nil {
 		h.logger.Error("get role", "error", err)
@@ -100,7 +107,7 @@ func (h *Handler) GetRole(w http.ResponseWriter, r *http.Request, id gen.Id) {
 }
 
 // UpdateRole PUT /roles/{id}。
-func (h *Handler) UpdateRole(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *RolesHandler) UpdateRole(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.RoleRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -121,7 +128,7 @@ func (h *Handler) UpdateRole(w http.ResponseWriter, r *http.Request, id gen.Id) 
 }
 
 // DeleteRole DELETE /roles/{id}。
-func (h *Handler) DeleteRole(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *RolesHandler) DeleteRole(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	err := h.roles.Delete(r.Context(), int64(id))
 	switch {
 	case errors.Is(err, service.ErrBuiltinRole):
@@ -142,7 +149,7 @@ func (h *Handler) DeleteRole(w http.ResponseWriter, r *http.Request, id gen.Id) 
 }
 
 // UpdateRolePermissions PUT /roles/{id}/permissions。
-func (h *Handler) UpdateRolePermissions(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *RolesHandler) UpdateRolePermissions(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.PermissionIdsRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")

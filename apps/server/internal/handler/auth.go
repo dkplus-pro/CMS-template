@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	gen "github.com/cms-template/server/gen/admin"
@@ -9,6 +10,12 @@ import (
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
+
+// AuthHandler Auth资源处理器,只注入本资源所需依赖。
+type AuthHandler struct {
+	logger *slog.Logger
+	auth   *service.AuthService
+}
 
 // toGenUserInfo 领域模型 → 契约生成物,映射只发生在 handler 层。
 func toGenUserInfo(info types.UserInfo) gen.UserInfo {
@@ -34,7 +41,7 @@ func toGenUserInfo(info types.UserInfo) gen.UserInfo {
 }
 
 // Login POST /auth/login。
-func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 	var req gen.LoginRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -63,12 +70,12 @@ func (h *Handler) Login(w http.ResponseWriter, r *http.Request) {
 }
 
 // Logout POST /auth/logout。MVP 为无状态 JWT,登出由前端清 token,服务端仅确认。
-func (h *Handler) Logout(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	httpapi.WriteJSON(w, http.StatusNoContent, nil)
 }
 
 // GetMe GET /auth/me。
-func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) GetMe(w http.ResponseWriter, r *http.Request) {
 	claims, ok := httpapi.ClaimsFromContext(r.Context())
 	if !ok {
 		httpapi.WriteError(w, http.StatusUnauthorized, "未登录或凭证缺失")
@@ -90,7 +97,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 }
 
 // ChangePassword PUT /auth/password。
-func (h *Handler) ChangePassword(w http.ResponseWriter, r *http.Request) {
+func (h *AuthHandler) ChangePassword(w http.ResponseWriter, r *http.Request) {
 	claims, ok := httpapi.ClaimsFromContext(r.Context())
 	if !ok {
 		httpapi.WriteError(w, http.StatusUnauthorized, "未登录或凭证缺失")

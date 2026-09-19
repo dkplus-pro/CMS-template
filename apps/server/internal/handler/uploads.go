@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	gen "github.com/cms-template/server/gen/admin"
@@ -10,22 +11,28 @@ import (
 	"github.com/cms-template/server/internal/uploads"
 )
 
+// UploadsHandler Uploads资源处理器,只注入本资源所需依赖。
+type UploadsHandler struct {
+	logger  *slog.Logger
+	uploads *uploads.Service
+}
+
 // 分片上传:权限校验只在初始化端点(注册表静态绑定 media:image:upload /
 // media:video:upload),后续分片/状态/合并/中止仅要求登录 + 会话属主
 // (属主不匹配与不存在统一 404,不泄露会话存在性)。
 
 // InitImageUpload POST /api/admin/uploads/images。
-func (h *Handler) InitImageUpload(w http.ResponseWriter, r *http.Request) {
+func (h *UploadsHandler) InitImageUpload(w http.ResponseWriter, r *http.Request) {
 	h.initUpload(w, r, media.KindImage)
 }
 
 // InitVideoUpload POST /api/admin/uploads/videos。
-func (h *Handler) InitVideoUpload(w http.ResponseWriter, r *http.Request) {
+func (h *UploadsHandler) InitVideoUpload(w http.ResponseWriter, r *http.Request) {
 	h.initUpload(w, r, media.KindVideo)
 }
 
 // initUpload 初始化分片上传会话(kind 决定类型校验与大小上限)。
-func (h *Handler) initUpload(w http.ResponseWriter, r *http.Request, kind string) {
+func (h *UploadsHandler) initUpload(w http.ResponseWriter, r *http.Request, kind string) {
 	claims, _ := httpapi.ClaimsFromContext(r.Context())
 
 	var req gen.InitUploadRequest
@@ -57,7 +64,7 @@ func (h *Handler) initUpload(w http.ResponseWriter, r *http.Request, kind string
 }
 
 // UploadChunk PUT /api/admin/uploads/{uploadId}/chunks/{index}:octet-stream 分片。
-func (h *Handler) UploadChunk(w http.ResponseWriter, r *http.Request, uploadId string, index int) {
+func (h *UploadsHandler) UploadChunk(w http.ResponseWriter, r *http.Request, uploadId string, index int) {
 	claims, _ := httpapi.ClaimsFromContext(r.Context())
 
 	err := h.uploads.PutChunk(uploadId, index, claims.UserID, r.Body)
@@ -77,7 +84,7 @@ func (h *Handler) UploadChunk(w http.ResponseWriter, r *http.Request, uploadId s
 }
 
 // GetUploadSession GET /api/admin/uploads/{uploadId}:会话状态(断点续传)。
-func (h *Handler) GetUploadSession(w http.ResponseWriter, r *http.Request, uploadId string) {
+func (h *UploadsHandler) GetUploadSession(w http.ResponseWriter, r *http.Request, uploadId string) {
 	claims, _ := httpapi.ClaimsFromContext(r.Context())
 
 	sess, err := h.uploads.Status(uploadId, claims.UserID)
@@ -94,7 +101,7 @@ func (h *Handler) GetUploadSession(w http.ResponseWriter, r *http.Request, uploa
 }
 
 // CompleteUpload POST /api/admin/uploads/{uploadId}/complete:合并并走媒体上传管线。
-func (h *Handler) CompleteUpload(w http.ResponseWriter, r *http.Request, uploadId string) {
+func (h *UploadsHandler) CompleteUpload(w http.ResponseWriter, r *http.Request, uploadId string) {
 	claims, _ := httpapi.ClaimsFromContext(r.Context())
 
 	result, err := h.uploads.Complete(r.Context(), uploadId, claims.UserID)
@@ -122,7 +129,7 @@ func (h *Handler) CompleteUpload(w http.ResponseWriter, r *http.Request, uploadI
 }
 
 // AbortUpload DELETE /api/admin/uploads/{uploadId}:中止并清理会话。
-func (h *Handler) AbortUpload(w http.ResponseWriter, r *http.Request, uploadId string) {
+func (h *UploadsHandler) AbortUpload(w http.ResponseWriter, r *http.Request, uploadId string) {
 	claims, _ := httpapi.ClaimsFromContext(r.Context())
 
 	err := h.uploads.Abort(uploadId, claims.UserID)

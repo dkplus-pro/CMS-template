@@ -2,6 +2,7 @@ package handler
 
 import (
 	"errors"
+	"log/slog"
 	"net/http"
 
 	gen "github.com/cms-template/server/gen/admin"
@@ -9,6 +10,12 @@ import (
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
+
+// DictsHandler Dicts资源处理器,只注入本资源所需依赖。
+type DictsHandler struct {
+	logger *slog.Logger
+	dicts  *service.DictService
+}
 
 func toGenDict(dict types.Dict) gen.Dict {
 	return gen.Dict{
@@ -33,7 +40,7 @@ func toGenDictEntry(entry types.DictEntry) gen.DictEntry {
 
 // GetConfig GET /configs/{group}。
 
-func (h *Handler) ListDicts(w http.ResponseWriter, r *http.Request, params gen.ListDictsParams) {
+func (h *DictsHandler) ListDicts(w http.ResponseWriter, r *http.Request, params gen.ListDictsParams) {
 	items, err := h.dicts.List(r.Context(), derefString(params.Keyword))
 	if err != nil {
 		h.logger.Error("list dicts", "error", err)
@@ -49,7 +56,7 @@ func (h *Handler) ListDicts(w http.ResponseWriter, r *http.Request, params gen.L
 
 // CreateDict POST /dicts。
 
-func (h *Handler) CreateDict(w http.ResponseWriter, r *http.Request) {
+func (h *DictsHandler) CreateDict(w http.ResponseWriter, r *http.Request) {
 	var req gen.DictUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -71,7 +78,7 @@ func (h *Handler) CreateDict(w http.ResponseWriter, r *http.Request) {
 
 // UpdateDict PUT /dicts/{id}。
 
-func (h *Handler) UpdateDict(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *DictsHandler) UpdateDict(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.DictUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -96,7 +103,7 @@ func (h *Handler) UpdateDict(w http.ResponseWriter, r *http.Request, id gen.Id) 
 
 // DeleteDict DELETE /dicts/{id}。
 
-func (h *Handler) DeleteDict(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *DictsHandler) DeleteDict(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	err := h.dicts.Delete(r.Context(), int64(id))
 	switch {
 	case errors.Is(err, service.ErrDictNotFound):
@@ -111,7 +118,7 @@ func (h *Handler) DeleteDict(w http.ResponseWriter, r *http.Request, id gen.Id) 
 }
 
 // UpdateDictStatus PATCH /dicts/{id}/status。
-func (h *Handler) UpdateDictStatus(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *DictsHandler) UpdateDictStatus(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.StatusRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -131,7 +138,7 @@ func (h *Handler) UpdateDictStatus(w http.ResponseWriter, r *http.Request, id ge
 }
 
 // ReplaceDictEntries PUT /dicts/{id}/entries。
-func (h *Handler) ReplaceDictEntries(w http.ResponseWriter, r *http.Request, id gen.Id) {
+func (h *DictsHandler) ReplaceDictEntries(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	var req gen.DictEntriesRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -158,7 +165,7 @@ func (h *Handler) ReplaceDictEntries(w http.ResponseWriter, r *http.Request, id 
 
 // ListDictItems GET /dicts/{code}/items。
 
-func (h *Handler) ListDictItems(w http.ResponseWriter, r *http.Request, code string) {
+func (h *DictsHandler) ListDictItems(w http.ResponseWriter, r *http.Request, code string) {
 	items, err := h.dicts.ListEntries(r.Context(), code)
 	if err != nil {
 		if errors.Is(err, service.ErrDictNotFound) {
@@ -178,7 +185,7 @@ func (h *Handler) ListDictItems(w http.ResponseWriter, r *http.Request, code str
 
 // CreateDictItem POST /dicts/{code}/items。
 
-func (h *Handler) CreateDictItem(w http.ResponseWriter, r *http.Request, code string) {
+func (h *DictsHandler) CreateDictItem(w http.ResponseWriter, r *http.Request, code string) {
 	var req gen.DictEntryUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -202,7 +209,7 @@ func (h *Handler) CreateDictItem(w http.ResponseWriter, r *http.Request, code st
 }
 
 // UpdateDictItem PUT /dicts/{code}/items/{itemId}。
-func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64) {
+func (h *DictsHandler) UpdateDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64) {
 	var req gen.DictEntryUpsertRequest
 	if err := httpapi.DecodeRequest(r, &req); err != nil {
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
@@ -226,7 +233,7 @@ func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, code st
 }
 
 // DeleteDictItem DELETE /dicts/{code}/items/{itemId}。
-func (h *Handler) DeleteDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64) {
+func (h *DictsHandler) DeleteDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64) {
 	err := h.dicts.DeleteEntry(r.Context(), itemId)
 	switch {
 	case errors.Is(err, service.ErrDictEntryNotFound):
