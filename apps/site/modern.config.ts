@@ -13,14 +13,35 @@ const apiProxyTarget = process.env.API_PROXY_TARGET ?? "http://localhost:8080";
 // 生产构建注入 CSP meta(XSS 防御,仅生产注入:dev 的 HMR/内联脚本会被 CSP 破坏,
 // 与 admin 同策略,见 docs/site.md「安全」)。SSR 会内联 loader 数据 script,严格
 // 'self' 会拦内联 script,起步放开 'unsafe-inline';TODO:nonce 化后收紧。
-// 注意:接入 RUM 后需把 RUM_ENDPOINT 域名加入 connect-src(当前 connect-src 'self' 为
-// 公开只读站点的起步配置,上线时随 RUM 部署一并评审)。托管层响应头 CSP 为权威配置。
+// connect-src 联动上报端点:构建期 env 配置了 RUM_ENDPOINT / TRACK_ENDPOINT 时,
+// 把其 origin 自动并入(仅协议+主机+端口,不带路径),保证监控/埋点上报不被 CSP 拦截;
+// 未配置时保持 'self' 起步配置。托管层响应头 CSP 为权威配置。
+function reportOrigins(): string[] {
+  const origins: string[] = [];
+  for (const value of [process.env.RUM_ENDPOINT, process.env.TRACK_ENDPOINT]) {
+    if (!value) {
+      continue;
+    }
+    try {
+      const origin = new URL(value).origin;
+      if (origin !== "null" && !origins.includes(origin)) {
+        origins.push(origin);
+      }
+    } catch {
+      // 非法 URL 不并入 CSP(CSP 配置错误应显式暴露而非静默放宽)
+    }
+  }
+  return origins;
+}
+
 const productionCSP = [
   "script-src 'self' 'unsafe-inline'",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: https:",
   "font-src 'self' data:",
-  "connect-src 'self'"
+  `connect-src 'self'${reportOrigins()
+    .map((origin) => ` ${origin}`)
+    .join("")}`
 ].join("; ");
 
 const productionCSPMeta = {
