@@ -21,7 +21,7 @@ done
 
 ci_group "Run flutter checks (apps/mobile)"
 if has_command flutter; then
-  (cd apps/mobile && flutter pub get && flutter analyze && flutter test)
+  (cd apps/mobile && flutter pub get && flutter analyze && flutter test --coverage)
 else
   ci_notice "flutter SDK 未安装,跳过 apps/mobile 校验(CI 由 flutter.yml 覆盖)"
 fi
