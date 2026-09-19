@@ -30,4 +30,24 @@ pnpm --filter @monorepo-template/miniapp gen:api     # orval 生成 src/api/gene
 
 ## 目录约定
 
-与其他 JS 新端统一:`src/` 下 `api/`(orval 生成物 + `client.ts` mutator + `controllers.gen.ts`)、`component/`、`config/`、`consts/`、`hooks/`、`store/`(zustand)、`pages/`(Taro 页面)。
+与其他 JS 新端统一:`src/` 下 `api/`(orval 生成物 + `client.ts` mutator + `controllers.gen.ts`)、`component/`、`config/`、`consts/`、`hooks/`、`store/`(zustand)、`pages/`(Taro 页面);壳基础设施在 `src/core/`(transport/monitor/track/perf)。架构约束见 [AGENTS.md](AGENTS.md)。
+
+## 配置坑清单
+
+全部收敛在 `src/config/index.ts` 环境表(dev / test / prod 三份)+ `project.config.json`:
+
+| 配置项                                      | 默认                     | 说明                                                        |
+| ------------------------------------------- | ------------------------ | ----------------------------------------------------------- |
+| `API_BASE_URL`                              | `http://localhost:18085` | 生产接入网关后改正式域名,并在微信后台配合法域名             |
+| `MONITOR_ENDPOINT` / `TRACK_ENDPOINT`       | `""`                     | 空 = 禁用 HTTP sink;server 端点落地后填入即启用             |
+| `MONITOR_SAMPLE_RATE` / `TRACK_SAMPLE_RATE` | `1`                      | 采样率 0~1                                                  |
+| `MONITOR_ENABLED` / `TRACK_ENABLED`         | `true`                   | 总开关,false 时对应能力整体短路                             |
+| `__APP_VERSION__` / `__BUILD_TIME__`        | defineConstants 注入     | 读 package.json version;单测走 `config/index.ts` 兜底读取口 |
+| appid                                       | `touristappid`           | `project.config.json`,正式 appid 申请后替换                 |
+| subpackages                                 | 空(骨架坑)               | `app.config.ts`,业务页面默认进分包                          |
+
+## 本地 e2e 冒烟(automator)前置条件
+
+- 仅本地运行,不进 CI(开发者工具是 GUI + 登录态依赖,runner 不现实);
+- 需安装微信开发者工具并在「设置 → 安全设置」开启**服务端口**;CLI/HTTP 调用方式见 [miniprogram-automator 文档](https://developers.weixin.qq.com/miniprogram/dev/devtools/auto/);
+- 先 `pnpm --filter @monorepo-template/miniapp build` 产出 `dist`,再跑 e2e 脚本;工具未安装/端口未开时脚本给出明确报错,不算构建失败。
