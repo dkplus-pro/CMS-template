@@ -89,6 +89,22 @@ describe("ErrorBoundary 三态", () => {
     expect(screen.getByText("ok-content")).toBeInTheDocument();
     expect(trackMock).toHaveBeenCalledTimes(1);
   });
+
+  it("返回首页:重置错误态并跳转首页(任务卡 6.1 覆盖补缺)", async () => {
+    shouldThrow = true;
+    const user = userEvent.setup();
+    render(
+      <ErrorBoundary>
+        <Boom />
+      </ErrorBoundary>
+    );
+    expect(screen.getByText("页面出错了")).toBeInTheDocument();
+
+    shouldThrow = false;
+    await user.click(screen.getByRole("button", { name: "返回首页" }));
+    expect(screen.getByText("ok-content")).toBeInTheDocument();
+    expect(h.navigate).toHaveBeenCalledWith("/");
+  });
 });
 
 describe("ErrorBoundary 边界", () => {

@@ -71,3 +71,47 @@ describe("initRum(jsdom,window 存在)", () => {
     expect(h.init).not.toHaveBeenCalled();
   });
 });
+
+// SDK 加载异常分支(任务卡 6.1 覆盖率补缺,网络失败类边界):SDK 无 init 或动态加载
+// 抛错时只记日志并返回 false,不允许影响站点功能。vi.doMock 按用例覆盖 hoisted 桩。
+describe("initRum SDK 加载异常分支", () => {
+  beforeEach(() => {
+    vi.resetModules();
+    h.init.mockClear();
+  });
+
+  afterEach(() => {
+    vi.doUnmock("@arms/rum-browser");
+    vi.unstubAllEnvs();
+  });
+
+  it("SDK 加载异常(缺 init)时跳过初始化并记日志", async () => {
+    vi.doMock("@arms/rum-browser", () => ({ default: {} }));
+    vi.stubEnv("RUM_ENDPOINT", "https://rum.example.com");
+    vi.stubEnv("RUM_PID", "pid-1");
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const { initRum } = await import("../../src/config/rum");
+      await expect(initRum()).resolves.toBe(false);
+      expect(h.init).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith("RUM SDK 加载异常,跳过初始化");
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+
+  it("SDK 动态加载抛错时静默降级,返回 false 不向上抛", async () => {
+    vi.doMock("@arms/rum-browser", () => Promise.reject(new Error("sdk chunk load failed")));
+    vi.stubEnv("RUM_ENDPOINT", "https://rum.example.com");
+    vi.stubEnv("RUM_PID", "pid-1");
+    const consoleErrorSpy = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    try {
+      const { initRum } = await import("../../src/config/rum");
+      await expect(initRum()).resolves.toBe(false);
+      expect(h.init).not.toHaveBeenCalled();
+      expect(consoleErrorSpy).toHaveBeenCalledWith("RUM 初始化失败", expect.any(Error));
+    } finally {
+      consoleErrorSpy.mockRestore();
+    }
+  });
+});
