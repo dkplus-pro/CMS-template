@@ -17,7 +17,7 @@
 | 稳定性         | ErrorBoundary + 全局错误/未捕获 Promise/资源错误捕获 + 白屏检测 + SSR 失败降级文案                                                                                           |
 | 自动化测试     | vitest 单测/组件测试 + core 层 coverage 门槛 + playwright 新增 h5 project（移动视口）                                                                                        |
 | 配置坑         | env 槽位集中类型化（API/RUM/分享/feature flag），`.env.example` 齐全                                                                                                         |
-| 工作量         | 约 **4~5 人日**；planner 编排 + coding-agent 执行，**实测最大并行 3**，并行后约 **1.5~2 日历天**                                                                             |
+| 工作量         | 约 **4~5 人日**；planner 编排 + coding-agent 执行，**实测最大并行 6**，并行后约 **1.5~2 日历天**                                                                             |
 
 ---
 
@@ -28,7 +28,7 @@
 3. **状态/路由/网络不重新选型**：zustand、Modern.js 路由 + loader、axios + orval 是仓库既定约定（AGENTS.md 规则 8/19），壳建设不引入平行方案。
 4. **按需引入走 `source.transformImport`**：对齐 admin 对 `@arco-design/web-react` 的处理方式；禁全量 `import { X } from "@arco-design/mobile-react"` 出现在业务页（由 AGENTS.md 约束）。
 5. **配置坑集中类型化**：所有可调项收进 `src/config/`（env 读取 + 类型 + 默认值 + 注释），禁止散落 `process.env` 直读；客户端可见变量经 modern.config.ts `source.define` 构建期注入（沿用 site 的 RUM env 模式）。
-6. **并发编排实测结论**：本环境并发上限实测为 **3**（2 个 coding-agent + 1 个 general-purpose 补充）；`coding-agent-2` 类型不存在，峰值按 3 编排，planner 排队。
+6. **并发编排实测结论**（2026-09-19 探针实测）：`coding-agent-2` 已注册可用（`~/.zcode/agents/coding-agent-2.md`，deepseek-v4.1-flash，与 coding-agent 的 GLM-5.3-Flash 互为补充池）；实测同波 6 个并行 agent 全部成功（3 coding-agent + 2 coding-agent-2 + 1 general-purpose）。**并发上限为账户级、跨会话共享**——早前 4× coding-agent 被限流发生在多会话并行执行期间；其他会话空闲时上限 ≥6。编排按**最大并行 6** 设计，planner 须对限流拒绝做排队重试。
 
 ---
 
@@ -84,7 +84,7 @@ apps/h5/src/
 
 ## 5. 分阶段计划与并行编排
 
-编排模型同前方案：planner 出任务卡（文件所有权 + 验收命令 + 禁止事项）→ coding-agent 执行 → 阶段门禁（`pnpm verify`）。**全局最大并行 3**（实测上限），lockfile 仍由收口独占；本方案全部工作在 `apps/h5/` + `playwright.config.ts`（单点）+ 文档，爆炸半径小。
+编排模型同前方案：planner 出任务卡（文件所有权 + 验收命令 + 禁止事项）→ coding-agent / coding-agent-2 执行 → 阶段门禁（`pnpm verify`）。**全局最大并行 6**（探针实测，账户级跨会话共享，遇限流排队重试），lockfile 仍由收口独占；本方案全部工作在 `apps/h5/` + `playwright.config.ts`（单点）+ 文档，爆炸半径小。
 
 ### 阶段 1：基座（并行度 2，两个任务卡文件不相交）
 
@@ -123,7 +123,7 @@ apps/h5/src/
 
 ```
 阶段1 (1.A ∥ 1.B, 2人)
-  └─► 阶段2 (2.A ∥ 2.B ∥ 2.C, 3人=实测峰值)
+  └─► 阶段2 (2.A ∥ 2.B ∥ 2.C, 3人；上限 6 内不满载)
         └─► 阶段3 (收口, 1人, lockfile 独占)
               ├─► 阶段4 (测试, 1人)
               └─► 阶段5 (文档, 1人)
