@@ -13,13 +13,28 @@ import (
 
 // Config 服务运行所需的全量配置。
 type Config struct {
-	HTTP      HTTPConfig
-	Database  DatabaseConfig
-	Swagger   SwaggerConfig
-	JWT       JWTConfig
-	AccessLog AccessLogConfig
-	Storage   StorageConfig
-	CSRF      CSRFConfig
+	HTTP       HTTPConfig
+	Database   DatabaseConfig
+	Swagger    SwaggerConfig
+	JWT        JWTConfig
+	AccessLog  AccessLogConfig
+	Storage    StorageConfig
+	CSRF       CSRFConfig
+	AppVersion AppVersionConfig
+}
+
+// AppVersionConfig C 端版本检查配置(公开只读;admin 配置页列后续阶段,见 docs/hybrid-capability-plan.md 决策 8)。
+type AppVersionConfig struct {
+	IOS     AppVersionRuleConfig
+	Android AppVersionRuleConfig
+}
+
+// AppVersionRuleConfig 单平台版本规则;空 LatestVersion = 该平台未配置,检查恒返回无更新。
+type AppVersionRuleConfig struct {
+	LatestVersion     string
+	ForceBelowVersion string
+	DownloadURL       string
+	ReleaseNotes      string
 }
 
 // CSRFConfig Origin 校验白名单配置(CSRF 纵深防御,见 docs/server.md "CSRF 与会话安全")。
@@ -134,6 +149,21 @@ func Load() (Config, error) {
 			// 默认 http://localhost:8081:dev 代理下 admin 的 Origin(开箱即用,
 			// changeOrigin 只改 Host 不改 Origin);生产部署必须显式注入真实域名。
 			AllowedOrigins: parseOrigins(envOr("CSRF_ALLOWED_ORIGINS", "http://localhost:8081")),
+		},
+		// server 进程 env 与 mobile dart-define APP_VERSION 不同进程,键名无冲突。
+		AppVersion: AppVersionConfig{
+			IOS: AppVersionRuleConfig{
+				LatestVersion:     envOr("APP_VERSION_IOS", ""),
+				ForceBelowVersion: envOr("APP_FORCE_VERSION_IOS", ""),
+				DownloadURL:       envOr("APP_DOWNLOAD_URL_IOS", ""),
+				ReleaseNotes:      envOr("APP_RELEASE_NOTES_IOS", ""),
+			},
+			Android: AppVersionRuleConfig{
+				LatestVersion:     envOr("APP_VERSION_ANDROID", ""),
+				ForceBelowVersion: envOr("APP_FORCE_VERSION_ANDROID", ""),
+				DownloadURL:       envOr("APP_DOWNLOAD_URL_ANDROID", ""),
+				ReleaseNotes:      envOr("APP_RELEASE_NOTES_ANDROID", ""),
+			},
 		},
 	}
 

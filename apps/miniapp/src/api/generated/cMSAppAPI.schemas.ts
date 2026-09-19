@@ -15,3 +15,36 @@
 export type Ping200 = {
   message: string;
 };
+
+export type VersionCheckParams = {
+/**
+ * 目标平台
+ */
+platform: VersionCheckPlatform;
+/**
+ * 当前版本号(x.y.z 数字串;非法串按无更新处理)
+ */
+version: string;
+};
+
+export type VersionCheckPlatform = typeof VersionCheckPlatform[keyof typeof VersionCheckPlatform];
+
+
+export const VersionCheckPlatform = {
+  ios: 'ios',
+  android: 'android',
+} as const;
+
+export type VersionCheck200 = {
+  /** 是否有新版本(当前版本号非法或未配置最新版本时恒 false) */
+  hasUpdate: boolean;
+  /** 是否强制更新(仅 hasUpdate=true 时可能为 true) */
+  forceUpdate: boolean;
+  /** 最新版本号;未配置时回显请求版本号 */
+  latestVersion: string;
+  /** 下载地址;未配置为空串 */
+  downloadUrl: string;
+  /** 更新说明;未配置为空串 */
+  releaseNotes: string;
+};
+

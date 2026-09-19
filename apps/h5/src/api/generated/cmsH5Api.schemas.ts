@@ -15,3 +15,4 @@
 export type Ping200 = {
   message: string;
 };
+

@@ -11,19 +11,25 @@
  *
  * OpenAPI spec version: 0.1.0
  */
-import type { SiteInfo } from "../cMSSiteAPI.schemas";
+import type {
+  SiteInfo
+} from '../cMSSiteAPI.schemas';
 
-import { customInstance } from "../../client";
+import { customInstance } from '../../client';
 
-export const getSite = () => {
-  /**
-   * @summary 站点公开信息(站名、Logo 等,来自 admin 系统配置)
-   */
-  const getSiteInfo = () => {
-    return customInstance<SiteInfo>({ url: `/api/site/site-info`, method: "GET" });
-  };
-  return { getSiteInfo };
-};
-export type GetSiteInfoResult = NonNullable<
-  Awaited<ReturnType<ReturnType<typeof getSite>["getSiteInfo"]>>
->;
+
+
+  export const getSite = () => {
+/**
+ * @summary 站点公开信息(站名、Logo 等,来自 admin 系统配置)
+ */
+const getSiteInfo = (
+
+ ) => {
+      return customInstance<SiteInfo>(
+      {url: `/api/site/site-info`, method: 'GET'
+    },
+      );
+    }
+  return {getSiteInfo}};
+export type GetSiteInfoResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getSite>['getSiteInfo']>>>

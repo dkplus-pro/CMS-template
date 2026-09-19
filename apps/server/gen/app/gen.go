@@ -8,6 +8,14 @@ package app
 import (
 	"fmt"
 	"net/http"
+
+	"github.com/oapi-codegen/runtime"
+)
+
+// Defines values for VersionCheckParamsPlatform.
+const (
+	Android VersionCheckParamsPlatform = "android"
+	Ios     VersionCheckParamsPlatform = "ios"
 )
 
 // Ping defines model for Ping.
@@ -15,11 +23,44 @@ type Ping struct {
 	Message string `json:"message"`
 }
 
+// VersionCheckResult defines model for VersionCheckResult.
+type VersionCheckResult struct {
+	// DownloadUrl 下载地址;未配置为空串
+	DownloadUrl string `json:"downloadUrl"`
+
+	// ForceUpdate 是否强制更新(仅 hasUpdate=true 时可能为 true)
+	ForceUpdate bool `json:"forceUpdate"`
+
+	// HasUpdate 是否有新版本(当前版本号非法或未配置最新版本时恒 false)
+	HasUpdate bool `json:"hasUpdate"`
+
+	// LatestVersion 最新版本号;未配置时回显请求版本号
+	LatestVersion string `json:"latestVersion"`
+
+	// ReleaseNotes 更新说明;未配置为空串
+	ReleaseNotes string `json:"releaseNotes"`
+}
+
+// VersionCheckParams defines parameters for VersionCheck.
+type VersionCheckParams struct {
+	// Platform 目标平台
+	Platform VersionCheckParamsPlatform `form:"platform" json:"platform"`
+
+	// Version 当前版本号(x.y.z 数字串;非法串按无更新处理)
+	Version string `form:"version" json:"version"`
+}
+
+// VersionCheckParamsPlatform defines parameters for VersionCheck.
+type VersionCheckParamsPlatform string
+
 // ServerInterface represents all server handlers.
 type ServerInterface interface {
 	// 联通性检查(占坑期 hello-world)
 	// (GET /api/app/ping)
 	Ping(w http.ResponseWriter, r *http.Request)
+	// 应用版本检查(匿名公开;配置读 env,admin 配置页列后续阶段)
+	// (GET /api/app/version/check)
+	VersionCheck(w http.ResponseWriter, r *http.Request, params VersionCheckParams)
 }
 
 // ServerInterfaceWrapper converts contexts to parameters.
@@ -36,6 +77,55 @@ func (siw *ServerInterfaceWrapper) Ping(w http.ResponseWriter, r *http.Request) 
 
 	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		siw.Handler.Ping(w, r)
+	}))
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		handler = middleware(handler)
+	}
+
+	handler.ServeHTTP(w, r)
+}
+
+// VersionCheck operation middleware
+func (siw *ServerInterfaceWrapper) VersionCheck(w http.ResponseWriter, r *http.Request) {
+
+	var err error
+
+	// Parameter object where we will unmarshal all parameters from the context
+	var params VersionCheckParams
+
+	// ------------- Required query parameter "platform" -------------
+
+	if paramValue := r.URL.Query().Get("platform"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "platform"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "platform", r.URL.Query(), &params.Platform)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "platform", Err: err})
+		return
+	}
+
+	// ------------- Required query parameter "version" -------------
+
+	if paramValue := r.URL.Query().Get("version"); paramValue != "" {
+
+	} else {
+		siw.ErrorHandlerFunc(w, r, &RequiredParamError{ParamName: "version"})
+		return
+	}
+
+	err = runtime.BindQueryParameter("form", true, true, "version", r.URL.Query(), &params.Version)
+	if err != nil {
+		siw.ErrorHandlerFunc(w, r, &InvalidParamFormatError{ParamName: "version", Err: err})
+		return
+	}
+
+	handler := http.Handler(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		siw.Handler.VersionCheck(w, r, params)
 	}))
 
 	for _, middleware := range siw.HandlerMiddlewares {
@@ -166,6 +256,7 @@ func HandlerWithOptions(si ServerInterface, options StdHTTPServerOptions) http.H
 	}
 
 	m.HandleFunc("GET "+options.BaseURL+"/api/app/ping", wrapper.Ping)
+	m.HandleFunc("GET "+options.BaseURL+"/api/app/version/check", wrapper.VersionCheck)
 
 	return m
 }

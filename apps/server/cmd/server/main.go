@@ -124,9 +124,19 @@ func run() error {
 	siteMux := http.NewServeMux()
 	sitegen.HandlerFromMux(sitehandler.New(logger, configsService), siteMux)
 
-	// app/h5 占坑期与 site 同款匿名公开链,不注入任何 service(见 docs/monorepo-expansion-plan.md 阶段 2)。
+	// app 受众:version/check 注入 env 版本配置服务(其余端点仍无 service);h5 维持纯匿名公开链。
+	versionService := service.NewVersionService(service.VersionServiceConfig{
+		IOS: service.VersionRule{
+			Latest: cfg.AppVersion.IOS.LatestVersion, ForceBelow: cfg.AppVersion.IOS.ForceBelowVersion,
+			DownloadURL: cfg.AppVersion.IOS.DownloadURL, ReleaseNotes: cfg.AppVersion.IOS.ReleaseNotes,
+		},
+		Android: service.VersionRule{
+			Latest: cfg.AppVersion.Android.LatestVersion, ForceBelow: cfg.AppVersion.Android.ForceBelowVersion,
+			DownloadURL: cfg.AppVersion.Android.DownloadURL, ReleaseNotes: cfg.AppVersion.Android.ReleaseNotes,
+		},
+	})
 	appMux := http.NewServeMux()
-	appgen.HandlerFromMux(apphandler.New(logger), appMux)
+	appgen.HandlerFromMux(apphandler.New(logger, versionService), appMux)
 
 	h5Mux := http.NewServeMux()
 	h5gen.HandlerFromMux(h5handler.New(logger), h5Mux)

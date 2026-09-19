@@ -16,3 +16,4 @@ export interface SiteInfo {
   /** Logo 图片地址(CDN 直链或空串) */
   logoUrl: string;
 }
+

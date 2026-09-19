@@ -12,17 +12,25 @@
  *
  * OpenAPI spec version: 0.1.0
  */
-import type { Ping200 } from "../cmsH5Api.schemas";
+import type {
+  Ping200
+} from '../cmsH5Api.schemas';
 
-import { customInstance } from "../../client";
+import { customInstance } from '../../client';
 
-export const getH5 = () => {
-  /**
-   * @summary 联通性检查(占坑期 hello-world)
-   */
-  const ping = () => {
-    return customInstance<Ping200>({ url: `/api/h5/ping`, method: "GET" });
-  };
-  return { ping };
-};
-export type PingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getH5>["ping"]>>>;
+
+
+  export const getH5 = () => {
+/**
+ * @summary 联通性检查(占坑期 hello-world)
+ */
+const ping = (
+
+ ) => {
+      return customInstance<Ping200>(
+      {url: `/api/h5/ping`, method: 'GET'
+    },
+      );
+    }
+  return {ping}};
+export type PingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getH5>['ping']>>>

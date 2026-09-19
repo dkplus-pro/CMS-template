@@ -12,17 +12,40 @@
  *
  * OpenAPI spec version: 0.1.0
  */
-import type { Ping200 } from "../cMSAppAPI.schemas";
+import type {
+  Ping200,
+  VersionCheck200,
+  VersionCheckParams
+} from '../cMSAppAPI.schemas';
 
-import { customInstance } from "../../client";
+import { customInstance } from '../../client';
 
-export const getApp = () => {
+
+
+  export const getApp = () => {
+/**
+ * @summary 联通性检查(占坑期 hello-world)
+ */
+const ping = (
+
+ ) => {
+      return customInstance<Ping200>(
+      {url: `/api/app/ping`, method: 'GET'
+    },
+      );
+    }
   /**
-   * @summary 联通性检查(占坑期 hello-world)
-   */
-  const ping = () => {
-    return customInstance<Ping200>({ url: `/api/app/ping`, method: "GET" });
-  };
-  return { ping };
-};
-export type PingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getApp>["ping"]>>>;
+ * @summary 应用版本检查(匿名公开;配置读 env,admin 配置页列后续阶段)
+ */
+const versionCheck = (
+    params: VersionCheckParams,
+ ) => {
+      return customInstance<VersionCheck200>(
+      {url: `/api/app/version/check`, method: 'GET',
+        params
+    },
+      );
+    }
+  return {ping,versionCheck}};
+export type PingResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getApp>['ping']>>>
+export type VersionCheckResult = NonNullable<Awaited<ReturnType<ReturnType<typeof getApp>['versionCheck']>>>

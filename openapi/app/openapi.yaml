@@ -17,6 +17,8 @@ tags:
 paths:
   /api/app/ping:
     $ref: ./paths/ping.yaml
+  /api/app/version/check:
+    $ref: ./paths/version-check.yaml
 components:
   securitySchemes:
     bearerAuth:

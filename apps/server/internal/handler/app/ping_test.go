@@ -7,12 +7,13 @@ import (
 	"testing"
 
 	appgen "github.com/cms-template/server/gen/app"
+	"github.com/cms-template/server/internal/service"
 )
 
 // TestPing 经 gen.HandlerFromMux 起完整 mux,验证路由、信封与静态 message。
 func TestPing(t *testing.T) {
 	mux := http.NewServeMux()
-	appgen.HandlerFromMux(New(nil), mux)
+	appgen.HandlerFromMux(New(nil, service.NewVersionService(service.VersionServiceConfig{})), mux)
 
 	req := httptest.NewRequest(http.MethodGet, "/api/app/ping", nil)
 	rec := httptest.NewRecorder()
