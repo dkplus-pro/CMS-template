@@ -8,8 +8,8 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/cms-template/server/internal/httpapi"
 	"github.com/cms-template/server/internal/repo"
+	"github.com/cms-template/server/internal/reqctx"
 )
 
 // 业务动作状态。
@@ -36,9 +36,9 @@ func Record(ctx context.Context, db *gorm.DB, entry Entry, usernameFallback stri
 
 	userID := int64(0)
 	username := usernameFallback
-	if claims, ok := httpapi.ClaimsFromContext(ctx); ok {
-		userID = claims.UserID
-		username = claims.Username
+	if identity, ok := reqctx.IdentityFrom(ctx); ok {
+		userID = identity.UserID
+		username = identity.Username
 	}
 
 	err := repo.CreateOperationLog(ctx, db, repo.OperationLog{
@@ -49,7 +49,7 @@ func Record(ctx context.Context, db *gorm.DB, entry Entry, usernameFallback stri
 		ResourceID:  entry.ResourceID,
 		Description: entry.Description,
 		Status:      entry.Status,
-		IP:          httpapi.IPFromContext(ctx),
+		IP:          reqctx.ClientIPFrom(ctx),
 	})
 	if err != nil {
 		slog.Error("record operation log", "action", entry.Action, "error", err)

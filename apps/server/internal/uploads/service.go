@@ -19,7 +19,7 @@ import (
 	"time"
 
 	"github.com/cms-template/server/internal/media"
-	"github.com/cms-template/server/internal/storage"
+	"github.com/cms-template/server/internal/uid"
 )
 
 // 会话常量(计划文档约定:常量起步,后续需要再迁环境变量)。
@@ -119,7 +119,7 @@ func (s *Service) Init(ctx context.Context, kind, fileName string, size, uploade
 		return Session{}, err
 	}
 
-	id, err := storage.NewUUID()
+	id, err := uid.NewUUID()
 	if err != nil {
 		return Session{}, err
 	}

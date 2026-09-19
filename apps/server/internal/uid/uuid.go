@@ -1,18 +1,14 @@
-package storage
+// Package uid 标识生成工具:随机 uuid(v4 简化实现,无外部依赖)。
+// 原 storage.NewUUID 下沉至此(F2),uploads 会话标识与 storage 对象命名共用单一实现。
+package uid
 
 import (
 	"crypto/rand"
 	"fmt"
 )
 
-// NewUUID 生成随机 uuid(v4 简化实现,无外部依赖),供会话标识等外部模块复用
-// (storage 内部 newName 同源)。
+// NewUUID 生成随机 uuid(v4 简化实现,无外部依赖)。
 func NewUUID() (string, error) {
-	return newUUID()
-}
-
-// newUUID 生成随机 uuid(v4 简化实现,无外部依赖)。
-func newUUID() (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
 		return "", fmt.Errorf("read random: %w", err)

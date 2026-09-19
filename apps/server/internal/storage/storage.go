@@ -7,6 +7,8 @@ import (
 	"errors"
 	"io"
 	"regexp"
+
+	"github.com/cms-template/server/internal/uid"
 )
 
 // ErrInvalidName 存储名非法(防目录穿越)。
@@ -30,7 +32,7 @@ type Storage interface {
 
 // newName 生成裸存储名(uuid + 扩展名),各厂商自行决定是否再加前缀。
 func newName(ext string) (string, error) {
-	id, err := newUUID()
+	id, err := uid.NewUUID()
 	if err != nil {
 		return "", err
 	}

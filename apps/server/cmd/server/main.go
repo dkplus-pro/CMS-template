@@ -48,7 +48,7 @@ func main() {
 
 	ctx := context.Background()
 
-	db, err := repo.Open(cfg.Database)
+	db, err := repo.Open(repo.DatabaseConfig{Driver: cfg.Database.Driver, DSN: cfg.Database.DSN})
 	if err != nil {
 		logger.Error("open database", "error", err)
 		os.Exit(1)
@@ -158,7 +158,11 @@ func main() {
 	h5gen.HandlerFromMux(h5handler.New(logger), h5Mux)
 
 	mux := http.NewServeMux()
-	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
+	httpapi.RegisterSwagger(mux, logger, httpapi.SwaggerOptions{
+		Enabled:       cfg.Swagger.Enabled,
+		AdminSpecPath: cfg.Swagger.SpecPath,
+		SiteSpecPath:  cfg.Swagger.SiteSpecPath,
+	})
 	// 公开链:site/app/h5 契约路径自带各自前缀,无鉴权、只读;管理链挂在 /api/admin 下。
 	// 安全响应头各链都挂;Origin 校验只挂 admin 链(RequestID 之后、JWTAuth 之前,见
 	// docs/server.md "CSRF 与会话安全")。

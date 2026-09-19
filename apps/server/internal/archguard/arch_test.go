@@ -30,17 +30,15 @@ var allowedDeps = map[string][]string{
 	"types":     {},
 	"auth":      {},
 	"config":    {},
-	"storage":   {}, // 对象存储访问层,零 internal 依赖(AGENTS.md §1 表遗漏,登记于此)
-	"archguard": {}, // 架构守护测试包,仅测试文件,零 internal 依赖
+	"storage":   {"uid"}, // 对象存储访问层,仅依赖 uid(对象命名);AGENTS.md §1 表待 S6.3 补该行
+	"archguard": {},      // 架构守护测试包,仅测试文件,零 internal 依赖
 }
 
 // exemptedDeps 存量越层豁免(F2 实测,go list 为准),S2.3 收口时必须清零:
 // 残留的豁免条目若不再对应真实越层,同样红灯(防豁免腐化)。
+// S2.1 已消除 oplog->httpapi、httpapi->config、repo->config 三条,对应豁免同步删除。
 var exemptedDeps = map[string]string{
-	"handler->repo":   "F2:repo 哨兵错误与 DictEntry 入参,S2.2/S2.3 清理",
-	"oplog->httpapi":  "F2:身份/IP 提取,S2.1 下沉 reqctx",
-	"httpapi->config": "F2:swagger 读配置,S2.1 改值参数",
-	"repo->config":    "F2:Open(cfg),S2.1 改自有 Config",
+	"handler->repo": "F2:repo 哨兵错误与 DictEntry 入参,S2.2/S2.3 清理",
 }
 
 // TestInternalImportDirection 以 go list 实测 import 方向,断言矩阵与豁免双向一致。

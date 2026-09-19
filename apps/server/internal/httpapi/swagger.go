@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-
-	"github.com/cms-template/server/internal/config"
 )
 
 // swaggerIndexHTML Swagger UI 页面,静态资源走 CDN;spec 端点列表由 __SPEC_URLS__ 注入
@@ -34,24 +32,31 @@ const swaggerIndexHTML = `<!DOCTYPE html>
   </body>
 </html>`
 
+// SwaggerOptions Swagger 托管选项(值参数,与 config 包解耦,依赖矩阵见 apps/server/AGENTS.md §1)。
+type SwaggerOptions struct {
+	Enabled       bool
+	AdminSpecPath string // 必需,读不到拒绝启动
+	SiteSpecPath  string // 可选,为空跳过
+}
+
 // RegisterSwagger 在 mux 上挂载 Swagger UI 与契约文件:
 //   - /swagger           → 重定向到 /swagger/
 //   - /swagger/          → UI 页面(按已加载契约注入多 spec 下拉)
 //   - /swagger/admin.yaml → admin 契约(必需,读不到拒绝启动)
 //   - /swagger/site.yaml  → site 契约(可选,文件缺失仅跳过)
-func RegisterSwagger(mux *http.ServeMux, logger *slog.Logger, cfg config.SwaggerConfig) {
-	if !cfg.Enabled {
+func RegisterSwagger(mux *http.ServeMux, logger *slog.Logger, opts SwaggerOptions) {
+	if !opts.Enabled {
 		logger.Info("swagger ui disabled")
 		return
 	}
 
 	specs := map[string][]byte{}
-	specs["/swagger/admin.yaml"] = mustReadSpec(cfg.SpecPath, logger)
+	specs["/swagger/admin.yaml"] = mustReadSpec(opts.AdminSpecPath, logger)
 	specEntries := []string{`{ name: "admin", url: "./admin.yaml" }`}
-	if cfg.SiteSpecPath != "" {
-		if data, err := os.ReadFile(cfg.SiteSpecPath); err != nil {
+	if opts.SiteSpecPath != "" {
+		if data, err := os.ReadFile(opts.SiteSpecPath); err != nil {
 			logger.Warn("swagger site spec unreadable, skipping",
-				"path", cfg.SiteSpecPath, "error", err)
+				"path", opts.SiteSpecPath, "error", err)
 		} else {
 			specs["/swagger/site.yaml"] = data
 			specEntries = append(specEntries, `{ name: "site", url: "./site.yaml" }`)
@@ -72,7 +77,7 @@ func RegisterSwagger(mux *http.ServeMux, logger *slog.Logger, cfg config.Swagger
 		w.Header().Set("Content-Type", "text/html; charset=utf-8")
 		_, _ = w.Write([]byte(page))
 	})
-	logger.Info("swagger ui enabled", "path", "/swagger", "adminSpec", cfg.SpecPath)
+	logger.Info("swagger ui enabled", "path", "/swagger", "adminSpec", opts.AdminSpecPath)
 }
 
 // mustReadSpec 读取必需契约;读不到说明部署不完整,直接失败。

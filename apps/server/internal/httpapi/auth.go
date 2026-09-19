@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/cms-template/server/internal/auth"
+	"github.com/cms-template/server/internal/reqctx"
 )
 
 type claimsKey struct{}
@@ -48,7 +49,11 @@ func JWTAuth(logger *slog.Logger, secret string, skip map[string]bool) Middlewar
 				return
 			}
 
-			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), claimsKey{}, claims)))
+			// 双写:完整 claims 供 handler/权限中间件使用;精简身份视图经 reqctx
+			// 供 oplog 等业务侧读取,避免业务包反向依赖 httpapi(F2)。
+			ctx := context.WithValue(r.Context(), claimsKey{}, claims)
+			ctx = reqctx.WithIdentity(ctx, reqctx.Identity{UserID: claims.UserID, Username: claims.Username})
+			next.ServeHTTP(w, r.WithContext(ctx))
 		})
 	}
 }
