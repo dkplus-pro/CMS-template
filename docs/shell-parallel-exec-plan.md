@@ -30,17 +30,17 @@
 
 ## 3. 全局单点锁清单（跨流共享资源，一律经总指挥串行）
 
-| 锁  | 资源                                                      | 需求方（预计先后顺序）                                                      | 规则                                                                     |
-| --- | --------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------ |
-| L1  | `pnpm install` / pnpm-lock.yaml                           | site P1 → h5 H3 → desktop D4 → miniapp N7                                   | 任一时刻全仓仅一个 install；执行者卡内显式授权                           |
-| L2  | 根 `AGENTS.md`                                            | server S1.1 → h5 H5.1 → miniapp N6.1                                        | 只允许追加指向行，不重排编号；由总指挥应用或逐卡授权                     |
-| L3  | 根 `playwright.config.ts` + 根 `package.json`（test:e2e） | h5 H4.1 → desktop D4                                                        | 串行授权                                                                 |
-| L4  | `scripts/verify.sh`                                       | desktop D4 → mobile M4.A → miniapp N7.1                                     | 串行授权                                                                 |
-| L5  | `.github/workflows/*.yml`                                 | desktop D4(ci.yml) → site P8.1(ci.yml)；mobile M4.A 独立 flutter.yml 不冲突 | ci.yml 串行                                                              |
-| L6  | `turbo.json`                                              | miniapp N7.1                                                                | 单流独占                                                                 |
-| L7  | `apps/server/go.mod/go.sum`                               | server S1.2                                                                 | 流内独占                                                                 |
-| L8  | 根 `pnpm verify` 全量运行（含 e2e 端口 18082 等）         | 各流收口                                                                    | 全局串行执行（不是文件锁，是运行锁）                                     |
-| L9  | git 提交 | 全部 | **执行 agent 禁止 git 写操作**；总指挥按任务卡文件所有权做路径级提交，且**一律 `git commit --no-verify`**——lint-staged 的 stash/restore 周期会覆盖并行 agent 的未提交写入（2026-09-19 已发生两起，N1.1 与 P1 被回滚后自愈）；prettier 风格由各卡验收自行把关 |
+| 锁  | 资源                                                      | 需求方（预计先后顺序）                                                      | 规则                                                                                                                                                                                                                                                         |
+| --- | --------------------------------------------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| L1  | `pnpm install` / pnpm-lock.yaml                           | site P1 → h5 H3 → desktop D4 → miniapp N7                                   | 任一时刻全仓仅一个 install；执行者卡内显式授权                                                                                                                                                                                                               |
+| L2  | 根 `AGENTS.md`                                            | server S1.1 → h5 H5.1 → miniapp N6.1                                        | 只允许追加指向行，不重排编号；由总指挥应用或逐卡授权                                                                                                                                                                                                         |
+| L3  | 根 `playwright.config.ts` + 根 `package.json`（test:e2e） | h5 H4.1 → desktop D4                                                        | 串行授权                                                                                                                                                                                                                                                     |
+| L4  | `scripts/verify.sh`                                       | desktop D4 → mobile M4.A → miniapp N7.1                                     | 串行授权                                                                                                                                                                                                                                                     |
+| L5  | `.github/workflows/*.yml`                                 | desktop D4(ci.yml) → site P8.1(ci.yml)；mobile M4.A 独立 flutter.yml 不冲突 | ci.yml 串行                                                                                                                                                                                                                                                  |
+| L6  | `turbo.json`                                              | miniapp N7.1                                                                | 单流独占                                                                                                                                                                                                                                                     |
+| L7  | `apps/server/go.mod/go.sum`                               | server S1.2                                                                 | 流内独占                                                                                                                                                                                                                                                     |
+| L8  | 根 `pnpm verify` 全量运行（含 e2e 端口 18082 等）         | 各流收口                                                                    | 全局串行执行（不是文件锁，是运行锁）                                                                                                                                                                                                                         |
+| L9  | git 提交                                                  | 全部                                                                        | **执行 agent 禁止 git 写操作**；总指挥按任务卡文件所有权做路径级提交，且**一律 `git commit --no-verify`**——lint-staged 的 stash/restore 周期会覆盖并行 agent 的未提交写入（2026-09-19 已发生两起，N1.1 与 P1 被回滚后自愈）；prettier 风格由各卡验收自行把关 |
 
 ## 4. 全局波次排期
 
@@ -83,13 +83,27 @@ mobile:  M0(SDK,后台shell) → M1(1.1+1.2+1.3) → M2(A∥B∥C) → M3(装配
 
 ## 6. 执行记录
 
-| 波次/阶段                  | 流      | 状态    | 提交    | 备注                                                                                                                       |
-| -------------------------- | ------- | ------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
-| server S1.1 AGENTS.md      | server  | ✅ 完成 | 35b4f60 | 8 节规范 + 根 AGENTS.md 追加 11b 指向行                                                                                     |
-| miniapp N1.2 transport     | miniapp | ✅ 完成 | c4eda14 | 47 新用例（11→58）；测试落位 tests/（vitest include 限制，N5a 时可平移）                                                     |
-| miniapp N1.1 配置体系      | miniapp | ✅ 完成 | d1dc2d3 | 多环境表 + defineConstants；taro build 实证；曾被 lint-staged stash 误伤回滚，自愈                                          |
-| site P1 依赖与构建链       | site    | ✅ 完成 | fa24ee6 | 4 依赖钉版 + transformImport（需 camelToDashComponentName:false）+ ANALYZE 门控（rsbuild 无 bundleAnalyze，改 stats 插件） |
-| M0: Flutter SDK 安装       | mobile  | ✅ 完成 | —       | ~/flutter stable 就绪                                                                                                       |
-| server S1.2 守护测试       | server  | 执行中  |         | CA 池 captcha 两次拒绝后换 CA2；持 L7                                                                                       |
-| h5 H1.A UI 基座            | h5      | 执行中  |         | 不 install                                                                                                                  |
-| 其余阶段                   | 全部    | 待启动  |         | 按 §2 全局队列 2 槽滚动补位                                                                                                 |
+> 全部 63 卡(含前置 6 卡)已完工;逐卡提交号与备注见
+> [docs/shell-exec-runbook.md](./shell-exec-runbook.md) §10 执行台账与
+> 六份方案文档各自的 §执行记录。最终根 `pnpm verify` exit 0(含 admin/site/h5 e2e、
+> desktop electron e2e、miniapp 覆盖率与体积门禁、site 预算门禁)。
+
+| 流      | 方案文档                         | 状态    | 流内收口卡      |
+| ------- | -------------------------------- | ------- | --------------- |
+| server  | docs/server-architecture-plan.md | ✅ 完成 | S6.9(根 verify) |
+| site    | docs/site-shell-plan.md          | ✅ 完成 | P8.1(总收口)    |
+| h5      | docs/h5-shell-plan.md            | ✅ 完成 | H3.1/H4.1/H5.1  |
+| desktop | docs/desktop-shell-plan.md       | ✅ 完成 | D4(e2e 入 CI)   |
+| miniapp | docs/miniapp-shell-plan.md       | ✅ 完成 | N7.1/N7.2       |
+| mobile  | docs/flutter-shell-plan.md       | ✅ 完成 | M3.x/M4.A/M4.B  |
+
+| 波次/阶段              | 流      | 状态    | 提交    | 备注                                                                                                                       |
+| ---------------------- | ------- | ------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| server S1.1 AGENTS.md  | server  | ✅ 完成 | 35b4f60 | 8 节规范 + 根 AGENTS.md 追加 11b 指向行                                                                                    |
+| miniapp N1.2 transport | miniapp | ✅ 完成 | c4eda14 | 47 新用例（11→58）；测试落位 tests/（vitest include 限制，N5a 时可平移）                                                   |
+| miniapp N1.1 配置体系  | miniapp | ✅ 完成 | d1dc2d3 | 多环境表 + defineConstants；taro build 实证；曾被 lint-staged stash 误伤回滚，自愈                                         |
+| site P1 依赖与构建链   | site    | ✅ 完成 | fa24ee6 | 4 依赖钉版 + transformImport（需 camelToDashComponentName:false）+ ANALYZE 门控（rsbuild 无 bundleAnalyze，改 stats 插件） |
+| M0: Flutter SDK 安装   | mobile  | ✅ 完成 | —       | ~/flutter stable 就绪                                                                                                      |
+| server S1.2 守护测试   | server  | 执行中  |         | CA 池 captcha 两次拒绝后换 CA2；持 L7                                                                                      |
+| h5 H1.A UI 基座        | h5      | 执行中  |         | 不 install                                                                                                                 |
+| 其余阶段               | 全部    | 待启动  |         | 按 §2 全局队列 2 槽滚动补位                                                                                                |
