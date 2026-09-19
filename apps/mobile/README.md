@@ -50,7 +50,7 @@ flutter run --dart-define=API_BASE_URL=http://10.0.2.2:18085
 | `ANALYTICS_ENABLED`         | 埋点总开关                     | 默认 false(Console 输出);true 时埋点走 Sentry breadcrumb                  |
 | `APP_VERSION`               | JSB getAppVersion 展示用版本号 | 默认 0.1.0                                                                |
 | `BUILD_NUMBER`              | JSB getAppVersion 构建号       | 默认 1                                                                    |
-| `PUSH_ENABLED`              | Push SDK 总开关                | 默认 false(NoopPushService,SDK 后接)                                     |
+| `PUSH_ENABLED`              | Push SDK 总开关                | 默认 false(NoopPushService,SDK 后接)                                      |
 
 常用组合示例:
 

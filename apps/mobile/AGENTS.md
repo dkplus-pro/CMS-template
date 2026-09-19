@@ -52,7 +52,7 @@ lib/
 | `ANALYTICS_ENABLED`         | 埋点总开关                     | 默认 false(Console 实现,debugPrint 核对);true 时埋点走 Sentry breadcrumb          |
 | `APP_VERSION`               | JSB getAppVersion 展示用版本号 | 默认 0.1.0                                                                        |
 | `BUILD_NUMBER`              | JSB getAppVersion 构建号       | 默认 1                                                                            |
-| `PUSH_ENABLED`              | Push SDK 总开关                | 默认 false(NoopPushService,SDK 后接)                                             |
+| `PUSH_ENABLED`              | Push SDK 总开关                | 默认 false(NoopPushService,SDK 后接)                                              |
 
 ## 5. 接口替换点清单
 
