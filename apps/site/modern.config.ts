@@ -1,4 +1,7 @@
-import { appTools, defineConfig } from "@modern-js/app-tools";
+import { writeFileSync } from "node:fs";
+import path from "node:path";
+
+import { appTools, defineConfig, type Rspack } from "@modern-js/app-tools";
 
 // site 默认 8082(server 8080 / admin 8081 已占用,见 docs/quality-and-site-plan.md 阶段 17)。
 const devServerPort = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 8082;
@@ -36,9 +39,63 @@ const rumDefine = {
   "process.env.RUM_ENDPOINT": JSON.stringify(process.env.RUM_ENDPOINT ?? "")
 };
 
+// Arco 按需加载(官方 recipe):组件按 es/<Component> 引入并随带 style,
+// 图标单独一条 react-icon 规则且不引样式。arco 的目录是 PascalCase,
+// 因此必须关掉默认的 camelToDashComponentName(否则会去找 es/config-provider)。
+// 全量 arco.css 的移除在后续阶段。
+const arcoTransformImport = [
+  {
+    libraryName: "@arco-design/web-react",
+    libraryDirectory: "es",
+    camelToDashComponentName: false,
+    style: true
+  },
+  {
+    libraryName: "@arco-design/web-react/icon",
+    libraryDirectory: "react-icon",
+    camelToDashComponentName: false,
+    style: false
+  }
+];
+
+// 构建分析由环境变量 ANALYZE 门控(仅显式 "true" 生效,build:analyze 脚本负责注入)。
+// @rsbuild/core@2.1.0(Modern.js 3.5 底层)的 performance 配置已无 bundleAnalyze 字段,
+// 因此用 tools.rspack 挂一个只读 stats 的极简插件,把报告写到固定名文件;
+// 报告落在 dist/(已被 .gitignore 覆盖),不引入额外分析器依赖。
+const analyzeEnabled = process.env.ANALYZE === "true";
+
+const bundleReportDir = path.resolve(process.cwd(), "dist");
+
+const bundleAnalyzePlugin: Rspack.RspackPluginInstance = {
+  apply(compiler) {
+    compiler.hooks.done.tap("site-bundle-analyze", (stats) => {
+      // SSR 构建有 client/server 两个环境,各自落固定名报告,避免相互覆盖。
+      const environmentName = compiler.name || "default";
+      const report = stats.toJson({
+        all: false,
+        assets: true,
+        chunks: true,
+        modules: true
+      });
+      writeFileSync(
+        path.join(bundleReportDir, `bundle-report.${environmentName}.json`),
+        JSON.stringify(report, null, 2)
+      );
+    });
+  }
+};
+
 export default defineConfig({
   source: {
-    define: rumDefine
+    define: rumDefine,
+    transformImport: arcoTransformImport
+  },
+  tools: {
+    rspack: (config) => {
+      if (analyzeEnabled) {
+        config.plugins?.push(bundleAnalyzePlugin);
+      }
+    }
   },
   html: {
     title: "CMS Template",
