@@ -6,7 +6,7 @@
 }
 
 .page-loading-block {
-  background: var(--color-fill-2, #f2f3f5);
+  background: var(--color-fill-2);
   border-radius: 4px;
   animation: page-loading-pulse 1.2s ease-in-out infinite;
 }

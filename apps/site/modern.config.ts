@@ -63,7 +63,7 @@ const rumDefine = {
 // Arco 按需加载(官方 recipe):组件按 es/<Component> 引入并随带 style,
 // 图标单独一条 react-icon 规则且不引样式。arco 的目录是 PascalCase,
 // 因此必须关掉默认的 camelToDashComponentName(否则会去找 es/config-provider)。
-// 全量 arco.css 的移除在后续阶段。
+// 全量 arco.css 已移除(阶段 2):样式经 transformImport 按需注入。
 const arcoTransformImport = [
   {
     libraryName: "@arco-design/web-react",

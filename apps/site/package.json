@@ -5,7 +5,7 @@
   "description": "对外站点 app(Modern.js SSR;消费 openapi/site.yaml,开发规范见 docs/site.md)。",
   "type": "module",
   "scripts": {
-    "build": "modern build",
+    "build": "NODE_ENV=production modern build",
     "build:analyze": "ANALYZE=true modern build",
     "dev": "modern dev",
     "gen:api": "orval --config ./orval.config.ts && node ./scripts/generate-controllers.mjs",

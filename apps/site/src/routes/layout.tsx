@@ -10,11 +10,11 @@ import ErrorBoundary from "../components/error-boundary";
 import SiteFooter from "../components/site-footer";
 import SiteHeader from "../components/site-header";
 import { useRum } from "../config/rum";
+import { siteTheme } from "../config/site-theme";
 import { FALLBACK_SITE_NAME } from "../constants";
 import { initTracking } from "../tracking";
 import type { SiteLayoutData } from "./layout.data";
 
-import "@arco-design/web-react/dist/css/arco.css";
 import "./layout.css";
 
 // 全局根布局:页头(站名/Logo/导航,数据来自本路由的 layout.data loader)+ 页面 + 页脚。
@@ -32,7 +32,7 @@ export default function SiteLayout() {
   const siteName = siteInfo?.siteName || FALLBACK_SITE_NAME;
 
   return (
-    <ConfigProvider locale={zhCN}>
+    <ConfigProvider locale={zhCN} theme={siteTheme}>
       {/* TODO(阶段 2 site-theme):src/config/site-theme.ts 落地后在此接入 theme token;
           该文件属阶段 2 所有权,本卡不自建。 */}
       {/* 根层边界:兜住壳层(页头/页脚)渲染错误,此时整树降级。 */}
