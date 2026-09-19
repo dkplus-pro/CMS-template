@@ -11,7 +11,7 @@ import SiteFooter from "../components/site-footer";
 import SiteHeader from "../components/site-header";
 import { useRum } from "../config/rum";
 import { siteTheme } from "../config/site-theme";
-import { FALLBACK_SITE_NAME } from "../constants";
+import { FALLBACK_SITE_NAME } from "../config/site";
 import { initTracking } from "../tracking";
 import type { SiteLayoutData } from "./layout.data";
 
