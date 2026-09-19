@@ -1,7 +1,15 @@
 import { defineConfig, type UserConfigExport } from "@tarojs/cli";
 import TsconfigPathsPlugin from "tsconfig-paths-webpack-plugin";
+import pkg from "../package.json";
 import devConfig from "./dev";
 import prodConfig from "./prod";
+
+// 构建期注入的常量(类型声明见 src/config/types.ts,读取走 src/config/index.ts 的
+// getAppVersion() / getBuildTime()),供上报公共参数与问题定位使用。
+// defineConstants 的值会原样交给 webpack DefinePlugin,字符串必须 JSON.stringify 后再注入,
+// 否则产物里会留下未加引号的裸标识符。
+const appVersion = JSON.stringify(pkg.version);
+const buildTime = JSON.stringify(new Date().toISOString());
 
 // https://docs.taro.zone/docs/config#defineconfig-辅助函数
 export default defineConfig<"webpack5">(async (merge) => {
@@ -16,7 +24,10 @@ export default defineConfig<"webpack5">(async (merge) => {
     },
     sourceRoot: "src",
     outputRoot: "dist",
-    defineConstants: {},
+    defineConstants: {
+      __APP_VERSION__: appVersion,
+      __BUILD_TIME__: buildTime
+    },
     copy: {
       patterns: [],
       options: {}
