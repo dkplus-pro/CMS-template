@@ -52,6 +52,10 @@ func (s *DictService) List(ctx context.Context, keyword string) ([]types.Dict, e
 
 func (s *DictService) Create(ctx context.Context, code, name, remark string, status bool) (types.Dict, error) {
 	if _, err := repo.GetDictByCode(ctx, s.db, code); err == nil {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "dict.create", Resource: "dict", ResourceID: code,
+			Description: "创建字典失败:编码已存在(" + code + ")",
+		}, "")
 		return types.Dict{}, ErrDictCodeExists
 	} else if !errors.Is(err, repo.ErrDictNotFound) {
 		return types.Dict{}, err
@@ -72,9 +76,19 @@ func (s *DictService) Create(ctx context.Context, code, name, remark string, sta
 func (s *DictService) Update(ctx context.Context, id int64, code, name, remark string, status bool) (types.Dict, error) {
 	dict, err := repo.GetDictByID(ctx, s.db, id)
 	if err != nil {
+		if errors.Is(err, repo.ErrDictNotFound) {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "dict.update", Resource: "dict", ResourceID: fmt.Sprint(id),
+				Description: "编辑字典失败:字典不存在",
+			}, "")
+		}
 		return types.Dict{}, translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	if conflict, err := repo.GetDictByCode(ctx, s.db, code); err == nil && conflict.ID != id {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "dict.update", Resource: "dict", ResourceID: dict.Code,
+			Description: "编辑字典失败:编码已存在(" + code + ")",
+		}, "")
 		return types.Dict{}, ErrDictCodeExists
 	} else if err != nil && !errors.Is(err, repo.ErrDictNotFound) {
 		return types.Dict{}, err
@@ -95,6 +109,12 @@ func (s *DictService) Update(ctx context.Context, id int64, code, name, remark s
 func (s *DictService) Delete(ctx context.Context, id int64) error {
 	dict, err := repo.GetDictByID(ctx, s.db, id)
 	if err != nil {
+		if errors.Is(err, repo.ErrDictNotFound) {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "dict.delete", Resource: "dict", ResourceID: fmt.Sprint(id),
+				Description: "删除字典失败:字典不存在",
+			}, "")
+		}
 		return translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	if err := repo.DeleteDict(ctx, s.db, id); err != nil {
@@ -111,6 +131,12 @@ func (s *DictService) Delete(ctx context.Context, id int64) error {
 func (s *DictService) UpdateStatus(ctx context.Context, id int64, status bool) error {
 	dict, err := repo.GetDictByID(ctx, s.db, id)
 	if err != nil {
+		if errors.Is(err, repo.ErrDictNotFound) {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "dict.updateStatus", Resource: "dict", ResourceID: fmt.Sprint(id),
+				Description: "字典上下线失败:字典不存在",
+			}, "")
+		}
 		return translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	dict.Status = status
@@ -132,6 +158,12 @@ func (s *DictService) UpdateStatus(ctx context.Context, id int64, status bool) e
 func (s *DictService) ReplaceEntries(ctx context.Context, dictID int64, entries []types.DictEntry) error {
 	dict, err := repo.GetDictByID(ctx, s.db, dictID)
 	if err != nil {
+		if errors.Is(err, repo.ErrDictNotFound) {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "dict.updateEntries", Resource: "dict", ResourceID: fmt.Sprint(dictID),
+				Description: "覆写字典项失败:字典不存在",
+			}, "")
+		}
 		return translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	repoEntries := make([]repo.DictEntry, 0, len(entries))
@@ -174,11 +206,21 @@ func (s *DictService) ListEntries(ctx context.Context, code string) ([]types.Dic
 func (s *DictService) CreateEntry(ctx context.Context, code, label, value string, sort int, status bool) (types.DictEntry, error) {
 	dict, err := repo.GetDictByCode(ctx, s.db, code)
 	if err != nil {
+		if errors.Is(err, repo.ErrDictNotFound) {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "dictEntry.create", Resource: "dictEntry", ResourceID: code,
+				Description: "新增字典项失败:字典不存在(" + code + ")",
+			}, "")
+		}
 		return types.DictEntry{}, translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	if exists, err := repo.HasDictEntryValue(ctx, s.db, dict.ID, value, 0); err != nil {
 		return types.DictEntry{}, err
 	} else if exists {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "dictEntry.create", Resource: "dictEntry", ResourceID: dict.Code,
+			Description: "新增字典项失败:值已存在(" + value + ")",
+		}, "")
 		return types.DictEntry{}, ErrDictValueExists
 	}
 	entry := repo.DictEntry{DictID: dict.ID, Label: label, Value: value, Sort: sort, Status: status}
@@ -197,11 +239,21 @@ func (s *DictService) CreateEntry(ctx context.Context, code, label, value string
 func (s *DictService) UpdateEntry(ctx context.Context, id int64, label, value string, sort int, status bool) (types.DictEntry, error) {
 	entry, err := repo.GetDictEntryByID(ctx, s.db, id)
 	if err != nil {
+		if errors.Is(err, repo.ErrDictEntryNotFound) {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "dictEntry.update", Resource: "dictEntry", ResourceID: fmt.Sprint(id),
+				Description: "编辑字典项失败:字典项不存在",
+			}, "")
+		}
 		return types.DictEntry{}, translateRepoErr(err, repo.ErrDictEntryNotFound, ErrDictEntryNotFound)
 	}
 	if exists, err := repo.HasDictEntryValue(ctx, s.db, entry.DictID, value, id); err != nil {
 		return types.DictEntry{}, err
 	} else if exists {
+		oplog.Failed(ctx, s.db, oplog.Entry{
+			Action: "dictEntry.update", Resource: "dictEntry", ResourceID: value,
+			Description: "编辑字典项失败:值已存在(" + value + ")",
+		}, "")
 		return types.DictEntry{}, ErrDictValueExists
 	}
 	entry.Label, entry.Value, entry.Sort, entry.Status = label, value, sort, status
@@ -220,6 +272,12 @@ func (s *DictService) UpdateEntry(ctx context.Context, id int64, label, value st
 func (s *DictService) DeleteEntry(ctx context.Context, id int64) error {
 	entry, err := repo.GetDictEntryByID(ctx, s.db, id)
 	if err != nil {
+		if errors.Is(err, repo.ErrDictEntryNotFound) {
+			oplog.Failed(ctx, s.db, oplog.Entry{
+				Action: "dictEntry.delete", Resource: "dictEntry", ResourceID: fmt.Sprint(id),
+				Description: "删除字典项失败:字典项不存在",
+			}, "")
+		}
 		return translateRepoErr(err, repo.ErrDictEntryNotFound, ErrDictEntryNotFound)
 	}
 	if err := repo.DeleteDictEntry(ctx, s.db, id); err != nil {

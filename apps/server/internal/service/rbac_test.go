@@ -336,7 +336,8 @@ func TestStage4Services(t *testing.T) {
 		t.Fatalf("expected 0 for unknown user, got %d, %v", total, err)
 	}
 	notOK := "failed"
-	if _, total, err := logs.List(ctx, 1, 20, "", "", "", &notOK, nil, nil); err != nil || total != 1 {
-		t.Fatalf("expected 1 failed log, got %d, %v", total, err)
+	// 失败埋点补齐后 dict 写路径也会落 failed 日志,这里用 username+status 联合过滤锁定种子记录。
+	if _, total, err := logs.List(ctx, 1, 20, "admin", "", "", &notOK, nil, nil); err != nil || total != 1 {
+		t.Fatalf("expected 1 failed log for admin, got %d, %v", total, err)
 	}
 }

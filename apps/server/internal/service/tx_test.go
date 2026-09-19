@@ -12,6 +12,7 @@ import (
 	"github.com/glebarez/sqlite"
 	"gorm.io/gorm"
 
+	"github.com/cms-template/server/internal/oplog"
 	"github.com/cms-template/server/internal/repo"
 )
 
@@ -118,5 +119,29 @@ func TestCreateUserDuplicateUsernameAtomic(t *testing.T) {
 	// 正常路径:角色绑定落库。
 	if _, err := users.Create(ctx, "op2", "pass1234", "运营二号", "", true, []int64{role.ID}); err != nil {
 		t.Fatalf("create second user: %v", err)
+	}
+}
+
+// TestDictFailureOplogRecorded 失败埋点落库断言:写路径失败(dict 不存在)必须记 failed 日志
+// (AGENTS.md §5:成功与失败都埋点;补齐 F11 缺口)。
+func TestDictFailureOplogRecorded(t *testing.T) {
+	db := newTxTestDB(t)
+	ctx := context.Background()
+	dicts := NewDictService(db)
+
+	if err := dicts.Delete(ctx, 4242); !errors.Is(err, ErrDictNotFound) {
+		t.Fatalf("expected ErrDictNotFound, got %v", err)
+	}
+	if _, err := dicts.UpdateEntry(ctx, 4242, "标签", "v", 0, true); !errors.Is(err, ErrDictEntryNotFound) {
+		t.Fatalf("expected ErrDictEntryNotFound, got %v", err)
+	}
+	var failed int64
+	if err := db.Model(&repo.OperationLog{}).
+		Where("status = ? AND action IN ?", oplog.StatusFailed, []string{"dict.delete", "dictEntry.update"}).
+		Count(&failed).Error; err != nil {
+		t.Fatalf("count failed logs: %v", err)
+	}
+	if failed != 2 {
+		t.Fatalf("expected 2 failed logs, got %d", failed)
 	}
 }
