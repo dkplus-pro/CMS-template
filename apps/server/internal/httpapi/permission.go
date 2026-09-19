@@ -36,6 +36,8 @@ var RoutePermissions = []RoutePermission{
 	{"PUT", "/api/admin/roles/{id}", "system:role:update", "编辑角色", "menu:system:role", "角色管理"},
 	{"DELETE", "/api/admin/roles/{id}", "system:role:delete", "删除角色", "menu:system:role", "角色管理"},
 	{"PUT", "/api/admin/roles/{id}/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
+	// 全量角色列表与 /roles 同属角色域读接口;此前漏注册静默降级为"登录即可",权限对账守护测试强制要求登记。
+	{"GET", "/api/admin/roles/all", "system:role:list", "全量角色列表", "menu:system:role", "角色管理"},
 
 	{"GET", "/api/admin/permissions", "system:role:assign", "分配角色权限", "menu:system:role", "角色管理"},
 
@@ -79,13 +81,16 @@ var RoutePermissions = []RoutePermission{
 }
 
 // MatchRoutePermission 按方法与路径匹配注册表;未命中的接口仅需登录。
+// 路径裁剪必须用 TrimPrefix + 逐段比较:按字符集 Trim 会把首尾恰好落在
+// "/api/admin/" 字符集(/,a,p,i,d,m,n)内的真实路径字符一并吃掉,且旧实现
+// 以 "/api/admin/" 作 Split 分隔符永远切不开,导致 {id} 通配端点全部漏配。
 func MatchRoutePermission(method, path string) (string, bool) {
-	pathSegs := strings.Split(strings.Trim(path, "/api/admin/"), "/api/admin/")
+	pathSegs := strings.Split(strings.TrimPrefix(path, "/api/admin/"), "/")
 	for _, rp := range RoutePermissions {
 		if rp.Method != method {
 			continue
 		}
-		patternSegs := strings.Split(strings.Trim(rp.Pattern, "/api/admin/"), "/api/admin/")
+		patternSegs := strings.Split(strings.TrimPrefix(rp.Pattern, "/api/admin/"), "/")
 		if len(patternSegs) != len(pathSegs) {
 			continue
 		}
