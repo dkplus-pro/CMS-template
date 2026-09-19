@@ -51,3 +51,10 @@ src/
 - 生成物禁改:`src/api/generated/**`、`src/api/controllers.gen.ts`(契约变更:改 [openapi/h5/](../../openapi/h5/) → `pnpm gen:api` → 补实现);
 - 产物体积预算:`size-budget.json` + `scripts/check-size.mjs`(挂进 build),超预算先改预算并说明理由,不在脚本里硬编码;
 - 主题/分享文案只改 `src/config/`(feature/share/env),不在组件里散落常量。
+
+## 8. JSBridge 调试页(docs/hybrid-capability-plan.md 阶段 3 落地)
+
+- `/jsbridge-test` 是消费 `@repo/js-bridge`(workspace 包,packages/js-bridge)的联调调试页,生产保留;
+- 页面必须保持 client-only(mounted 门控)与 SSR 安全:禁止模块顶层访问 `window`,`typeof window === "undefined"` 时只渲染初始化占位;build 通过即 SSR 安全证明;
+- 非 webview 环境(纯浏览器)`callNative` reject `BRIDGE_NOT_AVAILABLE`,页面顶部常驻降级提示,不得隐藏或 try/catch 吞掉;
+- 调用走 `handle.runtime.bridge.callNative`(setupJSB 实例),禁止使用包级 `callNative` 代理(未 setup 时同步抛错);协议与 native 侧(apps/mobile `core/hybrid/jsb_registry.dart`)契约互为镜像,改动必须两侧同批。

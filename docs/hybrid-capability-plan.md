@@ -1,6 +1,6 @@
 # 多端公共能力与 Hybrid 方案（mobile / miniapp / packages/js-bridge）
 
-> 状态：**执行中**（方案记录 + 分阶段执行）
+> 状态：**已完成**（方案记录 + 分阶段执行完毕；mobile 侧测试/联调待 Flutter 环境执行，见 §8 清单）
 > 日期：2026-09-19
 > 范围：三块——① mobile hybrid 能力（H5 嵌入 + JSBridge + H5 测试页）；② mobile 公共能力（页面状态/网络状态/生命周期/更新检查/Push/媒体/权限/曝光埋点）；③ miniapp 公共能力（曝光/ErrorBoundary/更新检查/页面状态/网络状态/网络层增强/生命周期接线）。跨 `apps/mobile`、`apps/miniapp`、`apps/h5`、`packages/js-bridge`、`openapi/app`、`apps/server` 六处。
 > 编排约定：planner 出任务卡 + 2 个 coding-agent 并行执行 + 阶段门禁，与 docs/monorepo-expansion-plan.md 相同。
@@ -307,16 +307,22 @@ openapi/app/components/schemas/version-check.yaml
 
 ## 8. 执行记录
 
-| 阶段   | 状态   | 提交 | 备注 |
-| ------ | ------ | ---- | ---- |
-| 阶段 1 | 待执行 | —    | —    |
-| 阶段 2 | 待执行 | —    | —    |
-| 阶段 3 | 待执行 | —    | —    |
-| 阶段 4 | 待执行 | —    | —    |
-| 阶段 5 | 待执行 | —    | —    |
-| 阶段 6 | 待执行 | —    | —    |
-| 阶段 7 | 待执行 | —    | —    |
-| 阶段 8 | 待执行 | —    | —    |
+| 阶段   | 状态   | 提交              | 备注                                                                                                                                   |
+| ------ | ------ | ----------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
+| 阶段 1 | 已完成 | 4c9e655           | @repo/js-bridge 落地；64 vitest 全绿，覆盖率 stmts/lines/functions 100%、branches 99%；零运行时依赖 lint 规则实测生效                  |
+| 阶段 2 | 已完成 | 5708853           | JSB 协议镜像 1:1；53 个纯 Dart 镜像测试通过；flutter analyze/test 待 Flutter 环境                                                      |
+| 阶段 3 | 已完成 | 0730c79           | h5 142 vitest 全绿（新增 10）；SSR 构建产物 curl `/jsbridge-test` 返回 200 实测验证                                                    |
+| 阶段 4 | 已完成 | b6b00a8           | PS/RL/NS/LC 四组用例表落齐；dart analyze 0 问题；flutter 侧待环境                                                                      |
+| 阶段 5 | 已完成 | 05b21ef           | miniapp 157 vitest 全绿（原 93）；core expose-logic 100% lines；覆盖率门槛保持 core ≥90%/整体 ≥70%                                     |
+| 阶段 6 | 已完成 | 0fdfbd1           | 34 个 dart 用例；8 个插件钉版本；webview JSB 方法 9→13；flutter 侧待环境                                                               |
+| 阶段 7 | 已完成 | b3d3ffc / bdc2cab | 7.1 契约+server+gen:api（幂等核对通过，curl 验收含 400/hasUpdate=false/forceUpdate 边界）；7.2-7.4 Push/曝光/更新客户端（dart 待环境） |
+| 阶段 8 | 已完成 | （本提交）        | `pnpm verify` 全绿（14 turbo 任务 + desktop e2e + miniapp 体积门禁 319kB）；miniapp/h5 AGENTS 护栏增补；施工规格归档 docs/plans/       |
+
+### 待 Flutter 环境验证清单
+
+- `flutter create . --platforms=android,ios`（平台目录不提交）→ `flutter pub get` → `flutter analyze` → `flutter test`（PS/RL/NS/LC/R/D/U/P/MM/PU/E/VR/UC 全部用例 + 既有 58 例）
+- §8 联调 runbook 全流程（真机/模拟器）
+- `connectivity_plus 6.1.4`、`flutter_inappwebview 6.1.5`、`visibility_detector 0.4.0+2`、`url_launcher 6.3.2` 等钉版本在 lock 解析后回填确认（钉版本待评审）
 
 ### 联调 runbook（mobile webview × h5 测试页，待 Flutter 环境执行）
 

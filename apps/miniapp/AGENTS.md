@@ -30,7 +30,14 @@ src/
 4. **core 零第三方运行时依赖**:`src/core/**` 禁止 import 任何第三方包(eslint `no-restricted-imports` 固化,见 `eslint.config.js`);主包 2MB 预算红线,壳能力必须自研且 KB 级;
 5. **生成物禁手改**:`src/api/generated/**`、`src/api/controllers.gen.ts` 由 `pnpm --filter @monorepo-template/miniapp gen:api` 从 [openapi/app/](../../openapi/app/) 生成;契约变更流程:改契约 → gen:api → 补实现;
 6. **业务页面默认进分包**:`app.config.ts` 的 `subpackages` 留坑,新业务页面一律注册进分包,主包只保留首屏与壳(`lazyCodeLoading: "requiredComponents"` 已开启,勿删);
-7. **匿名公开受众**:无鉴权、无 token 注入、无 401 跳转;契约预留 `bearerAuth`,C 端用户体系落地前 client.ts 不实现鉴权逻辑(根规则 23)。
+7. **匿名公开受众**:无鉴权、无 token 注入、无 401 跳转;契约预留 `bearerAuth`,C 端用户体系落地前 client.ts 不实现鉴权逻辑(根规则 23;token 注入挂点已在 client.ts 注释预留)。
+
+## 2a. 公共能力使用约定(方案 docs/hybrid-capability-plan.md 阶段 5 落地)
+
+1. **错误兜底**:页面级异步错误自行降级渲染;渲染期错误由 `component/ErrorBoundary`(app.tsx 根部已挂,componentDidCatch → core/monitor js_error)兜底,业务不得自行再包一层吞掉上报;
+2. **页面状态**:统一用 `component/PageState`(loading/empty/error/success 四态),禁止各页面自拼 loading/error JSX;文案取组件默认(中文),自定义走 props;
+3. **曝光埋点**:元素曝光用 `component/ExposeView` 或 `hooks/useExpose`(语义:≥50% 可见持续 300ms,页面实例级去重,同 trackId 只报一次);决策逻辑在 `core/track/expose-logic.ts` 纯函数,业务不得自行实现 IntersectionObserver 去重;事件经 `core/track` 的 `expose()` 上报;
+4. **更新检查**:只经 `core/update`(wx.getUpdateManager 封装,app.tsx 已接线),业务不得重复注册 UpdateManager;失败回调走 core/monitor 上报。
 
 ## 3. 新增页面 checklist
 
