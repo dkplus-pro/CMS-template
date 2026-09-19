@@ -6,7 +6,6 @@ import (
 
 	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/httpapi"
-	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
@@ -123,7 +122,7 @@ func (h *Handler) DeleteUser(w http.ResponseWriter, r *http.Request, id gen.Id) 
 	case errors.Is(err, service.ErrBuiltinUser):
 		httpapi.WriteError(w, http.StatusForbidden, "内置管理员不可删除")
 		return
-	case errors.Is(err, repo.ErrUserNotFound):
+	case errors.Is(err, service.ErrUserNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "用户不存在")
 		return
 	case err != nil:
@@ -151,7 +150,7 @@ func (h *Handler) UpdateUserStatus(w http.ResponseWriter, r *http.Request, id ge
 	case errors.Is(err, service.ErrBuiltinUser):
 		httpapi.WriteError(w, http.StatusForbidden, "内置管理员不可禁用")
 		return
-	case errors.Is(err, repo.ErrUserNotFound):
+	case errors.Is(err, service.ErrUserNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "用户不存在")
 		return
 	case err != nil:

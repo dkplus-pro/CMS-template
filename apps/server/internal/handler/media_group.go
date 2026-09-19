@@ -7,7 +7,6 @@ import (
 	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/httpapi"
 	"github.com/cms-template/server/internal/media"
-	"github.com/cms-template/server/internal/repo"
 )
 
 // 媒体分组:图片/视频共用能力,handler 按 kind 分派(契约见 openapi/admin.yaml 阶段 13)。
@@ -73,7 +72,7 @@ func (h *Handler) UpdateMediaGroup(w http.ResponseWriter, r *http.Request, id ge
 	}
 	group, err := h.media.RenameGroup(r.Context(), int64(id), req.Name)
 	switch {
-	case errors.Is(err, repo.ErrMediaGroupNotFound):
+	case errors.Is(err, media.ErrMediaGroupNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "分组不存在")
 		return
 	case errors.Is(err, media.ErrGroupNameExists):
@@ -94,7 +93,7 @@ func (h *Handler) UpdateMediaGroup(w http.ResponseWriter, r *http.Request, id ge
 func (h *Handler) DeleteMediaGroup(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	err := h.media.DeleteGroup(r.Context(), int64(id))
 	switch {
-	case errors.Is(err, repo.ErrMediaGroupNotFound):
+	case errors.Is(err, media.ErrMediaGroupNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "分组不存在")
 		return
 	case err != nil:

@@ -34,12 +34,9 @@ var allowedDeps = map[string][]string{
 	"archguard": {},      // 架构守护测试包,仅测试文件,零 internal 依赖
 }
 
-// exemptedDeps 存量越层豁免(F2 实测,go list 为准),S2.3 收口时必须清零:
-// 残留的豁免条目若不再对应真实越层,同样红灯(防豁免腐化)。
-// S2.1 已消除 oplog->httpapi、httpapi->config、repo->config 三条,对应豁免同步删除。
-var exemptedDeps = map[string]string{
-	"handler->repo": "F2:repo 哨兵错误与 DictEntry 入参,S2.2/S2.3 清理",
-}
+// exemptedDeps 越层豁免清单:S2.3 已全部清零(AGENTS.md §7:清零后不再新增,
+// 守护测试不得加豁免;保留空清单作为防腐化检查的挂载点)。
+var exemptedDeps = map[string]string{}
 
 // TestInternalImportDirection 以 go list 实测 import 方向,断言矩阵与豁免双向一致。
 // 只检查非测试 import:测试文件按纪律可用 sqlite :memory: 真库直连 repo,不纳入矩阵。

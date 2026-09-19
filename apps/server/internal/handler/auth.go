@@ -6,7 +6,6 @@ import (
 
 	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/httpapi"
-	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
@@ -78,7 +77,7 @@ func (h *Handler) GetMe(w http.ResponseWriter, r *http.Request) {
 
 	info, err := h.auth.Me(r.Context(), claims.UserID)
 	if err != nil {
-		if errors.Is(err, repo.ErrUserNotFound) {
+		if errors.Is(err, service.ErrUserNotFound) {
 			httpapi.WriteError(w, http.StatusUnauthorized, "用户不存在")
 			return
 		}

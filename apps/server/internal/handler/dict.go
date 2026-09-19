@@ -6,7 +6,6 @@ import (
 
 	gen "github.com/cms-template/server/gen/admin"
 	"github.com/cms-template/server/internal/httpapi"
-	"github.com/cms-template/server/internal/repo"
 	"github.com/cms-template/server/internal/service"
 	"github.com/cms-template/server/internal/types"
 )
@@ -84,7 +83,7 @@ func (h *Handler) UpdateDict(w http.ResponseWriter, r *http.Request, id gen.Id) 
 	case errors.Is(err, service.ErrDictCodeExists):
 		httpapi.WriteError(w, http.StatusConflict, "字典编码已存在")
 		return
-	case errors.Is(err, repo.ErrDictNotFound):
+	case errors.Is(err, service.ErrDictNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "字典不存在")
 		return
 	case err != nil:
@@ -100,7 +99,7 @@ func (h *Handler) UpdateDict(w http.ResponseWriter, r *http.Request, id gen.Id) 
 func (h *Handler) DeleteDict(w http.ResponseWriter, r *http.Request, id gen.Id) {
 	err := h.dicts.Delete(r.Context(), int64(id))
 	switch {
-	case errors.Is(err, repo.ErrDictNotFound):
+	case errors.Is(err, service.ErrDictNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "字典不存在")
 		return
 	case err != nil:
@@ -120,7 +119,7 @@ func (h *Handler) UpdateDictStatus(w http.ResponseWriter, r *http.Request, id ge
 	}
 	err := h.dicts.UpdateStatus(r.Context(), int64(id), req.Status)
 	switch {
-	case errors.Is(err, repo.ErrDictNotFound):
+	case errors.Is(err, service.ErrDictNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "字典不存在")
 		return
 	case err != nil:
@@ -146,7 +145,7 @@ func (h *Handler) ReplaceDictEntries(w http.ResponseWriter, r *http.Request, id 
 	}
 	err := h.dicts.ReplaceEntries(r.Context(), int64(id), entries)
 	switch {
-	case errors.Is(err, repo.ErrDictNotFound):
+	case errors.Is(err, service.ErrDictNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "字典不存在")
 		return
 	case err != nil:
@@ -162,7 +161,7 @@ func (h *Handler) ReplaceDictEntries(w http.ResponseWriter, r *http.Request, id 
 func (h *Handler) ListDictItems(w http.ResponseWriter, r *http.Request, code string) {
 	items, err := h.dicts.ListEntries(r.Context(), code)
 	if err != nil {
-		if errors.Is(err, repo.ErrDictNotFound) {
+		if errors.Is(err, service.ErrDictNotFound) {
 			httpapi.WriteError(w, http.StatusNotFound, "字典不存在")
 			return
 		}
@@ -191,7 +190,7 @@ func (h *Handler) CreateDictItem(w http.ResponseWriter, r *http.Request, code st
 	case errors.Is(err, service.ErrDictValueExists):
 		httpapi.WriteError(w, http.StatusConflict, "字典项值重复")
 		return
-	case errors.Is(err, repo.ErrDictNotFound):
+	case errors.Is(err, service.ErrDictNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "字典不存在")
 		return
 	case err != nil:
@@ -215,7 +214,7 @@ func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, code st
 	case errors.Is(err, service.ErrDictValueExists):
 		httpapi.WriteError(w, http.StatusConflict, "字典项值重复")
 		return
-	case errors.Is(err, repo.ErrDictEntryNotFound):
+	case errors.Is(err, service.ErrDictEntryNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "字典项不存在")
 		return
 	case err != nil:
@@ -230,7 +229,7 @@ func (h *Handler) UpdateDictItem(w http.ResponseWriter, r *http.Request, code st
 func (h *Handler) DeleteDictItem(w http.ResponseWriter, r *http.Request, code string, itemId int64) {
 	err := h.dicts.DeleteEntry(r.Context(), itemId)
 	switch {
-	case errors.Is(err, repo.ErrDictEntryNotFound):
+	case errors.Is(err, service.ErrDictEntryNotFound):
 		httpapi.WriteError(w, http.StatusNotFound, "字典项不存在")
 		return
 	case err != nil:
