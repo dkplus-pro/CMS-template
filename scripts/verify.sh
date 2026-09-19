@@ -18,3 +18,11 @@ for script in lint typecheck test; do
   run_package_script_if_present "$PM" "$script"
   ci_endgroup
 done
+
+ci_group "Run flutter checks (apps/mobile)"
+if has_command flutter; then
+  (cd apps/mobile && flutter pub get && flutter analyze && flutter test)
+else
+  ci_notice "flutter SDK 未安装,跳过 apps/mobile 校验(CI 由 flutter.yml 覆盖)"
+fi
+ci_endgroup

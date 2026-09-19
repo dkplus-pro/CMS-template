@@ -29,6 +29,16 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: apps/server/go.mod
+          cache: true
+          cache-dependency-path: apps/server/go.sum
+
+      - name: Check OpenAPI contract drift
+        run: pnpm gen:api && pnpm format:write && git diff --exit-code
+
       - name: Install Playwright browser
         run: pnpm exec playwright install --with-deps chromium
 
