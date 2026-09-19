@@ -4,7 +4,8 @@
   "private": true,
   "description": "微信小程序端(Taro 4 + React,编译目标 weapp;消费 openapi/app/openapi.yaml)。",
   "scripts": {
-    "build": "taro build --type weapp",
+    "build": "taro build --type weapp && node scripts/check-size.mjs",
+    "check:size": "node scripts/check-size.mjs",
     "dev": "taro build --type weapp --watch",
     "gen:api": "orval --config ./orval.config.ts && node ./scripts/generate-controllers.mjs",
     "lint": "eslint .",
