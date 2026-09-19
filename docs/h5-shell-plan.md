@@ -159,4 +159,4 @@ apps/h5/src/
 | 2 能力实现   | 待启动    |                   |                                                                                                  |
 | 3 收口与装配 | ✅ 完成   | d6e5a90           | install+装配+check-size;根 verify 全绿;18082 SSR 实测;admin tsconfig 存量修复随卡                |     |
 | 4 测试体系   | 待启动    |                   |                                                                                                  |
-| 5 文档收口   | 待启动    |                   |                                                                                                  |
+| 5 文档收口   | ✅ 完成   | 9bcfd3f           | AGENTS.md+README 壳能力/配置坑+根 22a 指向行                                                     |
