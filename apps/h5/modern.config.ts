@@ -64,8 +64,22 @@ const pxToViewportPlugin = pxToViewport({
   minPixelValue: 1
 });
 
+// RUM/埋点配置构建期内联(照抄 apps/site/modern.config.ts 的 source.define 模式):
+// 客户端 bundle 不存在 Node 的 process,裸 process.env 引用会 ReferenceError(实测踩过),
+// 因此把 src/config/env.ts 读取的 RUM_*/TRACK_ENDPOINT/H5_*_SAMPLE_RATE 显式内联为字面量;
+// 未配置时内联为空串,src/config/feature.ts 判空即不启用(dev 默认关闭)。
+// 构建期内联意味着部署时需在构建(CI)阶段注入,而非仅运行时(H5_API_BASE 仅 SSR 使用,不内联)。
+const envDefine = {
+  "process.env.RUM_PID": JSON.stringify(process.env.RUM_PID ?? ""),
+  "process.env.RUM_ENDPOINT": JSON.stringify(process.env.RUM_ENDPOINT ?? ""),
+  "process.env.TRACK_ENDPOINT": JSON.stringify(process.env.TRACK_ENDPOINT ?? ""),
+  "process.env.H5_MONITOR_SAMPLE_RATE": JSON.stringify(process.env.H5_MONITOR_SAMPLE_RATE ?? ""),
+  "process.env.H5_TRACK_SAMPLE_RATE": JSON.stringify(process.env.H5_TRACK_SAMPLE_RATE ?? "")
+};
+
 export default defineConfig({
   source: {
+    define: envDefine,
     transformImport: [arcoMobileTransformImport]
   },
   tools: {
