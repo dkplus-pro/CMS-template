@@ -20,13 +20,13 @@
 
 合计约 **24~30 人日**；6 并发理想摊派 ≈ **4~5.5 日历天**（含门禁/重试冗余按 5~7 天预期）。
 
-## 2. 全局并发模型
+## 2. 全局并发模型（2026-09-19 用户指令修订）
 
-- **执行池实测**（2026-09-19 探针，账户级跨会话共享）：同波 6 agent 全部成功 = coding-agent ×3 + coding-agent-2 ×2 + general-purpose ×1。coding-agent=GLM-5.3-Flash，coding-agent-2=deepseek-v4.1-flash，互为补充池。
-- **调度策略**：全局任意时刻在途执行 agent ≤ 6，优先按 3+2+1 混合配比；遇 `captcha verify failed` / 限流拒绝 → 换池重试 + 排队，不降低总目标。
-- **槽位分配优先级**：每个流至少 1 槽保底；空闲槽按关键链长度优先（site > miniapp > server > h5 > mobile > desktop），其次按"该流当前阶段并行需求"。
-- **planner agent 定位**：六份方案的分阶段计划已是 planner 级任务卡（文件所有权 + 验收命令齐全），执行期不再常驻 planner；遇任务卡执行失败两次、方案与现状冲突需重新拆解时，由总指挥按需调用 planner 重规划。
-- **mobile 阶段 0（Flutter SDK）**：由总指挥以后台 shell 直接安装（git clone stable → ~/flutter），不占 agent 槽位。
+- **现行模型：planner（主 agent）+ 固定 2 个执行槽滚动**，不再铺大并发。槽一空即按"依赖已满足 + 关键链优先"补位，直到六流全部完成。全局队列：server S1.2 → mobile M1 → h5 H1.B → desktop D1 → desktop D2 → miniapp N2.x → site P2/P3 → …（依 DAG 滚动）。
+- **执行池实况**：coding-agent（GLM-5.3-Flash）池当日多次 `captcha verify failed` 瞬时拒绝（并发 ≈2 且不稳定），降级为次选；主力 coding-agent-2（deepseek-v4.1-flash），general-purpose 兜底。遇限流换池重试。
+- planner agent 不常驻：六份方案的分阶段计划已是 planner 级任务卡；执行失败需重规划时由总指挥按需调用。
+- mobile 阶段 0（Flutter SDK）：已由后台 shell 完成（~/flutter stable，`flutter --version` 通过），不占槽。
+- ~~原 6 并发模型~~（备查：实测上限 3 CA + 2 CA2 + 1 GP；恢复大并发时直接沿用 §4.2 波次表）。
 
 ## 3. 全局单点锁清单（跨流共享资源，一律经总指挥串行）
 
@@ -40,7 +40,7 @@
 | L6  | `turbo.json`                                              | miniapp N7.1                                                                | 单流独占                                                                 |
 | L7  | `apps/server/go.mod/go.sum`                               | server S1.2                                                                 | 流内独占                                                                 |
 | L8  | 根 `pnpm verify` 全量运行（含 e2e 端口 18082 等）         | 各流收口                                                                    | 全局串行执行（不是文件锁，是运行锁）                                     |
-| L9  | git 提交                                                  | 全部                                                                        | **执行 agent 禁止 git add/commit**；总指挥按任务卡文件所有权做路径级提交 |
+| L9  | git 提交 | 全部 | **执行 agent 禁止 git 写操作**；总指挥按任务卡文件所有权做路径级提交，且**一律 `git commit --no-verify`**——lint-staged 的 stash/restore 周期会覆盖并行 agent 的未提交写入（2026-09-19 已发生两起，N1.1 与 P1 被回滚后自愈）；prettier 风格由各卡验收自行把关 |
 
 ## 4. 全局波次排期
 
@@ -83,13 +83,13 @@ mobile:  M0(SDK,后台shell) → M1(1.1+1.2+1.3) → M2(A∥B∥C) → M3(装配
 
 ## 6. 执行记录
 
-| 波次/阶段                  | 流      | 状态   | 提交 | 备注               |
-| -------------------------- | ------- | ------ | ---- | ------------------ |
-| W1: site P1 依赖与构建链   | site    | 执行中 |      | 持 L1              |
-| W1: server S1.2 守护测试   | server  | 执行中 |      | 持 L7              |
-| W1: miniapp N1.1 配置体系  | miniapp | 执行中 |      |                    |
-| W1: server S1.1 AGENTS.md  | server  | 执行中 |      | 持 L2              |
-| W1: h5 H1.A UI 基座        | h5      | 执行中 |      | 不 install         |
-| W1: miniapp N1.2 transport | miniapp | 执行中 |      | core 零依赖        |
-| M0: Flutter SDK 安装       | mobile  | 执行中 |      | 后台 shell，不占槽 |
-| 其余阶段                   | 全部    | 待启动 |      | 按 §4.2 滚动补位   |
+| 波次/阶段                  | 流      | 状态    | 提交    | 备注                                                                                                                       |
+| -------------------------- | ------- | ------- | ------- | -------------------------------------------------------------------------------------------------------------------------- |
+| server S1.1 AGENTS.md      | server  | ✅ 完成 | 35b4f60 | 8 节规范 + 根 AGENTS.md 追加 11b 指向行                                                                                     |
+| miniapp N1.2 transport     | miniapp | ✅ 完成 | c4eda14 | 47 新用例（11→58）；测试落位 tests/（vitest include 限制，N5a 时可平移）                                                     |
+| miniapp N1.1 配置体系      | miniapp | ✅ 完成 | d1dc2d3 | 多环境表 + defineConstants；taro build 实证；曾被 lint-staged stash 误伤回滚，自愈                                          |
+| site P1 依赖与构建链       | site    | ✅ 完成 | fa24ee6 | 4 依赖钉版 + transformImport（需 camelToDashComponentName:false）+ ANALYZE 门控（rsbuild 无 bundleAnalyze，改 stats 插件） |
+| M0: Flutter SDK 安装       | mobile  | ✅ 完成 | —       | ~/flutter stable 就绪                                                                                                       |
+| server S1.2 守护测试       | server  | 执行中  |         | CA 池 captcha 两次拒绝后换 CA2；持 L7                                                                                       |
+| h5 H1.A UI 基座            | h5      | 执行中  |         | 不 install                                                                                                                  |
+| 其余阶段                   | 全部    | 待启动  |         | 按 §2 全局队列 2 槽滚动补位                                                                                                 |
