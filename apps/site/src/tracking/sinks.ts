@@ -77,7 +77,7 @@ export function createRumSink(): TrackingSink | null {
             name: event,
             // ARMS 自定义事件 value 为数值聚合维度:载荷自带数值 value 用之,否则按 1 计数。
             value: readPayloadValue(payload),
-            properties: payload
+            properties: { ...payload }
           });
         })
         .catch(() => {
