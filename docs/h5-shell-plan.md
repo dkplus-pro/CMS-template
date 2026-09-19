@@ -157,6 +157,6 @@ apps/h5/src/
 | 0 方案评审   | ✅ 本文档 | —                 | 2026-09-19，决策记录见 §1                                                                        |
 | 1 基座       | ✅ 完成   | 349615b / 0b3cd13 | 1.A arco-mobile 按需 + px-to-vw + 壳组件；1.B env/feature/share + core 四模块骨架（40 用例全绿） |
 | 2 能力实现   | 待启动    |                   |                                                                                                  |
-| 3 收口与装配 | ✅ 完成   | 1e64230           | install+装配+check-size;根 verify 全绿;18082 SSR 实测;admin tsconfig 存量修复随卡                |     |
+| 3 收口与装配 | ✅ 完成   | d6e5a90           | install+装配+check-size;根 verify 全绿;18082 SSR 实测;admin tsconfig 存量修复随卡                |     |
 | 4 测试体系   | 待启动    |                   |                                                                                                  |
 | 5 文档收口   | 待启动    |                   |                                                                                                  |
