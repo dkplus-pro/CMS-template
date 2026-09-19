@@ -87,7 +87,8 @@ export function createPerf(options: CreatePerfOptions = {}): Perf {
         if (!observer) {
           return [];
         }
-        entries = [];
+        // 局部 const 数组承接回调推送(闭包内保持非空语义),再挂到模块缓存
+        const collected: Array<{ name: string; path: string; duration: number }> = [];
         try {
           observer(entry => {
             if (
@@ -95,13 +96,14 @@ export function createPerf(options: CreatePerfOptions = {}): Perf {
               typeof entry?.duration === "number" &&
               Number.isFinite(entry.duration)
             ) {
-              entries.push({
+              collected.push({
                 name: entry.name,
                 path: typeof entry.path === "string" ? entry.path : "",
                 duration: entry.duration
               });
             }
           }).observe({ entryTypes: ["render", "script"] });
+          entries = collected;
         } catch {
           // 观察器创建失败:能力声明与运行时不一致,按不支持处理
           entries = null;
