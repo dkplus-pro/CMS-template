@@ -15,6 +15,7 @@ class AppConfig {
     required this.analyticsEnabled,
     required this.appVersion,
     required this.buildNumber,
+    required this.pushEnabled,
   });
 
   final Flavor flavor;
@@ -37,6 +38,9 @@ class AppConfig {
 
   /// 构建号;--dart-define BUILD_NUMBER 注入,缺省 '1'。
   final String buildNumber;
+
+  /// Push 总开关;false → NoopPushService(决策 7)。
+  final bool pushEnabled;
 
   /// 从构建期 --dart-define 读取全部配置;键与缺省值即对外契约,变更需同步 README。
   factory AppConfig.fromDartDefines() => AppConfig(
@@ -64,6 +68,10 @@ class AppConfig {
         buildNumber: const String.fromEnvironment(
           'BUILD_NUMBER',
           defaultValue: '1',
+        ),
+        pushEnabled: const bool.fromEnvironment(
+          'PUSH_ENABLED',
+          defaultValue: false,
         ),
       );
 }

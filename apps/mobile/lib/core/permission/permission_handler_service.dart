@@ -14,8 +14,6 @@ PermissionAppState mapPermissionHandlerStatus(ph.PermissionStatus status) =>
       ph.PermissionStatus.permanentlyDenied =>
         PermissionAppState.permanentlyDenied,
       ph.PermissionStatus.restricted => PermissionAppState.restricted,
-      // 兜底:未知状态按未授权处理(理论不可达,switch 已覆盖全枚举)。
-      _ => PermissionAppState.denied,
     };
 
 /// AppPermission → permission_handler.Permission 映射(纯函数,switch 全分支覆盖,
@@ -53,7 +51,8 @@ class PermissionHandlerGateway implements PermissionGateway {
   @override
   Future<PermissionAppState> request(AppPermission permission) async =>
       mapPermissionHandlerStatus(
-          await toPlatformPermission(permission).request);
+        await toPlatformPermission(permission).request(),
+      );
 
   @override
   Future<bool> openSettings() => ph.openAppSettings();

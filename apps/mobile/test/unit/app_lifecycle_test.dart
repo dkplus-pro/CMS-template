@@ -19,6 +19,11 @@ class _FakeEventTracker implements EventTracker {
   void track(String name, {Map<String, Object?>? properties}) {
     events.add(name);
   }
+
+  @override
+  void expose(String trackId, {Map<String, Object?>? properties}) {
+    events.add('expose');
+  }
 }
 
 /// AppLogger 替身:只记录 warn 消息(LC6 用)。

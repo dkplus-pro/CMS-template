@@ -63,6 +63,7 @@ AppConfig _testConfig() => const AppConfig(
       analyticsEnabled: false,
       appVersion: '0.1.0',
       buildNumber: '1',
+      pushEnabled: false,
     );
 
 Dio _dioWith(_CountingAdapter adapter, {bool enableRetry = true}) {

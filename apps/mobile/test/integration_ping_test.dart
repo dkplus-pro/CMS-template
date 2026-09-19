@@ -17,6 +17,7 @@ void main() {
       analyticsEnabled: false,
       appVersion: '0.1.0',
       buildNumber: '1',
+      pushEnabled: false,
     );
     final repository = PingRepository(buildDio(config));
 

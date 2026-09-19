@@ -8,7 +8,6 @@ import 'package:cms_mobile/core/hybrid/jsb_methods/page.dart';
 import 'package:cms_mobile/core/hybrid/jsb_methods/ui.dart';
 import 'package:cms_mobile/core/hybrid/jsb_registry.dart';
 import 'package:cms_mobile/core/hybrid/webview_url.dart';
-import 'package:cms_mobile/core/media/image_info_service.dart';
 import 'package:cms_mobile/core/media/media_picker_service.dart';
 import 'package:cms_mobile/core/permission/permission_rationale.dart';
 import 'package:cms_mobile/core/permission/permission_service.dart';

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/home/home_page.dart';
+import '../features/update/update_gate.dart';
 import '../features/webview/webview_page.dart';
 
 /// 路由表(go_router,官方):路由独立于页面,天然支持路由级性能事务(M3.1 接 PerformanceMonitor);
@@ -9,7 +10,7 @@ import '../features/webview/webview_page.dart';
 final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
-    GoRoute(path: '/', builder: (context, state) => const HomePage()),
+    GoRoute(path: '/', builder: (context, state) => const UpdateGate(child: HomePage())),
     GoRoute(
       path: '/webview',
       builder: (context, state) => WebViewPage(

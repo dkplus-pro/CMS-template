@@ -17,6 +17,7 @@ AppConfig _fakeConfig() => const AppConfig(
       analyticsEnabled: false,
       appVersion: '0.1.0',
       buildNumber: '1',
+      pushEnabled: false,
     );
 
 /// media 组 fake 依赖:闭包全 no-op(装配断言只关心注册表形状)。

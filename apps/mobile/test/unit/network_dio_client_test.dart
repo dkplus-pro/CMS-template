@@ -38,6 +38,7 @@ AppConfig _testConfig() => const AppConfig(
       analyticsEnabled: false,
       appVersion: '0.1.0',
       buildNumber: '1',
+      pushEnabled: false,
     );
 
 void main() {

@@ -93,6 +93,7 @@ void main() {
             analyticsEnabled: true,
             appVersion: '0.1.0',
             buildNumber: '1',
+            pushEnabled: false,
           ),
         ),
         isA<SentryEventTracker>(),

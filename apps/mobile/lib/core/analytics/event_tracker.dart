@@ -4,4 +4,7 @@ abstract interface class EventTracker {
   void pageView(String path, {Map<String, Object?>? properties});
 
   void track(String name, {Map<String, Object?>? properties});
+
+  /// 元素曝光(决策 11,与 miniapp track.expose 对齐):事件名 'expose',属性含 trackId。
+  void expose(String trackId, {Map<String, Object?>? properties});
 }

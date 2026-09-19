@@ -11,6 +11,7 @@ AppConfig _fakeConfig() => const AppConfig(
       analyticsEnabled: false,
       appVersion: '0.1.0',
       buildNumber: '1',
+      pushEnabled: false,
     );
 
 JSBDeviceDependencies _deps({String networkType = 'online'}) =>

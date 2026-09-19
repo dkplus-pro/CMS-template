@@ -25,8 +25,11 @@ import 'core/network/dio_client.dart';
 import 'core/network/network_status.dart';
 import 'core/network/ping_repository.dart';
 import 'core/network/request_log_interceptor.dart';
+import 'core/network/version_repository.dart';
 import 'core/permission/permission_handler_service.dart';
 import 'core/permission/permission_service.dart';
+import 'core/push/push_service.dart';
+import 'core/update/update_checker.dart';
 
 /// 应用配置:main.dart 已按 dart-define 构建实际实例并 override,这里仅是类型兜底。
 final appConfigProvider =
@@ -125,4 +128,25 @@ final imageInfoServiceProvider = Provider<ImageInfoService>(
 /// 文件选择(卡 6.2;本期无业务消费,Provider 先行供后续 uploadFile 阶段复用)。
 final fileServiceProvider = Provider<FileService>(
   (ref) => FilePickerFileService(),
+);
+
+/// Push(卡 7.2):PUSH_ENABLED=false 或 SDK 未接入 → Noop;真实 SDK 实现后在此按 config.pushEnabled 选型。
+final pushServiceProvider = Provider<PushService>((ref) {
+  // 决策 7:本期只交付 Noop;config.pushEnabled 为 true 时同样落 Noop 并留 TODO(SDK 实装点)。
+  return const NoopPushService();
+});
+
+/// 版本检查仓库(卡 7.4):测试经 override 注入 fake。
+final versionRepositoryProvider = Provider<VersionRepository>(
+  (ref) => VersionRepository(ref.watch(dioProvider)),
+);
+
+/// 更新检查编排(卡 7.4):失败降级 kNoUpdate 并经 AppLogger 告警。
+final updateCheckerProvider = Provider<UpdateChecker>(
+  (ref) => UpdateChecker(
+    repository: ref.watch(versionRepositoryProvider),
+    config: ref.watch(appConfigProvider),
+    onError: (Object error) =>
+        ref.read(appLoggerProvider).warn('update check failed: $error'),
+  ),
 );

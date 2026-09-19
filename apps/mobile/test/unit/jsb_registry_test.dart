@@ -255,7 +255,8 @@ void main() {
   });
 
   group('register / registerAll', () {
-    final JSBHandler noop = (params) async => null;
+    Future<Map<String, dynamic>?> noop(Map<String, dynamic> params) async =>
+        null;
 
     test('R15 重复注册 → 第二次抛 ArgumentError;registerAll 与已注册表重复同样抛', () async {
       final registry = JSBRegistry()..register('dup', noop);
