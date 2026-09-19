@@ -241,6 +241,9 @@ importers:
       '@modern-js/runtime':
         specifier: ^3.5.0
         version: 3.5.0(core-js@3.49.0)(react-dom@19.2.7(react@19.2.7))(react-server-dom-rspack@0.0.2(@rspack/core@2.1.3(@swc/helpers@0.5.23))(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react@19.2.7)
+      '@repo/js-bridge':
+        specifier: workspace:*
+        version: link:../../packages/js-bridge
       ahooks:
         specifier: ^3.9.7
         version: 3.9.7(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
