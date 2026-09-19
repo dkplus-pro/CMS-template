@@ -145,26 +145,20 @@ func (s *RoleService) Delete(ctx context.Context, id int64) error {
 	return nil
 }
 
-// UpdatePermissions 角色分配权限(全量覆盖,校验权限点存在,记业务日志)。
+// UpdatePermissions 角色分配权限(全量覆盖;存在性校验与写入在 repo 同一事务内,记业务日志)。
 func (s *RoleService) UpdatePermissions(ctx context.Context, roleID int64, permissionIDs []int64) error {
 	role, err := repo.GetRoleByID(ctx, s.db, roleID)
 	if err != nil {
 		return translateRepoErr(err, repo.ErrRoleNotFound, ErrRoleNotFound)
 	}
-	for _, pid := range permissionIDs {
-		var count int64
-		if err := s.db.WithContext(ctx).Model(&repo.Permission{}).Where("id = ?", pid).Count(&count).Error; err != nil {
-			return err
-		}
-		if count == 0 {
+	if err := repo.ReplaceRolePermissions(ctx, s.db, roleID, permissionIDs); err != nil {
+		if errors.Is(err, repo.ErrPermissionNotFound) {
 			oplog.Failed(ctx, s.db, oplog.Entry{
 				Action: "role.assignPermissions", Resource: "role", ResourceID: role.Code,
 				Description: fmt.Sprintf("为角色 %s 分配权限失败:包含不存在的权限点", role.Name),
 			}, "")
 			return ErrPermissionInvalid
 		}
-	}
-	if err := repo.ReplaceRolePermissions(ctx, s.db, roleID, permissionIDs); err != nil {
 		return err
 	}
 	oplog.Success(ctx, s.db, oplog.Entry{

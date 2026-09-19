@@ -2,6 +2,7 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 
 	"gorm.io/gorm"
@@ -33,9 +34,19 @@ func ListUsers(ctx context.Context, db *gorm.DB, page, pageSize int, keyword str
 	return users, total, nil
 }
 
-// CreateUser 新建用户(含角色绑定,事务内完成)。
+// ErrUsernameExists 用户名已存在(事务内查重,与写入原子,消除 TOCTOU)。
+var ErrUsernameExists = errors.New("username exists")
+
+// CreateUser 新建用户(含角色绑定,事务内完成;用户名查重与写入同事务)。
 func CreateUser(ctx context.Context, db *gorm.DB, user *User, roleIDs []int64) error {
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var count int64
+		if err := tx.Model(&User{}).Where("username = ?", user.Username).Count(&count).Error; err != nil {
+			return fmt.Errorf("check username: %w", err)
+		}
+		if count > 0 {
+			return ErrUsernameExists
+		}
 		if err := tx.Create(user).Error; err != nil {
 			return fmt.Errorf("create user: %w", err)
 		}

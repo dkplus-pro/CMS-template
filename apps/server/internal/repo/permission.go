@@ -2,7 +2,9 @@ package repo
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"slices"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -76,9 +78,22 @@ func ListPermissionIDsByRoleID(ctx context.Context, db *gorm.DB, roleID int64) (
 	return ids, nil
 }
 
-// ReplaceRolePermissions 全量覆盖角色的权限点(事务内先删后插)。
+// ErrPermissionNotFound 待分配的权限点不存在(校验在事务内执行,与写入原子)。
+var ErrPermissionNotFound = errors.New("permission not found")
+
+// ReplaceRolePermissions 全量覆盖角色的权限点:存在性校验与先删后插同一事务,
+// 消除"校验通过后、写入前权限点被删"的 TOCTOU 窗口(见 apps/server/AGENTS.md §4)。
 func ReplaceRolePermissions(ctx context.Context, db *gorm.DB, roleID int64, permissionIDs []int64) error {
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if ids := slices.Compact(sortedCopy(permissionIDs)); len(ids) > 0 {
+			var count int64
+			if err := tx.Model(&Permission{}).Where("id IN ?", ids).Count(&count).Error; err != nil {
+				return fmt.Errorf("count permissions: %w", err)
+			}
+			if count < int64(len(ids)) {
+				return ErrPermissionNotFound
+			}
+		}
 		if err := tx.Where("role_id = ?", roleID).Delete(&RolePermission{}).Error; err != nil {
 			return fmt.Errorf("clear role permissions: %w", err)
 		}
@@ -157,4 +172,11 @@ func pruneMenuPermissions(tx *gorm.DB, keepMenuCodes []string) error {
 		return fmt.Errorf("delete stale menu permissions: %w", err)
 	}
 	return nil
+}
+
+// sortedCopy 返回升序去重副本(IN 计数比较用;Compact 需相邻去重,先排序)。
+func sortedCopy(ids []int64) []int64 {
+	out := slices.Clone(ids)
+	slices.Sort(out)
+	return out
 }

@@ -61,12 +61,6 @@ func (s *UserService) Get(ctx context.Context, id int64) (types.UserItem, error)
 
 // Create 新建用户:用户名唯一,bcrypt 加密,事务内绑定角色。
 func (s *UserService) Create(ctx context.Context, username, password, nickname, email string, status bool, roleIDs []int64) (types.UserItem, error) {
-	if _, err := repo.GetUserByUsername(ctx, s.db, username); err == nil {
-		return types.UserItem{}, ErrUsernameExists
-	} else if !errors.Is(err, repo.ErrUserNotFound) {
-		return types.UserItem{}, err
-	}
-
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
 		return types.UserItem{}, fmt.Errorf("hash password: %w", err)
@@ -80,6 +74,9 @@ func (s *UserService) Create(ctx context.Context, username, password, nickname, 
 		Status:       status,
 	}
 	if err := repo.CreateUser(ctx, s.db, &user, roleIDs); err != nil {
+		if errors.Is(err, repo.ErrUsernameExists) {
+			return types.UserItem{}, ErrUsernameExists
+		}
 		return types.UserItem{}, err
 	}
 	oplog.Success(ctx, s.db, oplog.Entry{
