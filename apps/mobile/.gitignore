@@ -37,6 +37,14 @@ migrate_working_dir/
 # 本工程为应用占位,按本仓库约定不提交 lockfile(与 Flutter 官方应用默认不同)
 pubspec.lock
 
+# 平台目录不入库(仓库约定):首次在装有 Flutter SDK 的环境执行 flutter create . 补齐
+/android/
+/ios/
+/web/
+/linux/
+/macos/
+/windows/
+
 # Symbolication related
 app.*.symbols
 
