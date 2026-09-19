@@ -1,4 +1,5 @@
 import { appTools, defineConfig } from "@modern-js/app-tools";
+import pxToViewport from "postcss-px-to-viewport-8-plugin";
 
 // h5 默认 18082(site 8082 / admin 8081 / server 8080 已占用,见 docs/monorepo-expansion-plan.md 阶段 3)。
 const devServerPort = process.env.PORT ? Number.parseInt(process.env.PORT, 10) : 18082;
@@ -25,10 +26,59 @@ const productionCSPMeta = {
   }
 };
 
+// 移动端 viewport:Modern.js 默认也注入一版(含 viewport-fit=cover),这里显式钉住 h5 口径
+// (禁缩放 + 覆盖刘海安全区,PageShell 的 env(safe-area-inset-*) 依赖 viewport-fit=cover),
+// 避免框架默认值变化影响活动页表现。
+const viewportMeta = {
+  viewport:
+    "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+};
+
+// arco-mobile 按需引入:Rsbuild transformImport 等价 babel-plugin-import,把
+// `import { Button } from "@arco-design/mobile-react"` 改写成直连子模块
+// `.../esm/button` + 样式 `.../esm/button/style/css`,整包不进 bundle(方案 §1 决策 4)。
+// - libraryDirectory 用 esm:Modern.js SSR 会把 node_modules 一并打进 dist/bundles,不存在
+//   arco 文档里「SSR 需改用 cjs」的场景;
+// - style 取 css(arco 预编译产物)而非 less:arco 样式是 rem 制式(@base-font-size: 50),
+//   px→vw 转换不到它,用 css 可免装 less 工具链(arco 的 less 还需 javascriptEnabled 支持内联 mixin);
+// - camelToDashComponentName / transformToDefaultImport 显式写出(与默认值一致),对齐 arco-mobile
+//   的 kebab-case 目录(context-provider 等)+ default export 结构(与 site 的 web-react 相反,
+//   后者的 es 目录是 PascalCase 且必须关掉这个开关)。
+const arcoMobileTransformImport = {
+  libraryName: "@arco-design/mobile-react",
+  libraryDirectory: "esm",
+  style: "css",
+  camelToDashComponentName: true,
+  transformToDefaultImport: true
+};
+
+// 设计稿宽 375 的 px→vw 适配(方案 §3「移动适配」):不配 include/exclude,node_modules 里的样式
+// (含 arco 组件样式)同样进入转换范围;minPixelValue 保持默认 1,即 1px 及以下(1px 边框)保留 px。
+// arco 样式自身的 1PX 边框用大写单位,天然不参与转换。
+// 注:arco 组件靠 rem 自适应,需要根布局按屏宽设置 root font-size(flexible),归阶段 3 收口装配。
+const pxToViewportPlugin = pxToViewport({
+  viewportWidth: 375,
+  unitPrecision: 5,
+  viewportUnit: "vw",
+  fontViewportUnit: "vw",
+  minPixelValue: 1
+});
+
 export default defineConfig({
+  source: {
+    transformImport: [arcoMobileTransformImport]
+  },
+  tools: {
+    postcss: (_config, { addPlugins }) => {
+      addPlugins([pxToViewportPlugin]);
+    }
+  },
   html: {
     title: "CMS Template H5",
-    ...(process.env.NODE_ENV === "production" ? { meta: productionCSPMeta } : {})
+    meta: {
+      ...viewportMeta,
+      ...(process.env.NODE_ENV === "production" ? productionCSPMeta : {})
+    }
   },
   server: {
     port: devServerPort,
