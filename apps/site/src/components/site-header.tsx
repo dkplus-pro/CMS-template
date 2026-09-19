@@ -4,7 +4,7 @@ import { IconMenu } from "@arco-design/web-react/icon";
 import { Link } from "@modern-js/runtime/router";
 import { useCallback } from "react";
 
-import { NAV_ITEMS } from "../constants";
+import { NAV_ITEMS } from "../config/site";
 import { useIsMobile } from "../hooks/use-breakpoint";
 import { useUiStore } from "../store/ui";
 import "./site-header.css";

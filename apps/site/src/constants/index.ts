@@ -1,16 +1,5 @@
-// 全局常量(目录职责见 docs/site.md「目录结构」)。
-
-// 站点信息加载失败时的兜底站名(SSR 用例依赖真实站名来自接口,兜底仅保证渲染不空)。
-export const FALLBACK_SITE_NAME = "CMS Template";
-
-// 公共页脚版权文案(占位;TODO:上线时替换为真实部署主体)。
-// 年份固定写入文案而非运行时取当前时间,保证 SSR 渲染结果可测试。
-export const COPYRIGHT_TEXT = "© 2026 CMS Template";
-
-// 顶部导航项(key 即路由路径;后续栏目随真实业务页面累加,见 docs/site.md)。
-export interface NavItem {
-  path: string;
-  label: string;
-}
-
-export const NAV_ITEMS: NavItem[] = [{ path: "/", label: "首页" }];
+// 过渡 shim:常量已迁入 src/config/site.ts(site P3 配置体系收口,见 docs/site-shell-plan.md
+// 阶段 3.1)。因 src/routes/layout.tsx(并行任务卡互斥文件)仍从本模块导入 FALLBACK_SITE_NAME
+// 而暂时保留;layout.tsx 的引用改为 "../config/site" 后应整体删除本目录。
+export { COPYRIGHT_TEXT, FALLBACK_SITE_NAME, NAV_ITEMS } from "../config/site";
+export type { NavItem } from "../config/site";

@@ -6,25 +6,20 @@
 // - env `RUM_ENDPOINT` 与 `RUM_PID` 任一缺失即不初始化——dev 默认关闭,
 //   生产部署注入(占位见 apps/site/.env.example);
 // - spaMode history(SPA PV 上报),version 取应用版本;
-// - 客户端 bundle 里不存在 Node 的 process:默认 env 由 defaultEnv() 按成员访问
-//   process.env.RUM_*,该表达式由 modern.config.ts 的 source.define 构建期内联为
-//   字面量(未配置为空串);SSR/测试下读真实 process.env(vi.stubEnv 可覆盖)。
+// - 客户端 bundle 里不存在 Node 的 process:默认 env 由 ./env 的 defaultEnv() 按成员访问
+//   process.env.RUM_* 提供,该表达式由 modern.config.ts 的 source.define 构建期内联为
+//   字面量(未配置为空串);SSR/测试下读真实 process.env(vi.stubEnv 可覆盖);
+// - env 读取与校验收口在 ./env,rum 开关派生在 ./features,本文件只负责 SDK 初始化编排。
 import { useEffect } from "react";
 
 import packageJson from "../../package.json";
+
+import { defaultEnv } from "./env";
 
 export interface RumConfig {
   pid: string;
   endpoint: string;
   version: string;
-}
-
-// 默认 env 源:按成员访问 RUM_*(source.define 构建期内联),禁止裸 process.env 引用。
-function defaultEnv(): Record<string, string | undefined> {
-  return {
-    RUM_PID: process.env.RUM_PID,
-    RUM_ENDPOINT: process.env.RUM_ENDPOINT
-  };
 }
 
 // 从环境读取 RUM 配置;endpoint 与 pid 缺任一项返回 null(不初始化)。

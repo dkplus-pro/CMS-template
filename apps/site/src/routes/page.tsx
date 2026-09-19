@@ -1,6 +1,6 @@
 import { useLoaderData } from "@modern-js/runtime/router";
 
-import { FALLBACK_SITE_NAME } from "../constants";
+import { FALLBACK_SITE_NAME } from "../config/site";
 import type { SiteHomeData } from "./page.data";
 
 import "./page.css";
