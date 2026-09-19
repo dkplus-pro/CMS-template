@@ -1,11 +1,17 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:cms_mobile/app_providers.dart';
 import 'package:cms_mobile/core/hybrid/jsb_methods/device.dart';
+import 'package:cms_mobile/core/hybrid/jsb_methods/media.dart';
 import 'package:cms_mobile/core/hybrid/jsb_methods/page.dart';
 import 'package:cms_mobile/core/hybrid/jsb_methods/ui.dart';
 import 'package:cms_mobile/core/hybrid/jsb_registry.dart';
 import 'package:cms_mobile/core/hybrid/webview_url.dart';
+import 'package:cms_mobile/core/media/image_info_service.dart';
+import 'package:cms_mobile/core/media/media_picker_service.dart';
+import 'package:cms_mobile/core/permission/permission_rationale.dart';
+import 'package:cms_mobile/core/permission/permission_service.dart';
 import 'package:cms_mobile/core/ui/page_state.dart';
 import 'package:cms_mobile/features/webview/webview_jsb_registry.dart';
 import 'package:flutter/material.dart';
@@ -62,6 +68,42 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
         pop: () {
           if (mounted) context.pop();
         },
+      ),
+      media: JSBMediaDependencies(
+        ensurePermission: (permission) async {
+          final svc = ref.read(permissionServiceProvider);
+          var state = await svc.check(permission);
+          if (state == PermissionAppState.denied) {
+            state = await svc.request(permission);
+          }
+          return state;
+        },
+        showPermissionDeniedHint: (permission, {required permanentlyDenied}) {
+          if (!mounted) return;
+          showPermissionRationaleDialog(
+            context,
+            permission: permission,
+            permanentlyDenied: permanentlyDenied,
+          );
+        },
+        pickFromGallery: ({required maxDim, required quality}) =>
+            _pickAndCompress(
+                (s) => s.pickFromGallery(maxDim: maxDim, quality: quality)),
+        pickFromCamera: ({required maxDim, required quality}) =>
+            _pickAndCompress(
+                (s) => s.pickFromCamera(maxDim: maxDim, quality: quality)),
+        saveToAlbum: (path) =>
+            ref.read(mediaSaverServiceProvider).saveImageToAlbum(path),
+        readImageInfo: (path) async {
+          final info = await ref.read(imageInfoServiceProvider).read(path);
+          return (
+            path: info.path,
+            width: info.width,
+            height: info.height,
+            sizeBytes: info.sizeBytes
+          );
+        },
+        readFileBytes: (path) => File(path).readAsBytes(),
       ),
     );
   }
@@ -144,6 +186,25 @@ class _WebViewPageState extends ConsumerState<WebViewPage> {
     final String source =
         'window.$kWindowBridgeKey && window.$kWindowBridgeKey.dispatchEvent(${jsonEncode(event)}, ${jsonEncode(payload)});';
     await _controller?.evaluateJavascript(source: source);
+  }
+
+  /// 选图管线(JSB media 组注入):pick → 压缩(小文件自动跳过,见 shouldSkipCompress)
+  /// → 读尺寸;取消返回 null。
+  Future<JSBPickedImage?> _pickAndCompress(
+    Future<PickedImage?> Function(MediaPickerService) pick,
+  ) async {
+    final picker = ref.read(mediaPickerServiceProvider);
+    final picked = await pick(picker);
+    if (picked == null) return null;
+    final compressed =
+        await ref.read(imageCompressServiceProvider).compress(picked.path);
+    final info = await ref.read(imageInfoServiceProvider).read(compressed);
+    return (
+      path: info.path,
+      width: info.width,
+      height: info.height,
+      sizeBytes: info.sizeBytes
+    );
   }
 
   // ---- JSB ui 组注入实现(全部判 mounted:页面销毁后迟到的调用直接 no-op,不抛错) ----

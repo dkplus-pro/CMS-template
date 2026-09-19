@@ -14,12 +14,19 @@ import 'core/error/sentry_error_reporter.dart';
 import 'core/lifecycle/app_lifecycle.dart';
 import 'core/logging/app_logger.dart';
 import 'core/logging/console_logger.dart';
+import 'core/media/file_service.dart';
+import 'core/media/image_compress_service.dart';
+import 'core/media/image_info_service.dart';
+import 'core/media/media_picker_service.dart';
+import 'core/media/media_saver_service.dart';
 import 'core/monitoring/performance_monitor.dart';
 import 'core/monitoring/sentry_performance_monitor.dart';
 import 'core/network/dio_client.dart';
 import 'core/network/network_status.dart';
 import 'core/network/ping_repository.dart';
 import 'core/network/request_log_interceptor.dart';
+import 'core/permission/permission_handler_service.dart';
+import 'core/permission/permission_service.dart';
 
 /// 应用配置:main.dart 已按 dart-define 构建实际实例并 override,这里仅是类型兜底。
 final appConfigProvider =
@@ -89,3 +96,33 @@ final appLifecycleServiceProvider = Provider<AppLifecycleService>((ref) {
   ref.onDispose(service.dispose);
   return service;
 });
+
+/// 权限服务(卡 6.1):permission_handler 薄壳;测试经 override 注入 fake gateway 的 service。
+final permissionServiceProvider = Provider<PermissionService>(
+  (ref) => const PermissionHandlerPermissionService(),
+);
+
+/// 选图(卡 6.2)。
+final mediaPickerServiceProvider = Provider<MediaPickerService>(
+  (ref) => ImagePickerMediaPickerService(),
+);
+
+/// 图片压缩(卡 6.2)。
+final imageCompressServiceProvider = Provider<ImageCompressService>(
+  (ref) => FlutterImageCompressService(),
+);
+
+/// 相册保存(卡 6.2)。
+final mediaSaverServiceProvider = Provider<MediaSaverService>(
+  (ref) => const GalMediaSaverService(),
+);
+
+/// 图片信息读取(卡 6.2)。
+final imageInfoServiceProvider = Provider<ImageInfoService>(
+  (ref) => const UiImageInfoService(),
+);
+
+/// 文件选择(卡 6.2;本期无业务消费,Provider 先行供后续 uploadFile 阶段复用)。
+final fileServiceProvider = Provider<FileService>(
+  (ref) => FilePickerFileService(),
+);
