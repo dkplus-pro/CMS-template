@@ -24,6 +24,8 @@ export interface Reporter {
 }
 
 export { noopReporter };
+// capture(全局捕获接线)同属本模块公开 API:业务侧统一从 core/monitor 导入。
+export { installGlobalCapture } from "./capture";
 
 // ARMS 实现单例:懒初始化(首次捕获才动态加载 SDK),模块加载零副作用、SSR 安全;
 // endpoint/pid/采样率经 config/env + config/feature 注入,SDK 加载失败内部降级 noop。

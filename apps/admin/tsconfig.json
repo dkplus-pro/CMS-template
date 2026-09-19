@@ -18,9 +18,7 @@
     "modern.config.ts",
     "vitest.config.ts",
     "src/**/*.ts",
-    "src/**/*.tsx",
-    "tests/**/*.ts",
-    "tests/**/*.tsx"
+    "src/**/*.tsx"
   ],
   "exclude": ["dist", ".output", "node_modules"]
 }
