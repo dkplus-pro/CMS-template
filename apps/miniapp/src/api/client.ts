@@ -1,6 +1,7 @@
 import Taro from "@tarojs/taro";
 import type { AxiosRequestConfig } from "axios";
 import { API_BASE_URL } from "../config";
+import { captureError, normalizeApiError } from "../core/monitor";
 import { readErrorMessage, unwrapEnvelope } from "./envelope";
 
 // 小程序端请求客户端(orval axios 客户端的 mutator,签名与 site 端一致:
@@ -53,26 +54,67 @@ function normalizeHeaders(headers: AxiosRequestConfig["headers"]): Record<string
   return { ...(headers as Record<string, string>) };
 }
 
-// orval axios 客户端 mutator:生成代码调用 customInstance<T>(config),返回解包后的 data。
-export function customInstance<T>(config: AxiosRequestConfig): Promise<T> {
+// 韧性参数(N3):超时 10s 起步;幂等 GET 失败重试 1 次;错误统一挂钩 monitor(api_error)。
+const DEFAULT_TIMEOUT_MS = 10_000;
+const MAX_GET_RETRIES = 1;
+
+/** 请求失败载体:保留 statusCode 供重试判定与监控分类。 */
+class RequestFailure extends Error {
+  readonly statusCode?: number;
+
+  constructor(message: string, statusCode?: number) {
+    super(message);
+    this.statusCode = statusCode;
+  }
+}
+
+function requestOnce<T>(config: AxiosRequestConfig, method: WeappMethod, url: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     Taro.request({
-      url: buildRequestUrl(config),
-      method: toWeappMethod(config.method),
+      url,
+      method,
       data: config.data,
       header: normalizeHeaders(config.headers),
-      timeout: typeof config.timeout === "number" ? config.timeout : undefined,
+      timeout: typeof config.timeout === "number" ? config.timeout : DEFAULT_TIMEOUT_MS,
       success: (response) => {
         const isOk = response.statusCode >= 200 && response.statusCode < 300;
         if (!isOk) {
-          reject(new Error(readErrorMessage(response.data, response.statusCode)));
+          reject(new RequestFailure(readErrorMessage(response.data, response.statusCode), response.statusCode));
           return;
         }
         resolve(unwrapEnvelope<T>(response.data));
       },
       fail: (error) => {
-        reject(new Error(error.errMsg || "网络请求失败"));
+        reject(new RequestFailure(error.errMsg || "网络请求失败"));
       }
     });
   });
+}
+
+// orval axios 客户端 mutator:生成代码调用 customInstance<T>(config),返回解包后的 data。
+// 失败路径(网络/超时/信封错误)最终失败时挂钩 monitor(api_error),不影响异常语义。
+export async function customInstance<T>(config: AxiosRequestConfig): Promise<T> {
+  const method = toWeappMethod(config.method);
+  const url = buildRequestUrl(config);
+  const maxRetries = method === "GET" ? MAX_GET_RETRIES : 0;
+
+  let lastError: unknown;
+  for (let attempt = 0; attempt <= maxRetries; attempt += 1) {
+    try {
+      return await requestOnce<T>(config, method, url);
+    } catch (error) {
+      lastError = error;
+      const statusCode = error instanceof RequestFailure ? error.statusCode : undefined;
+      const transient = statusCode === undefined || statusCode >= 500;
+      // 重试只给幂等 GET 的瞬时失败(网络/超时/5xx);4xx 业务错误重试无意义
+      if (!(method === "GET" && transient) || attempt === maxRetries) {
+        break;
+      }
+    }
+  }
+
+  const statusCode = lastError instanceof RequestFailure ? lastError.statusCode : undefined;
+  const errMsg = lastError instanceof Error ? lastError.message : "请求失败";
+  captureError(normalizeApiError({ endpoint: url, errMsg, code: statusCode }));
+  throw lastError;
 }

@@ -101,6 +101,14 @@ export function createMonitor(options: CreateMonitorOptions = {}): Monitor {
 /** 业务侧单例:app 启动后全局共享(全局钩子与请求链错误都汇入这里)。 */
 export const monitor = createMonitor();
 
+// 规范化工具同属本模块公开 API(app.tsx/client.ts 一行接线用;type-only 循环引用无运行时环)。
+export {
+  normalizeApiError,
+  normalizeJsError,
+  normalizePageNotFound,
+  normalizeUnhandledRejection
+} from './normalize';
+
 /** 业务入口:捕获错误。 */
 export function captureError(payload: MonitorPayload): void {
   monitor.captureError(payload);

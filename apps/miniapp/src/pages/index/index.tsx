@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Text, View } from "@tarojs/components";
 import { AppController } from "../../api/controllers.gen";
+import { usePageTrack } from "../../hooks/usePageTrack";
 import "./index.css";
 
 type PingState = {
@@ -15,6 +16,8 @@ const initialState: PingState = { loading: true, message: null, error: null };
 // 渲染服务端返回的 message,带 loading 与失败降级;禁止绕过生成物手写请求。
 export default function Index() {
   const [state, setState] = useState<PingState>(initialState);
+  // 页面曝光埋点示例(N3):onShow 自动上报 page_view,公共参数/采样由 core 组装
+  usePageTrack({ source: "index" });
 
   useEffect(() => {
     let active = true;
