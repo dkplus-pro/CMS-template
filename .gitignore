@@ -12,6 +12,9 @@ test-results/
 # Go server artifacts (apps/server)
 apps/server/bin/
 apps/server/data/
+
+# Electron build output (apps/desktop)
+apps/desktop/out/
 .turbo/
 
 # Logs

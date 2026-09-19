@@ -9,3 +9,4 @@ playwright-report
 test-results
 apps/admin/src/api/generated/
 apps/admin/src/api/controllers.gen.ts
+apps/server/.gen-bundle/
