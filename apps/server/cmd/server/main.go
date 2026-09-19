@@ -13,9 +13,13 @@ import (
 	"time"
 
 	gen "github.com/cms-template/server/gen/admin"
+	appgen "github.com/cms-template/server/gen/app"
+	h5gen "github.com/cms-template/server/gen/h5"
 	sitegen "github.com/cms-template/server/gen/site"
 	"github.com/cms-template/server/internal/config"
 	"github.com/cms-template/server/internal/handler"
+	apphandler "github.com/cms-template/server/internal/handler/app"
+	h5handler "github.com/cms-template/server/internal/handler/h5"
 	sitehandler "github.com/cms-template/server/internal/handler/site"
 	"github.com/cms-template/server/internal/httpapi"
 	"github.com/cms-template/server/internal/media"
@@ -131,8 +135,9 @@ func main() {
 	mediaService := media.NewService(db, fileStorage)
 	uploadsService := uploads.NewService(uploads.DefaultBaseDir, mediaService)
 
-	// 双受众路由(见 docs/multi-audience-contracts.md 与 docs/mvp-plan.md 阶段 8):
-	// URL 布局:admin 契约路径字面带 /api/admin、site 契约带 /api/site,网关仅按前缀转发。
+	// 多受众路由(见 docs/multi-audience-contracts.md 与 docs/mvp-plan.md 阶段 8):
+	// URL 布局:admin 契约路径字面带 /api/admin、site 契约带 /api/site、app 契约带 /api/app、
+	// h5 契约带 /api/h5,网关仅按前缀转发。
 	// swagger 注册在 root mux 上且路径更具体,不经过任何中间件链(jwtSkip 无需列 swagger)。
 	jwtSkip := httpapi.JWTSkipPaths("/api/admin/healthz", "/api/admin/auth/login")
 	loadPermissionCodes := func(ctx context.Context, userID int64) ([]string, error) {
@@ -145,12 +150,33 @@ func main() {
 	siteMux := http.NewServeMux()
 	sitegen.HandlerFromMux(sitehandler.New(logger, configsService), siteMux)
 
+	// app/h5 占坑期与 site 同款匿名公开链,不注入任何 service(见 docs/monorepo-expansion-plan.md 阶段 2)。
+	appMux := http.NewServeMux()
+	appgen.HandlerFromMux(apphandler.New(logger), appMux)
+
+	h5Mux := http.NewServeMux()
+	h5gen.HandlerFromMux(h5handler.New(logger), h5Mux)
+
 	mux := http.NewServeMux()
 	httpapi.RegisterSwagger(mux, logger, cfg.Swagger)
-	// 公开链:site 契约路径自带 /api/site 前缀,无鉴权、只读;管理链挂在 /api/admin 下。
-	// 安全响应头两条链都挂;Origin 校验只挂 admin 链(RequestID 之后、JWTAuth 之前,见
+	// 公开链:site/app/h5 契约路径自带各自前缀,无鉴权、只读;管理链挂在 /api/admin 下。
+	// 安全响应头各链都挂;Origin 校验只挂 admin 链(RequestID 之后、JWTAuth 之前,见
 	// docs/server.md "CSRF 与会话安全")。
 	mux.Handle("/api/site/", httpapi.Chain(siteMux,
+		httpapi.RequestID(),
+		httpapi.ClientIP(),
+		httpapi.SecurityHeaders(),
+		httpapi.Logging(logger),
+		httpapi.Recover(logger),
+	))
+	mux.Handle("/api/app/", httpapi.Chain(appMux,
+		httpapi.RequestID(),
+		httpapi.ClientIP(),
+		httpapi.SecurityHeaders(),
+		httpapi.Logging(logger),
+		httpapi.Recover(logger),
+	))
+	mux.Handle("/api/h5/", httpapi.Chain(h5Mux,
 		httpapi.RequestID(),
 		httpapi.ClientIP(),
 		httpapi.SecurityHeaders(),
