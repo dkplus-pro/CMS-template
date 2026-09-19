@@ -19,6 +19,10 @@ for script in lint typecheck test; do
   ci_endgroup
 done
 
+ci_group "Run miniapp size gate (apps/miniapp)"
+run_package_script_if_present "$PM" "check:size"
+ci_endgroup
+
 ci_group "Run flutter checks (apps/mobile)"
 if has_command flutter; then
   (cd apps/mobile && flutter pub get && flutter analyze && flutter test --coverage)
