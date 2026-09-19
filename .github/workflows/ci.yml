@@ -53,3 +53,6 @@ jobs:
 
       - name: Build
         run: pnpm run build
+
+      - name: Site bundle budget
+        run: node apps/site/scripts/check-budgets.mjs --dist apps/site/dist/static
