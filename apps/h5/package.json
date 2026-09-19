@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@arco-design/mobile-react": "^2.39.1",
+    "@arms/rum-browser": "^0.1.16",
     "@modern-js/runtime": "^3.5.0",
     "ahooks": "^3.9.7",
     "axios": "^1.20.0",

@@ -6,6 +6,7 @@
 //   禁止直接 import @arms/rum-browser。
 import { features } from "../../config/feature";
 
+import { createArmsReporter } from "./arms";
 import { noopReporter } from "./noop";
 
 /** 上报载荷:kind 区分事件类别(错误/资源/白屏等),message 写人话,stack/extra 可缺省。 */
@@ -16,7 +17,7 @@ export interface ReportPayload {
   extra?: Record<string, unknown>;
 }
 
-/** 监控上报接口:阶段 2.A 由 arms.ts(@arms/rum-browser)提供默认实现。 */
+/** 监控上报接口:默认实现为 arms.ts(@arms/rum-browser,见 docs/h5-shell-plan.md 阶段 2.A)。 */
 export interface Reporter {
   captureError(payload: ReportPayload): void;
   captureMessage(payload: ReportPayload): void;
@@ -24,11 +25,15 @@ export interface Reporter {
 
 export { noopReporter };
 
-// 默认实现占位:骨架阶段尚无真实实现,启用分支先回落 noop,保证可插拔。
-// TODO(阶段 2.A):替换为 arms.ts 的 ARMS 实现(动态 import、SSR 安全、按采样率上报)。
-const defaultReporter: Reporter = noopReporter;
+// ARMS 实现单例:懒初始化(首次捕获才动态加载 SDK),模块加载零副作用、SSR 安全;
+// endpoint/pid/采样率经 config/env + config/feature 注入,SDK 加载失败内部降级 noop。
+const armsReporter: Reporter = createArmsReporter();
 
-// 当前实例选择逻辑:未启用返回 noop,业务侧拿到的 Reporter 恒可用、无需判空。
+// 当前实例选择逻辑:未启用或 SSR/Node 环境返回 noop,业务侧拿到的 Reporter 恒可用、
+// 无需判空;客户端且监控启用时返回 ARMS 实现体(ARMS 仅客户端初始化)。
 export function getReporter(): Reporter {
-  return features.monitor ? defaultReporter : noopReporter;
+  if (!features.monitor || typeof window === "undefined") {
+    return noopReporter;
+  }
+  return armsReporter;
 }
