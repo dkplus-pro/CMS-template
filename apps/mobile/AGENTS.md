@@ -28,7 +28,7 @@ lib/
 ## 2. 依赖方向硬规则
 
 - 允许方向:`features → core`(服务实例一律经 `app_providers.dart` 的 Provider 获取,不自行构造实现);`router`/`app.dart` 可 import features(装配与挂载);
-- **core 模块之间互不依赖**,仅两类已登记例外:`config`(人人可用)与 `error`(`network` 以 `AppError` 为唯一错误模型、`logging` 的 ERROR 级挂接 `ErrorReporter` 是接口契约);新增跨模块依赖先在本条登记再写代码;
+- **core 模块之间互不依赖**,仅两类已登记例外:`config`(人人可用)与 `error`(`network` 以 `AppError` 为唯一错误模型、`logging` 的 ERROR 级挂接 `ErrorReporter` 是接口契约);另登记(阶段 4):`network → logging`(请求日志拦截器复用 AppLogger)、`lifecycle → analytics`(前后台事件埋点)与 `lifecycle → logging`(flush 钩子失败告警,可选依赖);新增跨模块依赖先在本条登记再写代码;
 - **`core/` 与 `app_providers.dart` 禁止 import `features/`**;features 之间禁止互相 import(页面跳转走路由表);
 - 业务代码只面向 core 抽象接口,禁止直接 import `dio`/`sentry_flutter`/`shared_preferences` 等第三方实现包(网络经 `core/network`,上报经 `ErrorReporter`,存储经 `KeyValueStore`)。
 

@@ -38,15 +38,38 @@ Dio buildDio(
   return dio;
 }
 
+/// 取消错误的业务码:与网络失败(code 0)区分,供调用方静默吞掉。
+const int kCancelledErrorCode = -1;
+
+/// 取消错误的统一文案。
+const String kRequestCancelledMessage = '请求已取消';
+
 /// 统一调用边界:执行 [send],把 dio 的 DioException 解回 [AppError] 抛出。
 ///
 /// 信封拦截器保证到达这里的 DioException.error 已是 AppError(传输层失败也已
 /// 归一),此处把 dio 的包装类型还原为业务层唯一错误模型;万一出现未被归一的
 /// 裸错误,兜底为网络失败 AppError,保证调用方只需 catch AppError 一种类型。
-Future<Response<T>> dioCall<T>(Future<Response<T>> Function() send) async {
+///
+/// 取消归一:请求被取消(DioExceptionType.cancel 或 [cancelToken] 已取消)时,
+/// 统一抛 `AppError(code: kCancelledErrorCode, message: kRequestCancelledMessage)`。
+/// [cancelToken] 只做取消判定,不负责触发取消——实际取消动作由调用方把同一个
+/// token 传给 dio 请求(如 `_dio.get(path, cancelToken: token)`)。
+Future<Response<T>> dioCall<T>(
+  Future<Response<T>> Function() send, {
+  CancelToken? cancelToken,
+}) async {
   try {
     return await send();
   } on DioException catch (e) {
+    // 取消归一:先于 AppError 解包判定——信封拦截器会把取消也包成网络失败,
+    // 这里按 type / token 状态还原为取消语义。
+    if (e.type == DioExceptionType.cancel ||
+        (cancelToken?.isCancelled ?? false)) {
+      throw const AppError(
+        code: kCancelledErrorCode,
+        message: kRequestCancelledMessage,
+      );
+    }
     final Object? error = e.error;
     if (error is AppError) {
       throw error;
