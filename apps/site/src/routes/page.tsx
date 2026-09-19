@@ -1,5 +1,6 @@
 import { useLoaderData } from "@modern-js/runtime/router";
 
+import { SiteImage } from "../components/site-image";
 import { FALLBACK_SITE_NAME } from "../config/site";
 import type { SiteHomeData } from "./page.data";
 
@@ -15,7 +16,7 @@ export default function HomePage() {
   return (
     <main className="site-home">
       {siteInfo?.logoUrl ? (
-        <img className="site-home-logo" src={siteInfo.logoUrl} alt={siteName} />
+        <SiteImage className="site-home-logo" src={siteInfo.logoUrl} alt={siteName} width={48} height={48} eager />
       ) : null}
       <h1 className="site-home-title">{siteName}</h1>
       <p className="site-home-subtitle">内容由 CMS 管理后台配置,对外站点公开呈现。</p>

@@ -36,9 +36,29 @@ export type WebVitalsPayload = {
 };
 
 /** 事件名 → 载荷类型映射:注册表本体,新事件必须在此登记载荷类型。 */
+/** api_error 载荷:接口最终失败(重试后仍失败)的上报,由 api/client.ts 发出。 */
+export interface ApiErrorPayload {
+  /** 请求路径(相对或绝对) */
+  endpoint: string;
+  /** 人话失败原因(信封 message 或 HTTP 状态兜底) */
+  message: string;
+  /** HTTP 状态码;网络失败无响应时为 0 */
+  status: number;
+}
+
+/** react_render_error 载荷:ErrorBoundary 捕获的渲染错误。 */
+export interface RenderErrorPayload {
+  /** error.message */
+  message: string;
+  /** React 组件栈(可能缺省) */
+  component_stack?: string;
+}
+
 export interface TrackingPayloadMap {
   page_view: PageViewPayload;
   web_vitals: WebVitalsPayload;
+  api_error: ApiErrorPayload;
+  react_render_error: RenderErrorPayload;
 }
 
 /** 埋点事件名类型(track 的 event 参数),由注册表键派生。 */
@@ -51,7 +71,9 @@ export type TrackingPayload = TrackingPayloadMap[TrackingEvent];
 // 两边失同步会直接编译报错。
 export const TRACKING_EVENTS: Record<TrackingEvent, TrackingEvent> = {
   page_view: "page_view",
-  web_vitals: "web_vitals"
+  web_vitals: "web_vitals",
+  api_error: "api_error",
+  react_render_error: "react_render_error"
 };
 
 /** web-vitals 回调入参的结构化最小集(兼容 web-vitals 各 Metric 类型,便于单测)。 */
