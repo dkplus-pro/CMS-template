@@ -199,10 +199,10 @@ apps/site/
 | --------------- | --------- | ------- | --------------------------------------------------------------------------------------------- |
 | 0 方案评审      | ✅ 本文档 | —       | 2026-09-19，基于全量现状盘点                                                                  |
 | 1 依赖与构建链  | ✅ 完成   | fa24ee6 | 4 依赖钉版 + transformImport（camelToDashComponentName:false）+ ANALYZE 门控                  |
-| 2 Arco 按需加载 | 待启动    |         |                                                                                               |
+| 2 Arco 按需加载 | ✅ 完成 | cced642 | 删全量 arco.css+site-theme.ts;CSS 562→82kB(-85%);e2e 绿;#14 CSP 配置期 NODE_ENV 修复 |
 | 3 配置体系      | ✅ 完成   | a2fcd56 | zod env/features/site 迁入；42 用例全绿；constants/ 留 2 行 shim 待 P2（layout.tsx 互斥）删除 |
-| 4 埋点与监控    | 待启动    |         |                                                                                               |
-| 5 稳定性装配    | 待启动    |         |                                                                                               |
-| 6 测试强化      | 待启动    |         |                                                                                               |
-| 7 文档收口      | 待启动    |         |                                                                                               |
-| 8 总收口        | 待启动    |         |                                                                                               |
+| 4 埋点与监控    | ✅ 完成 | a03acb8 / 10fbb4f | tracking facade+web-vitals;CSP 联动 origin 实证 |
+| 5 稳定性装配    | ✅ 完成 | e2e7979 / f61fec2 | 双层 ErrorBoundary+loading;client 超时/重试/上报 |
+| 6 测试强化      | ✅ 完成 | 2b3c85f / d88c422 | 覆盖率 98%;视觉回归 3 快照+axe 冒烟 |
+| 7 文档收口      | ✅ 完成 | 6d78ec7 / ab34a41 | AGENTS.md;README 索引;site.md 三节;交付记录 |
+| 8 总收口        | ✅ 完成 | 06930e3 / 86a8c29 / 68ad9d6 | budgets+ci 门禁(自验红→绿);联通冒烟;根 verify 0 |

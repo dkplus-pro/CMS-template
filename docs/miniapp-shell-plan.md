@@ -172,9 +172,9 @@ app.config.ts     # lazyCodeLoading: requiredComponents + subpackages 骨架坑
 | 阶段                   | 状态      | 提交 | 备注                                                                   |
 | ---------------------- | --------- | ---- | ---------------------------------------------------------------------- |
 | 0 方案评审             | ✅ 本文档 | —    | 2026-09-19；两个决策点（上报通道、E2E 范围）按推荐项默认，评审时可否决 |
-| 1 配置体系 + transport | 待启动    |      |                                                                        |
-| 2 core 三模块          | 待启动    |      |                                                                        |
-| 3+4 接线与加固         | 待启动    |      |                                                                        |
-| 5 测试与门禁           | 待启动    |      |                                                                        |
-| 6 架构护栏文档         | 待启动    |      |                                                                        |
-| 7 收口                 | 待启动    |      |                                                                        |
+| 1 配置体系 + transport | ✅ 完成 | d1dc2d3 / c4eda14 | 多环境表+defineConstants;transport 队列 47 用例 |
+| 2 core 三模块          | ✅ 完成 | 2902fc4 / ee173e4 / eea4758 | track/monitor/perf 三模块;93 用例 |
+| 3+4 接线与加固         | ✅ 完成 | b9b22f7 / 6eaa3e7 / fc1998f | app 接线+client 韧性;lazyCodeLoading+check-size;组件 |
+| 5 测试与门禁           | ✅ 完成 | f0ac00f / 0f995fb | coverage 门槛(core 90/全局 70)+automator 脚本 |
+| 6 架构护栏文档         | ✅ 完成 | f107dba / 988b461 | AGENTS.md 七节+README+根 25a;eslint 纪律 |
+| 7 收口                 | ✅ 完成 | 9a34a90 | L1#3 install;turbo/verify 挂 check:size;覆盖率达标;根 verify 绿 |

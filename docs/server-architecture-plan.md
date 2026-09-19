@@ -205,5 +205,5 @@
 | 2 依赖方向修正       | ✅ 完成   | e0b6f5a / 1bcc157 / 9c51a4c | 2.1 基础包下沉；2.2 哨兵转译+Dict 收敛；2.3 handler 越层清零+豁免清零                   |
 | 3 main.go 装配收口   | ✅ 完成   | 7c2923a                     | run() 收敛+受众表+bootstrapPermissions+swagger 泛化 4 spec；本地起服冒烟通过            |
 | 4 admin Handler 拆分 | ✅ 完成   | 90a1026                     | per-resource struct + 内嵌组合；登录联通冒烟通过                                        |
-| 5 事务与一致性       | 待启动    |                             |                                                                                         |
-| 6 测试补强与收口     | 待启动    |                             |                                                                                         |
+| 5 事务与一致性       | ✅ 完成 | 5c016e0 / 2161481 | tx 内查重;media saga 补偿测试;dict 失败埋点 |
+| 6 测试补强与收口     | ✅ 完成 | e4e4211 / 92cd2a8 / 76a3ea4 | auth/httpapi/oplog 测试;文档对齐;根 verify exit 0 |
