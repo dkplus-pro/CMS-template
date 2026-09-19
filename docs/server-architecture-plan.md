@@ -15,7 +15,7 @@
 | 主要病灶   | 6 处依赖越层（handler→repo 等）、main.go 三条公开链逐字符重复、admin Handler 单体（54 方法/10 参注入/零测试）、service 层事务缺口、`MatchRoutePermission` cutset 误用、migrate 含 SQLite 专用 SQL（MySQL 下生产阻断） |
 | 不做项     | repo 接口化、契约驱动权限注册表、handler 全量业务测试、领域垂直分包（理由见 §3.3）                                                                                                                                    |
 | 工作量     | 约 **4~5.5 人日**；planner 编排 + coding-agent 执行，**峰值并行 3**，并行后约 **2 日历天**                                                                                                                            |
-| 并行度依据 | 实测本环境并发上限：2 个 coding-agent 同跑；`coding-agent-2` 类型**不存在**（已实测报错），超出部分用 general-purpose 补足到 3                                                                                        |
+| 并行度依据 | 实测执行池：`coding-agent` 与 `coding-agent-2` 两个池各 2 并发，混合峰值 4；瞬时错误（captcha/限流）时 planner 重试或换池降级                                                                                         |
 
 ---
 
@@ -115,7 +115,7 @@
 - Go 整模块编译 → 改同一批包的任务必须串行；
 - `go.mod/go.sum` 任意时刻只能一个 agent 写（仅任务卡 1.2 需要）；
 - `main.go` 是装配单点（仅阶段 3 与阶段 4 的签名适配触碰，严格串行）；
-- 实测环境并发上限：2 个 coding-agent 并行，第 3 路用 general-purpose 补（`coding-agent-2` 类型不存在）。**全局峰值并行 3**。
+- 实测执行池：`coding-agent` 与 `coding-agent-2` 是两个独立 agent 池，各 2 并发，混合峰值 4；瞬时错误（`captcha verify failed` / 并发限流）时 planner 重试或换池执行。本方案任务卡的**峰值需求为 3**（阶段 4∥5 同波、阶段 6 三路），在 4 槽位下有冗余，瓶颈是依赖结构（go.mod / main.go 单点、Go 整模块编译）而非 agent 预算，故不随槽位增加压缩排期。
 - 每阶段门禁：`go build ./... && go vet ./... && go test ./...`；阶段 2/3/4 结束各跑一次根 `pnpm verify`。
 
 ### 阶段 1：约束规范与守护门禁（并行 2）
