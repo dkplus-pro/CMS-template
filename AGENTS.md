@@ -72,6 +72,7 @@ pnpm + Turborepo monorepo,7 个应用(`apps/mobile` 为 Flutter 工程,不在 pn
 ### 新端(h5 / desktop / miniapp / mobile,方案见 [docs/monorepo-expansion-plan.md](docs/monorepo-expansion-plan.md))
 
 22. 三个 JS 新端(h5/desktop/miniapp)统一目录与依赖:`src/` 下 `api/`(orval 生成物 + `client.ts` mutator + `controllers.gen.ts`)、`component/`、`config/`、`consts/`、`hooks/`、`store/`(zustand);统一依赖 `zustand`、`lodash-es`、`axios`、`ahooks`、`orval`;orval + controllers.gen 范式照 admin(desktop 的 API 层在 `src/renderer/src/api/`),生成物禁止手改(规则 2 同样适用);
+    22a. h5 壳架构细化见 [apps/h5/AGENTS.md](apps/h5/AGENTS.md):core 分层与依赖方向、arco 按需纪律、SSR 安全(动态初始化+env 构建期内联)、监控埋点只经 `src/core/` 抽象、loader 降级契约;
 23. h5/desktop/miniapp 均为匿名公开受众,边界与 site 一致(只读 + 网关放行前缀):`client.ts` 只做 `{code, message, data}` 信封解包与错误提示,禁止 token 注入与 401 跳转;契约已预留 `bearerAuth`,C 端用户体系落地前不实现鉴权逻辑;
 24. miniapp 运行时无 XMLHttpRequest,网络层在 mutator 内直桥 `Taro.request`(即 `wx.request`;`axios-miniprogram-adapter` 与 axios 1.x 不兼容,已实测),只复用 axios 的 mutator 签名约定;`API_BASE_URL` 固定绝对地址,写在 `src/config/`;
 25. mobile 为 Flutter 最小包:禁止出现 `package.json`;仓库只保留 `pubspec.yaml` + `lib/` + `test/`,平台目录(android/ios 等)不提交,首次在装有 Flutter SDK 的环境执行 `flutter create . --platforms=android,ios` 补齐;Android 模拟器内 `localhost` 指向模拟器自身,访问宿主机需用 `10.0.2.2`(详见 `apps/mobile/README.md`);

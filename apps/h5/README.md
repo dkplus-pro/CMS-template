@@ -27,4 +27,25 @@ pnpm --filter @monorepo-template/h5 gen:api     # orval 生成 src/api/generated
 
 ## 目录约定
 
-与其他 JS 新端统一:`src/` 下 `api/`(orval 生成物 + `client.ts` mutator + `controllers.gen.ts`)、`component/`、`config/`、`consts/`、`hooks/`、`store/`(zustand)、`routes/`(页面与 loader)。
+与其他 JS 新端统一:`src/` 下 `api/`(orval 生成物 + `client.ts` mutator + `controllers.gen.ts`)、`component/`、`config/`、`consts/`、`hooks/`、`store/`(zustand)、`routes/`(页面与 loader);壳能力层在 `src/core/`(monitor/track/stability/perf)。架构约束见 [AGENTS.md](AGENTS.md)。
+
+## 壳能力清单
+
+| 能力         | 位置                                             | 说明                                                |
+| ------------ | ------------------------------------------------ | --------------------------------------------------- |
+| UI 基座      | `@arco-design/mobile-react` 按需 + px-to-vw(375) | modern.config.ts transformImport,禁全量引入         |
+| 错误监控     | `src/core/monitor`(ARMS 默认实现)                | 动态 import,endpoint/pid 缺失或 SSR 自动 no-op      |
+| 全局错误捕获 | `src/core/monitor/capture`                       | window error/unhandledrejection/资源错误 → Reporter |
+| 埋点         | `src/core/track`                                 | Tracker 接口 + ARMS/console 实现 + 采样             |
+| 稳定性       | `src/core/stability`                             | ErrorBoundary(降级+重试)+ 白屏检测(3s 配置坑)       |
+| 装配点       | `src/routes/layout.tsx`                          | ShellBootstrap 统一安装/卸载,页面不得自行操作       |
+
+## 配置坑清单
+
+| 配置                                              | 端   | 默认                     | 说明                                           |
+| ------------------------------------------------- | ---- | ------------------------ | ---------------------------------------------- |
+| `H5_API_BASE`                                     | SSR  | `http://127.0.0.1:18085` | 服务端请求 Go server 的绝对地址;浏览器恒走同源 |
+| `RUM_ENDPOINT` / `RUM_PID`                        | 构建 | `""`                     | 任一缺失监控不初始化;经 source.define 内联     |
+| `TRACK_ENDPOINT`                                  | 构建 | `""`                     | 空串埋点整体 no-op                             |
+| `H5_MONITOR_SAMPLE_RATE` / `H5_TRACK_SAMPLE_RATE` | 构建 | `1`                      | 采样率 0~1,越界截断                            |
+| 白屏超时                                          | 代码 | `3000ms`                 | core/stability 配置坑,后续收口进 config        |
