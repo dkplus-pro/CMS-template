@@ -63,13 +63,13 @@ export default defineConfig({
   projects: [
     {
       name: "chromium",
-      testIgnore: /site-app\.spec\.ts|h5-app\.spec\.ts|h5-fallback\.spec\.ts/,
+      testIgnore: /site-app\.spec\.ts|site-visual\.spec\.ts|h5-app\.spec\.ts|h5-fallback\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] }
     },
     {
       // site 用例:baseURL 指向 site dev(18081),后端复用同一 e2e server(18085)。
       name: "site",
-      testMatch: /site-app\.spec\.ts/,
+      testMatch: /site-app\.spec\.ts|site-visual\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${E2E_SITE_PORT}` }
     },
     {
