@@ -1,19 +1,9 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/config/app_config.dart';
-import '../../core/network/dio_client.dart';
-import '../../core/network/ping_repository.dart';
+import '../../app_providers.dart';
 
-/// 应用配置 Provider:AppConfig.fromDartDefines() 在 M3.1 装配时经 override 注入测试替身。
-final appConfigProvider = Provider<AppConfig>((ref) => AppConfig.fromDartDefines());
-
-/// Dio 实例 Provider:全应用共享(信封/重试拦截器已装配)。
-final dioProvider = Provider((ref) => buildDio(ref.watch(appConfigProvider)));
-
-/// Ping 数据源 Provider:测试经 override 注入 Fake。
-final pingRepositoryProvider = Provider<PingRepository>(
-  (ref) => PingRepository(ref.watch(dioProvider)),
-);
+/// appConfig/dio/pingRepository 三个基础 Provider 在装配层 app_providers.dart
+/// (M3.1 收口迁移),本文件只保留页面级状态。
 
 /// Ping 页面状态:AsyncNotifier 承载加载/成功/失败三态;
 /// 失败时保留 AppError,页面据此渲染重试入口(业务接入范式样板)。

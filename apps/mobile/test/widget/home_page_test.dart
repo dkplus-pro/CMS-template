@@ -5,7 +5,7 @@ import 'dart:async';
 import 'package:cms_mobile/core/error/app_error.dart';
 import 'package:cms_mobile/core/network/ping_repository.dart';
 import 'package:cms_mobile/features/home/home_page.dart';
-import 'package:cms_mobile/features/home/home_providers.dart';
+import 'package:cms_mobile/app_providers.dart';
 import 'package:cms_mobile/theme/app_theme.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';

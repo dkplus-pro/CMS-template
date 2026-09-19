@@ -1,103 +1,80 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 
-import 'api.dart';
+import 'app.dart';
+import 'app_providers.dart';
+import 'core/analytics/event_tracker_impls.dart';
+import 'core/monitoring/sentry_performance_monitor.dart';
+import 'core/logging/console_logger.dart';
+import 'core/config/app_config.dart';
+import 'core/error/error_reporter.dart';
+import 'core/error/sentry_error_reporter.dart';
 
 void main() {
-  // 最小装配雏形(M1.3):ProviderScope 先挂上,M3.1 在此追加 overrides
-  // (按 AppConfig 选择 core 实现)与 Sentry 条件初始化、runZonedGuarded 收口。
-  runApp(const ProviderScope(child: CmsMobileApp()));
-}
+  // runZonedGuarded 收口三大异常入口(方案 §4 阶段 3.1):
+  // 1) zone 内未捕获异常;2) FlutterError.onError(框架/布局异常);3) PlatformDispatcher.onError。
+  // 三者统一转发 ErrorReporter;Sentry 是否真实上报由 DSN 决定(缺失时 Noop)。
+  runZonedGuarded<Future<void>>(
+    () async {
+      final config = AppConfig.fromDartDefines();
+      final reporter = resolveErrorReporter(config);
 
-/// 应用入口:MaterialApp hello world,首页展示 ping 结果。
-class CmsMobileApp extends StatelessWidget {
-  const CmsMobileApp({super.key});
+      WidgetsFlutterBinding.ensureInitialized();
 
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'CMS Mobile',
-      home: const PingPage(),
-    );
-  }
-}
+      FlutterError.onError = (details) {
+        FlutterError.presentError(details);
+        reporter.captureError(details.exception, stackTrace: details.stack);
+      };
+      PlatformDispatcher.instance.onError = (error, stack) {
+        reporter.captureError(error, stackTrace: stack);
+        return true;
+      };
 
-/// 首页:启动时调用 `GET /api/app/ping`,渲染 loading / message / 失败 三态。
-class PingPage extends StatefulWidget {
-  const PingPage({super.key});
-
-  @override
-  State<PingPage> createState() => _PingPageState();
-}
-
-class _PingPageState extends State<PingPage> {
-  bool _loading = true;
-  String? _message;
-  Object? _error;
-
-  @override
-  void initState() {
-    super.initState();
-    _loadPing();
-  }
-
-  Future<void> _loadPing() async {
-    setState(() {
-      _loading = true;
-      _error = null;
-    });
-
-    try {
-      final String message = await fetchPingMessage(baseUrl: defaultBaseUrl);
-      if (!mounted) {
-        return;
+      if (config.sentryDsn.isNotEmpty) {
+        await SentryFlutter.init(
+          (options) {
+            options.dsn = config.sentryDsn;
+            options.tracesSampleRate = config.sentryTracesSampleRate;
+          },
+        );
       }
-      setState(() {
-        _loading = false;
-        _message = message;
-      });
-    } catch (error) {
-      if (!mounted) {
-        return;
-      }
-      setState(() {
-        _loading = false;
-        _error = error;
-      });
-    }
-  }
 
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('CMS Mobile')),
-      body: Center(child: _buildBody(context)),
-    );
-  }
-
-  Widget _buildBody(BuildContext context) {
-    if (_loading) {
-      return const CircularProgressIndicator();
-    }
-
-    if (_error != null) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Text('连接失败,请确认服务端已启动(默认 18085)'),
-          const SizedBox(height: 8),
-          Text(
-            '$_error',
-            style: Theme.of(context).textTheme.bodySmall,
-            textAlign: TextAlign.center,
-          ),
-        ],
+      runApp(
+        ProviderScope(
+          // 装配:按 dart-define 选择 core 实现(Override 类型未公开,内联组装)
+          overrides: [
+            appConfigProvider.overrideWithValue(config),
+            errorReporterProvider.overrideWithValue(reporter),
+            performanceMonitorProvider.overrideWithValue(
+              config.sentryDsn.isEmpty || config.sentryTracesSampleRate <= 0
+                  ? const NoopPerformanceMonitor()
+                  : const SentryPerformanceMonitor(),
+            ),
+            eventTrackerProvider.overrideWithValue(buildEventTracker(config)),
+            appLoggerProvider.overrideWithValue(
+              ConsoleLogger(errorReporter: reporter),
+            ),
+          ],
+          child: const CmsMobileApp(),
+        ),
       );
-    }
+    },
+    (error, stack) {
+      // zone 回调里拿不到 container,复用同一选型逻辑(与 overrides 一致)。
+      resolveErrorReporter(AppConfig.fromDartDefines()).captureError(
+        error,
+        stackTrace: stack,
+      );
+    },
+  );
+}
 
-    return Text(
-      _message ?? '',
-      style: Theme.of(context).textTheme.headlineSmall,
-    );
-  }
+ErrorReporter resolveErrorReporter(AppConfig config) {
+  return config.sentryDsn.isEmpty
+      ? const NoopErrorReporter()
+      : const SentryErrorReporter();
 }
