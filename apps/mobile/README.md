@@ -86,7 +86,6 @@ test/unit/                       # 纯逻辑单测(信封/重试/dio 工厂/监�
 test/widget/                     # 页面三态(loading/success/failure),不触真实网络
 test/helpers/                    # 测试包装与替身(pumpHomePage + FakePingRepository)
 test/integration_ping_test.dart  # 联通验证:对真实 server 的信封链路(server 未启动自动跳过)
-test/api_test.dart               # 占坑期遗留(parsePingMessage 纯函数),随 lib/api.dart 待清理
 ```
 
 ## 目录说明
@@ -98,5 +97,4 @@ lib/app_providers.dart   # 装配层:core 服务 Provider 与实现选择
 lib/core/                # 七模块:config / logging / error / monitoring / analytics / network / storage
 lib/router/ theme/ l10n/ # go_router 路由表 + 错误页 / 亮暗主题 / 语区清单
 lib/features/home/       # ping 页(provider + view,业务接入范式样板)
-lib/api.dart             # 占坑期遗留(裸 http 调用),仅 test/api_test.dart 仍引用
 ```
