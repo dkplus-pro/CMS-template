@@ -204,6 +204,6 @@
 | 1 约束规范与守护门禁 | ✅ 完成   | 35b4f60 / 26302ff           | S1.1 AGENTS.md 8 节规范；S1.2 守护测试（import 矩阵 4 条豁免 + 契约对账 + cutset 修复） |
 | 2 依赖方向修正       | ✅ 完成   | e0b6f5a / 1bcc157 / 9c51a4c | 2.1 基础包下沉；2.2 哨兵转译+Dict 收敛；2.3 handler 越层清零+豁免清零                   |
 | 3 main.go 装配收口   | ✅ 完成   | 7c2923a                     | run() 收敛+受众表+bootstrapPermissions+swagger 泛化 4 spec；本地起服冒烟通过            |
-| 4 admin Handler 拆分 | ✅ 完成   | 3380f79                     | per-resource struct + 内嵌组合；登录联通冒烟通过                                        |
+| 4 admin Handler 拆分 | ✅ 完成   | 90a1026                     | per-resource struct + 内嵌组合；登录联通冒烟通过                                        |
 | 5 事务与一致性       | 待启动    |                             |                                                                                         |
 | 6 测试补强与收口     | 待启动    |                             |                                                                                         |
