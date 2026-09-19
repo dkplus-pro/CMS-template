@@ -259,12 +259,12 @@ apps/server/
 
 ## 8. 执行记录
 
-| 阶段             | 状态      | 提交 | 备注                             |
-| ---------------- | --------- | ---- | -------------------------------- |
-| 0 方案评审       | ✅ 本文档 | —    | 2026-09-19，经 grill-me 逐题评审 |
-| 1 契约骨架       | 待启动    |      |                                  |
-| 2 server 双受众  | 待启动    |      |                                  |
-| 3 四端脚手架     | 待启动    |      |                                  |
-| 4 收口与联通验证 | 待启动    |      |                                  |
-| 5 CI 门禁        | 待启动    |      |                                  |
-| 6 文档收口       | 待启动    |      |                                  |
+| 阶段             | 状态      | 提交                                                                  | 备注                                                                                                                                                                               |
+| ---------------- | --------- | --------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0 方案评审       | ✅ 本文档 | `34f6aa8`                                                             | 2026-09-19，经 grill-me 逐题评审                                                                                                                                                   |
+| 1 契约骨架       | ✅ 完成   | `1ee7de0`                                                             | redocly lint 0 错误；入口补 `servers: [{url: /}]` 消除 no-empty-servers                                                                                                            |
+| 2 server 双受众  | ✅ 完成   | `93c4f1f`                                                             | 追加任务卡 2.4：oapi-codegen 不支持 schema 片段跨文件 `$ref`，按预案加 redocly bundle 步骤；重新生成产物与既有产物逐字节一致                                                       |
+| 3 四端脚手架     | ✅ 完成   | `247d858`(h5) `e442863`(desktop) `35b4b5c`(miniapp) `bd4f750`(mobile) | miniapp 实测 axios-miniprogram-adapter 与 axios 1.x 不兼容，改为 mutator 直桥 Taro.request；本机无 Flutter SDK，mobile 为手写最小包，平台目录留待 `flutter create .`               |
+| 4 收口与联通验证 | ✅ 完成   | `2767931`                                                             | install +1873 包；gen:api 6/6；lint/typecheck/test/build 全绿；verify 连续两次 exit 0；curl 双 ping 与 h5 SSR 均返回 pong；desktop/miniapp/mobile 运行时联通留人工                 |
+| 5 CI 门禁        | ✅ 完成   | `b898031`                                                             | flutter.yml（paths 过滤 + flutter-action）；ci.yml 加漂移检查 `pnpm gen:api && pnpm format:write && git diff --exit-code`；verify.sh flutter 条件化（本机无 SDK 走跳过分支，全绿） |
+| 6 文档收口       | ✅ 完成   | `15b0370`                                                             | AGENTS.md 追加规则 22-25；multi-audience-contracts.md 登记 app/h5；根 README 与三端 README 补齐                                                                                    |
