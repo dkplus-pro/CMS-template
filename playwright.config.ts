@@ -1,8 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
-// e2e 起独立端口的 server(18085)与 admin(18080)、site(18081)。
+// e2e 起独立端口的 server(18085)与 admin(18080)、site(18081)、h5(18082/18083 降级变体)。
 const E2E_SERVER_PORT = 18085;
 const E2E_SITE_PORT = 18081;
+const E2E_H5_PORT = 18082;
+// 降级变体:同一个 h5 dev 服务,H5_API_BASE 指向死端口,SSR loader 失败走降级文案。
+const E2E_H5_FALLBACK_PORT = 18083;
 
 export default defineConfig({
   testDir: "./tests/playwright",
@@ -41,12 +44,26 @@ export default defineConfig({
       url: `http://127.0.0.1:${E2E_SITE_PORT}`,
       reuseExistingServer: false,
       timeout: 120_000
+    },
+    {
+      // h5 同 site:SSR 直连 Go server(H5_API_BASE),无浏览器代理需求(匿名只读)。
+      command: `PORT=${E2E_H5_PORT} H5_API_BASE=http://127.0.0.1:${E2E_SERVER_PORT} pnpm --filter @monorepo-template/h5 run dev`,
+      url: `http://127.0.0.1:${E2E_H5_PORT}`,
+      reuseExistingServer: false,
+      timeout: 120_000
+    },
+    {
+      // h5 降级变体:API 指向死端口,验证 SSR loader 失败后的降级文案(阶段 4 首组用例)。
+      command: `PORT=${E2E_H5_FALLBACK_PORT} H5_API_BASE=http://127.0.0.1:9 pnpm --filter @monorepo-template/h5 run dev`,
+      url: `http://127.0.0.1:${E2E_H5_FALLBACK_PORT}`,
+      reuseExistingServer: false,
+      timeout: 120_000
     }
   ],
   projects: [
     {
       name: "chromium",
-      testIgnore: /site-app\.spec\.ts/,
+      testIgnore: /site-app\.spec\.ts|h5-app\.spec\.ts|h5-fallback\.spec\.ts/,
       use: { ...devices["Desktop Chrome"] }
     },
     {
@@ -54,6 +71,18 @@ export default defineConfig({
       name: "site",
       testMatch: /site-app\.spec\.ts/,
       use: { ...devices["Desktop Chrome"], baseURL: `http://127.0.0.1:${E2E_SITE_PORT}` }
+    },
+    {
+      // h5 用例:移动视口(活动 H5 场景),baseURL 指向 h5 dev(18082)。
+      name: "h5",
+      testMatch: /h5-app\.spec\.ts/,
+      use: { ...devices["Pixel 5"], baseURL: `http://127.0.0.1:${E2E_H5_PORT}` }
+    },
+    {
+      // h5 降级变体:API 死端口,SSR 失败 → 降级文案(h5-fallback.spec.ts)。
+      name: "h5-fallback",
+      testMatch: /h5-fallback\.spec\.ts/,
+      use: { ...devices["Pixel 5"], baseURL: `http://127.0.0.1:${E2E_H5_FALLBACK_PORT}` }
     }
   ]
 });
