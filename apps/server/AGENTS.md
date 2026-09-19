@@ -10,15 +10,17 @@
 
 | 包                                   | 允许依赖（internal 内）                      | 禁止                                  |
 | ------------------------------------ | -------------------------------------------- | ------------------------------------- |
-| handler（各受众）                    | httpapi、service、media、uploads、types、gen | **repo**、config、其他受众 handler    |
+| handler（各受众）                    | httpapi、service、media、uploads、types      | **repo**、config、其他受众 handler    |
 | service                              | repo、types、auth、oplog、reqctx             | handler、httpapi、media、uploads      |
 | media                                | repo、storage、oplog、reqctx                 | service、handler、httpapi             |
 | uploads                              | media、storage、uid                          | repo（会话不建表，现状保持）、handler |
 | repo                                 | （无 internal 依赖，自带 Config）            | service、handler、httpapi、config     |
 | httpapi                              | auth、reqctx                                 | config、handler、service、repo        |
 | oplog                                | repo、reqctx                                 | httpapi                               |
+| storage                              | uid（对象命名）                              | 除 uid 外的 internal 包               |
 | reqctx / uid / types / auth / config | （叶子包，无 internal 依赖）                 | 任何 internal 包                      |
-| gen/\*                               | （无 internal 依赖）                         | 禁止手改（CI 漂移门禁已有）           |
+| archguard                            | （守护测试包，仅测试文件，零 internal 依赖） | 任何 internal 包                      |
+| gen/\*                               | （无 internal 依赖，各受众 handler 引用）    | 禁止手改（CI 漂移门禁已有）           |
 
 **业务层定义**:业务层 = `service`(后台管理域)+ `media` + `uploads`(文件域)三个领域服务包;handler 只允许依赖业务层,不得 import `repo`。
 
@@ -37,13 +39,14 @@
 5. **main 受众表**:在 `cmd/server/main.go` 的受众表登记一条(前缀 → handler → 中间件链),由表驱动注册,不复制中间件链代码;
 6. **网关前缀**:公开受众登记网关放行前缀(`/api/<受众>/*`,admin 路径保持仅内网/VPN 可达),并同步 [docs/multi-audience-contracts.md](../../docs/multi-audience-contracts.md) 的受众表。
 
-- 公开链一律复用 `publicChain`(RequestID → ClientIP → SecurityHeaders → Logging → Recover);admin 链在其之上额外挂 `OriginCheck`、`JWTAuth`、`PermissionCheck`;
+- 公开受众链一律复用 `baseChain`(RequestID → ClientIP → SecurityHeaders → Logging),`Recover` 恒为最后一环追加;admin 链在其之上额外挂 `OriginCheck`、`JWTAuth`、`PermissionCheck`;
 - 公开受众无鉴权、无权限码、无 token 注入;权限码只属于 admin 契约与 `httpapi.RoutePermissions`。
 
 ## 3. 错误处理
 
 - 每个包定义**本包哨兵错误**(`errors.New`),跨层传递用 `fmt.Errorf("...: %w", err)`,不裸传错误文本;
 - **哨兵转译边界**:repo 哨兵不得出 repo 所属业务包——`service`/`media`/`uploads` 必须把 repo 哨兵转译为本包哨兵(如 `service.ErrUserNotFound`),再向上返回;
+- **哨兵清单**(与实现对齐,新增哨兵同步本条):`service` = not-found 四件套 `ErrUserNotFound`/`ErrRoleNotFound`/`ErrDictNotFound`/`ErrDictEntryNotFound`(`errors.go`,由 repo 哨兵转译而来)+ 业务哨兵 `ErrUsernameExists`、`ErrSelfOperation`、`ErrBuiltinUser`、`ErrRoleCodeExists`、`ErrBuiltinRole`、`ErrRoleInUse`、`ErrPermissionInvalid`、`ErrDictCodeExists`、`ErrDictValueExists`、`ErrInvalidConfigGroup` 与登录哨兵 `ErrInvalidCredentials`、`ErrUserDisabled`、`ErrWrongOldPassword`;`media` = 转译对 `ErrMediaNotFound`/`ErrMediaGroupNotFound` + `ErrInvalidType`、`ErrTooLarge`、`ErrGroupNameExists`、`ErrInvalidGroup`、`ErrInvalidGroupName`;`uploads` = `ErrSessionNotFound`、`ErrInvalidSize`、`ErrInvalidIndex`、`ErrChunkTooLarge`、`ErrIncomplete`(会话落盘不建表,无 repo 哨兵);
 - handler 只判业务层哨兵(`service`/`media`/`uploads`)与 `gen` 类型,不得 import `repo` 或用字符串匹配错误;
 - HTTP 响应**只走** `httpapi.WriteJSON` / `httpapi.WriteError`(统一 `{code, message, data}` 信封),禁止 handler 内直接 `json.NewEncoder`、`w.Write`、`http.Error`;
 - 状态码映射在 handler(400 参数/401 未登录/403 无权限/404 不存在/409 冲突/500 内部错误),内部错误细节只进日志、不透给客户端。

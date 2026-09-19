@@ -6,16 +6,23 @@
 
 ```text
 apps/server/
-  cmd/
-    server/main.go       入口:只做"读配置 → 装配依赖 → 启动",不放业务
+  cmd/server/
+    main.go              入口:只做装配(run() 返回 error,os.Exit 只在 main 一层),不放业务
+    bootstrap.go         启动期副任务:权限注册表同步对账(bootstrapPermissions)
   internal/
-    handler/             HTTP 层:实现 oapi-codegen 生成的 ServerInterface
+    handler/             HTTP 层:按受众分子包(admin/site/app/h5),实现 oapi-codegen 生成的 ServerInterface
     service/             业务逻辑层:核心规则都写在这里
+    media/  uploads/     文件域业务:媒体资源 / 大文件分片上传
     repo/                数据访问层:只管存取,不含业务判断
+    httpapi/             传输层公共件:中间件链、{code, message, data} 信封、路由权限注册表
+    oplog/               业务操作日志埋点(service 显式调用)
+    storage/             文件存储多厂商抽象(local / COS)
+    auth/  reqctx/  uid/ 叶子包:JWT 签名校验 / 请求上下文身份与 IP / UUID
+    archguard/           架构守护测试(依赖方向矩阵 + 权限对账)
     config/              配置加载(env / 文件)
     types/               内部领域模型
-  gen/                   oapi-codegen 生成物(勿手改)
-  oapi.cfg.yaml          oapi-codegen 配置
+  gen/                   oapi-codegen 生成物(admin/site/app/h5 四份,勿手改)
+  oapi.*.cfg.yaml        oapi-codegen 配置(每受众一份)
   package.json           暴露 dev/build/gen:api 脚本,交给 turbo 编排
 ```
 
@@ -44,7 +51,7 @@ Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通�
   "scripts": {
     "dev": "go run ./cmd/server",
     "build": "go build -o bin/server ./cmd/server",
-    "gen:api": "oapi-codegen -config oapi.admin.cfg.yaml ../../openapi/admin.yaml"
+    "gen:api": "按 admin → site → app → h5 依次生成(多文件契约先 redocly bundle,完整命令见 apps/server/package.json)"
   }
 }
 ```
@@ -53,9 +60,10 @@ Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通�
 
 ## OpenAPI 接口生成
 
-- 契约按受众存在 `openapi/` 目录:admin 契约唯一来源是 `openapi/admin.yaml`(site 契约见 `openapi/site.yaml` 与 [multi-audience-contracts.md](./multi-audience-contracts.md));
-- `pnpm gen:api`(即 `oapi-codegen`)生成 `gen/admin/` 下的 types、请求/响应骨架与 `ServerInterface`;
-- handler 按接口拆文件实现 `ServerInterface`(一个资源一个文件,如 `handler/article.go`);
+- 契约按受众存在 `openapi/` 目录,共 4 份:admin/site 为单文件(`openapi/admin.yaml`、`openapi/site.yaml`),app/h5 为多文件目录(`openapi/app/`、`openapi/h5/`,生成前先 `redocly bundle`);受众边界见 [multi-audience-contracts.md](./multi-audience-contracts.md);
+- `pnpm gen:api`(即 `oapi-codegen`)生成 `gen/<受众>/` 下的 types、请求/响应骨架与 `ServerInterface`;
+- handler 按受众分子包(`internal/handler/<受众>/`),包内按接口拆文件实现 `ServerInterface`(一个资源一个文件);
+- 本地调试用 Swagger UI:`httpapi.RegisterSwagger` 在 root mux 挂 UI 与 4 份契约(admin/site/app/h5,spec 路径由 `cfg.Swagger` 配置),列表与下载不经过受众中间件链;
 - 生成物不手改;契约变更流程:改对应受众契约 → 重新生成 → 补 handler 实现。
 
 ## 分层与错误处理
@@ -63,11 +71,12 @@ Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通�
 - **handler 薄**:参数绑定、鉴权、调 service、按状态码写响应,不写业务规则;
 - **service 厚**:业务规则、事务边界都在 service;入参出参用内部领域模型,不直接暴露生成物类型穿透各层;
 - **repo 只管存取**:屏蔽具体存储(SQL / 内存),供 service 调用;
-- 错误:包内定义哨兵错误(`errors.Is` / `errors.As`),跨层传递用 `fmt.Errorf("...: %w", err)`,在 handler 统一映射为 HTTP 状态码。
+- 错误:包内定义哨兵错误(`errors.Is` / `errors.As`),跨层传递用 `fmt.Errorf("...: %w", err)`,在 handler 统一映射为 HTTP 状态码;repo 哨兵不出业务包,由 `service`/`media`/`uploads` 转译为本包哨兵后再向上返回,handler 只判业务哨兵;
+- 架构约束由守护测试 `internal/archguard` 把关:`go list` 断言 internal 依赖方向矩阵,权限对账测试断言 admin 契约 ↔ `httpapi.RoutePermissions` 双向一致(漏注册与幽灵条目都红灯),豁免清单已清零、不得新增。
 
 ## 简洁性规则
 
-- `main.go` 保持装配职责,超过约 **100 行**说明依赖组装该抽 `internal/config` 或 wire 函数了;
+- `main.go` 只做装配:`run()` 返回 error(`os.Exit` 只在 main 一层,defer 保证生效),受众路由走表驱动注册 + 公开基链 `baseChain` 复用,权限注册表同步对账抽 `bootstrapPermissions`(见 `cmd/server/bootstrap.go`);启动逻辑超过约 **300 行**拆 bootstrap 独立文件;
 - 任何单文件超过约 **400 行**,按资源或职责拆分;
 - 新增接口的固定动作:改对应受众契约(admin 为 `openapi/admin.yaml`)→ `gen:api` → 建 handler 文件 → 写 service 方法 →(需要时)扩 repo。
 
@@ -82,4 +91,4 @@ Go 不归 pnpm 管,但为了根目录一条命令跑起整个项目,server 通�
 在此基础上,server 已落地的纵深防御(`internal/httpapi`,中间件链见 `cmd/server/main.go`):
 
 - `OriginCheck(allowedOrigins)`:只挂 **admin 链**(site 链公开只读不挂),位置在 `RequestID` 之后、`JWTAuth` 之前。非安全方法(GET/HEAD/OPTIONS 之外)且请求带 `Origin` 头时,Origin 必须精确命中白名单,否则 403;不带 `Origin` 的非浏览器调用(curl、服务间)放行。白名单来自环境变量 `CSRF_ALLOWED_ORIGINS`(逗号分隔,精确匹配 scheme+host+port),默认 `http://localhost:8081`(dev 代理下 admin 的 Origin,开箱即用);生产部署必须注入真实后台域名。
-- `SecurityHeaders()`:admin 与 site 两条链都挂,统一输出 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: strict-origin-when-cross-origin`、`Cache-Control: no-store`。CSP 暂不施加(策略源在 admin 托管层,构建期以 meta 兜底);Swagger 页面注册在 root mux、不经过链,无需处理。
+- `SecurityHeaders()`:各受众链(baseChain)都挂,统一输出 `X-Content-Type-Options: nosniff`、`X-Frame-Options: DENY`、`Referrer-Policy: strict-origin-when-cross-origin`、`Cache-Control: no-store`。CSP 暂不施加(策略源在 admin 托管层,构建期以 meta 兜底);Swagger 页面注册在 root mux、不经过链,无需处理。
