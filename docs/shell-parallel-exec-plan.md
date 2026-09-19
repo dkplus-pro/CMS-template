@@ -22,7 +22,7 @@
 
 ## 2. 全局并发模型（2026-09-19 用户指令修订）
 
-- **现行模型：planner（主 agent）+ 固定 2 个执行槽滚动**，不再铺大并发。槽一空即按"依赖已满足 + 关键链优先"补位，直到六流全部完成。全局队列：server S1.2 → mobile M1 → h5 H1.B → desktop D1 → desktop D2 → miniapp N2.x → site P2/P3 → …（依 DAG 滚动）。
+- **现行模型：见 [docs/shell-exec-runbook.md](./shell-exec-runbook.md)（主 agent 总指挥兼执行者 + 至多 2 个 coding-agent 并行槽，CA 不可并行时回归主 agent 串行；全序任务卡与执行台账以 runbook 为准）**。本节以下描述与 §4.2 波次表为历史模型留档。
 - **执行池实况**：coding-agent（GLM-5.3-Flash）池当日多次 `captcha verify failed` 瞬时拒绝（并发 ≈2 且不稳定），降级为次选；主力 coding-agent-2（deepseek-v4.1-flash），general-purpose 兜底。遇限流换池重试。
 - planner agent 不常驻：六份方案的分阶段计划已是 planner 级任务卡；执行失败需重规划时由总指挥按需调用。
 - mobile 阶段 0（Flutter SDK）：已由后台 shell 完成（~/flutter stable，`flutter --version` 通过），不占槽。
