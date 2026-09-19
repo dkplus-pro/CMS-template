@@ -13,6 +13,8 @@ class AppConfig {
     required this.sentryDsn,
     required this.sentryTracesSampleRate,
     required this.analyticsEnabled,
+    required this.appVersion,
+    required this.buildNumber,
   });
 
   final Flavor flavor;
@@ -29,6 +31,12 @@ class AppConfig {
 
   /// 埋点总开关,默认 false(console 实现也不输出)。
   final bool analyticsEnabled;
+
+  /// 应用版本号(展示用);--dart-define APP_VERSION 注入,缺省与 pubspec version 对齐。
+  final String appVersion;
+
+  /// 构建号;--dart-define BUILD_NUMBER 注入,缺省 '1'。
+  final String buildNumber;
 
   /// 从构建期 --dart-define 读取全部配置;键与缺省值即对外契约,变更需同步 README。
   factory AppConfig.fromDartDefines() => AppConfig(
@@ -48,6 +56,14 @@ class AppConfig {
         analyticsEnabled: const bool.fromEnvironment(
           'ANALYTICS_ENABLED',
           defaultValue: false,
+        ),
+        appVersion: const String.fromEnvironment(
+          'APP_VERSION',
+          defaultValue: '0.1.0',
+        ),
+        buildNumber: const String.fromEnvironment(
+          'BUILD_NUMBER',
+          defaultValue: '1',
         ),
       );
 }

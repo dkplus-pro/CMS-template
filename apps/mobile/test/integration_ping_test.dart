@@ -15,6 +15,8 @@ void main() {
       sentryDsn: '',
       sentryTracesSampleRate: 0,
       analyticsEnabled: false,
+      appVersion: '0.1.0',
+      buildNumber: '1',
     );
     final repository = PingRepository(buildDio(config));
 

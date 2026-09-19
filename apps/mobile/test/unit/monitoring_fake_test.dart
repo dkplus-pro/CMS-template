@@ -91,6 +91,8 @@ void main() {
             sentryDsn: '',
             sentryTracesSampleRate: 0,
             analyticsEnabled: true,
+            appVersion: '0.1.0',
+            buildNumber: '1',
           ),
         ),
         isA<SentryEventTracker>(),

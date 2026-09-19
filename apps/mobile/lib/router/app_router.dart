@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/home/home_page.dart';
+import '../features/webview/webview_page.dart';
 
 /// 路由表(go_router,官方):路由独立于页面,天然支持路由级性能事务(M3.1 接 PerformanceMonitor);
 /// 路径外的未知路由渲染错误页(路由级兜底)。
@@ -9,6 +10,13 @@ final appRouter = GoRouter(
   initialLocation: '/',
   routes: [
     GoRoute(path: '/', builder: (context, state) => const HomePage()),
+    GoRoute(
+      path: '/webview',
+      builder: (context, state) => WebViewPage(
+        url: state.uri.queryParameters['url'],
+        title: state.uri.queryParameters['title'],
+      ),
+    ),
   ],
   errorBuilder: (context, state) => _RouteErrorPage(error: state.error),
 );

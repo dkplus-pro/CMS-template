@@ -43,13 +43,15 @@ lib/
 
 与 `core/config/app_config.dart` 字段一一对应;键与缺省值即对外契约,变更需同步本表与 README:
 
-| key                         | 用途                | 缺失行为                                                                          |
-| --------------------------- | ------------------- | --------------------------------------------------------------------------------- |
-| `API_BASE_URL`              | 后端基地址          | 默认 `http://localhost:18085`(Android 模拟器访问宿主机用 `http://10.0.2.2:18085`) |
-| `SENTRY_DSN`                | Sentry 接入         | 缺失(空串)→ `SentryFlutter.init` 跳过,ErrorReporter/PerformanceMonitor 全部 no-op |
-| `SENTRY_TRACES_SAMPLE_RATE` | 性能采样率(0.0~1.0) | 默认 0.0;解析失败或 ≤0 时 PerformanceMonitor no-op                                |
-| `FLAVOR`                    | dev/staging/prod    | 缺失或非法值回退 dev                                                              |
-| `ANALYTICS_ENABLED`         | 埋点总开关          | 默认 false(Console 实现,debugPrint 核对);true 时埋点走 Sentry breadcrumb          |
+| key                         | 用途                           | 缺失行为                                                                          |
+| --------------------------- | ------------------------------ | --------------------------------------------------------------------------------- |
+| `API_BASE_URL`              | 后端基地址                     | 默认 `http://localhost:18085`(Android 模拟器访问宿主机用 `http://10.0.2.2:18085`) |
+| `SENTRY_DSN`                | Sentry 接入                    | 缺失(空串)→ `SentryFlutter.init` 跳过,ErrorReporter/PerformanceMonitor 全部 no-op |
+| `SENTRY_TRACES_SAMPLE_RATE` | 性能采样率(0.0~1.0)            | 默认 0.0;解析失败或 ≤0 时 PerformanceMonitor no-op                                |
+| `FLAVOR`                    | dev/staging/prod               | 缺失或非法值回退 dev                                                              |
+| `ANALYTICS_ENABLED`         | 埋点总开关                     | 默认 false(Console 实现,debugPrint 核对);true 时埋点走 Sentry breadcrumb          |
+| `APP_VERSION`               | JSB getAppVersion 展示用版本号 | 默认 0.1.0                                                                        |
+| `BUILD_NUMBER`              | JSB getAppVersion 构建号       | 默认 1                                                                            |
 
 ## 5. 接口替换点清单
 
