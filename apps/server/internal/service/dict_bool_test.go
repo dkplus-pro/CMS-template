@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/cms-template/server/internal/repo"
+	"github.com/cms-template/server/internal/types"
 )
 
 // 回归:GORM 对带 default:true 的 bool 字段在 Create 时跳过零值,导致 status=false 被
@@ -27,7 +28,7 @@ func TestDictEntryStatusPreservedFalse(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	entries := []repo.DictEntry{
+	entries := []types.DictEntry{
 		{Label: "坏", Value: "0", Status: false},
 		{Label: "好", Value: "1", Status: true},
 	}

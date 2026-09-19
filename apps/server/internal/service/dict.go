@@ -72,7 +72,7 @@ func (s *DictService) Create(ctx context.Context, code, name, remark string, sta
 func (s *DictService) Update(ctx context.Context, id int64, code, name, remark string, status bool) (types.Dict, error) {
 	dict, err := repo.GetDictByID(ctx, s.db, id)
 	if err != nil {
-		return types.Dict{}, err
+		return types.Dict{}, translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	if conflict, err := repo.GetDictByCode(ctx, s.db, code); err == nil && conflict.ID != id {
 		return types.Dict{}, ErrDictCodeExists
@@ -95,7 +95,7 @@ func (s *DictService) Update(ctx context.Context, id int64, code, name, remark s
 func (s *DictService) Delete(ctx context.Context, id int64) error {
 	dict, err := repo.GetDictByID(ctx, s.db, id)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	if err := repo.DeleteDict(ctx, s.db, id); err != nil {
 		return err
@@ -111,7 +111,7 @@ func (s *DictService) Delete(ctx context.Context, id int64) error {
 func (s *DictService) UpdateStatus(ctx context.Context, id int64, status bool) error {
 	dict, err := repo.GetDictByID(ctx, s.db, id)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	dict.Status = status
 	if err := repo.UpdateDict(ctx, s.db, &dict); err != nil {
@@ -128,13 +128,20 @@ func (s *DictService) UpdateStatus(ctx context.Context, id int64, status bool) e
 	return nil
 }
 
-// ReplaceEntries 整组覆写字典项(记业务日志)。
-func (s *DictService) ReplaceEntries(ctx context.Context, dictID int64, entries []repo.DictEntry) error {
+// ReplaceEntries 整组覆写字典项(记业务日志);入参走 types,repo 模型不跨业务层边界。
+func (s *DictService) ReplaceEntries(ctx context.Context, dictID int64, entries []types.DictEntry) error {
 	dict, err := repo.GetDictByID(ctx, s.db, dictID)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
-	if err := repo.ReplaceDictEntries(ctx, s.db, dictID, entries); err != nil {
+	repoEntries := make([]repo.DictEntry, 0, len(entries))
+	for _, entry := range entries {
+		repoEntries = append(repoEntries, repo.DictEntry{
+			ID: entry.ID, DictID: entry.DictID, Label: entry.Label,
+			Value: entry.Value, Sort: entry.Sort, Status: entry.Status,
+		})
+	}
+	if err := repo.ReplaceDictEntries(ctx, s.db, dictID, repoEntries); err != nil {
 		return err
 	}
 	oplog.Success(ctx, s.db, oplog.Entry{
@@ -149,7 +156,7 @@ func (s *DictService) ReplaceEntries(ctx context.Context, dictID int64, entries 
 func (s *DictService) ListEntries(ctx context.Context, code string) ([]types.DictEntry, error) {
 	dict, err := repo.GetDictByCode(ctx, s.db, code)
 	if err != nil {
-		return nil, err
+		return nil, translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	entries, err := repo.ListDictEntriesByDictID(ctx, s.db, dict.ID)
 	if err != nil {
@@ -167,7 +174,7 @@ func (s *DictService) ListEntries(ctx context.Context, code string) ([]types.Dic
 func (s *DictService) CreateEntry(ctx context.Context, code, label, value string, sort int, status bool) (types.DictEntry, error) {
 	dict, err := repo.GetDictByCode(ctx, s.db, code)
 	if err != nil {
-		return types.DictEntry{}, err
+		return types.DictEntry{}, translateRepoErr(err, repo.ErrDictNotFound, ErrDictNotFound)
 	}
 	if exists, err := repo.HasDictEntryValue(ctx, s.db, dict.ID, value, 0); err != nil {
 		return types.DictEntry{}, err
@@ -190,7 +197,7 @@ func (s *DictService) CreateEntry(ctx context.Context, code, label, value string
 func (s *DictService) UpdateEntry(ctx context.Context, id int64, label, value string, sort int, status bool) (types.DictEntry, error) {
 	entry, err := repo.GetDictEntryByID(ctx, s.db, id)
 	if err != nil {
-		return types.DictEntry{}, err
+		return types.DictEntry{}, translateRepoErr(err, repo.ErrDictEntryNotFound, ErrDictEntryNotFound)
 	}
 	if exists, err := repo.HasDictEntryValue(ctx, s.db, entry.DictID, value, id); err != nil {
 		return types.DictEntry{}, err
@@ -213,7 +220,7 @@ func (s *DictService) UpdateEntry(ctx context.Context, id int64, label, value st
 func (s *DictService) DeleteEntry(ctx context.Context, id int64) error {
 	entry, err := repo.GetDictEntryByID(ctx, s.db, id)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrDictEntryNotFound, ErrDictEntryNotFound)
 	}
 	if err := repo.DeleteDictEntry(ctx, s.db, id); err != nil {
 		return err

@@ -61,8 +61,12 @@ var (
 	ErrInvalidGroupName = errors.New("invalid media group name")
 )
 
-// ErrMediaNotFound 媒体资源不存在。
-var ErrMediaNotFound = repo.ErrFileNotFound
+// ErrMediaNotFound 媒体资源不存在;ErrMediaGroupNotFound 分组不存在。
+// 两者在本包出口由 repo 哨兵转译而来(转译边界见 apps/server/AGENTS.md §3)。
+var (
+	ErrMediaNotFound      = errors.New("media not found")
+	ErrMediaGroupNotFound = errors.New("media group not found")
+)
 
 // Service 媒体资源业务。
 type Service struct {
@@ -199,7 +203,7 @@ func (s *Service) List(ctx context.Context, kind string, groupID *int64, page, p
 func (s *Service) Get(ctx context.Context, id int64) (Asset, error) {
 	asset, err := repo.GetMediaAssetByID(ctx, s.db, id)
 	if err != nil {
-		return Asset{}, err
+		return Asset{}, translateMediaErr(err)
 	}
 	out, err := s.toAssetE(ctx, asset)
 	if err != nil {
@@ -212,9 +216,42 @@ func (s *Service) Get(ctx context.Context, id int64) (Asset, error) {
 	return out, nil
 }
 
+// FileInfo 底层文件记录的出参视图(repo 模型不透出业务包)。
+type FileInfo struct {
+	ID         int64
+	OrigName   string
+	Name       string // 存储对象名
+	Mime       string
+	Size       int64
+	Storage    string
+	Url        string // CDN 直链;local 存储为空串
+	UploaderID int64
+	CreatedAt  time.Time
+}
+
 // GetFile 底层文件记录(内容流端点用)。
-func (s *Service) GetFile(ctx context.Context, id int64) (repo.File, error) {
-	return repo.GetFileByID(ctx, s.db, id)
+func (s *Service) GetFile(ctx context.Context, id int64) (FileInfo, error) {
+	file, err := repo.GetFileByID(ctx, s.db, id)
+	if err != nil {
+		return FileInfo{}, translateMediaErr(err)
+	}
+	return FileInfo{
+		ID: file.ID, OrigName: file.OrigName, Name: file.Name, Mime: file.Mime,
+		Size: file.Size, Storage: file.Storage, Url: file.Url,
+		UploaderID: file.UploaderID, CreatedAt: file.CreatedAt,
+	}, nil
+}
+
+// translateMediaErr repo 哨兵 → 本包哨兵的单点转译;非目标错误原样透传。
+func translateMediaErr(err error) error {
+	switch {
+	case errors.Is(err, repo.ErrFileNotFound):
+		return ErrMediaNotFound
+	case errors.Is(err, repo.ErrMediaGroupNotFound):
+		return ErrMediaGroupNotFound
+	default:
+		return err
+	}
 }
 
 // Open 打开介质文件(本地内容端点用;本地实现返回 *os.File,可断言 io.ReadSeeker)。
@@ -237,7 +274,7 @@ func (s *Service) toAsset(asset repo.MediaAsset, file repo.File) Asset {
 func (s *Service) toAssetE(ctx context.Context, asset repo.MediaAsset) (Asset, error) {
 	file, err := repo.GetFileByID(ctx, s.db, asset.FileID)
 	if err != nil {
-		return Asset{}, err
+		return Asset{}, translateMediaErr(err)
 	}
 	return s.toAsset(asset, file), nil
 }
@@ -248,11 +285,11 @@ func (s *Service) toAssetE(ctx context.Context, asset repo.MediaAsset) (Asset, e
 func (s *Service) Delete(ctx context.Context, id int64) error {
 	asset, err := repo.GetMediaAssetByID(ctx, s.db, id)
 	if err != nil {
-		return err
+		return translateMediaErr(err)
 	}
 	file, err := repo.GetFileByID(ctx, s.db, asset.FileID)
 	if err != nil {
-		return err
+		return translateMediaErr(err)
 	}
 	if file.Storage == s.storage.Driver() {
 		if err := s.storage.Delete(ctx, file.Name); err != nil {

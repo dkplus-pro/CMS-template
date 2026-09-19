@@ -67,7 +67,7 @@ func (s *RoleService) All(ctx context.Context) ([]types.RoleBrief, error) {
 func (s *RoleService) Get(ctx context.Context, id int64) (types.RoleItem, error) {
 	role, err := repo.GetRoleByID(ctx, s.db, id)
 	if err != nil {
-		return types.RoleItem{}, err
+		return types.RoleItem{}, translateRepoErr(err, repo.ErrRoleNotFound, ErrRoleNotFound)
 	}
 	return s.toRoleItem(ctx, role)
 }
@@ -95,7 +95,7 @@ func (s *RoleService) Create(ctx context.Context, code, name, remark string, sta
 func (s *RoleService) Update(ctx context.Context, id int64, code, name, remark string, status bool) (types.RoleItem, error) {
 	role, err := repo.GetRoleByID(ctx, s.db, id)
 	if err != nil {
-		return types.RoleItem{}, err
+		return types.RoleItem{}, translateRepoErr(err, repo.ErrRoleNotFound, ErrRoleNotFound)
 	}
 	if role.IsBuiltin && role.Code != code {
 		return types.RoleItem{}, ErrBuiltinRole
@@ -115,7 +115,7 @@ func (s *RoleService) Update(ctx context.Context, id int64, code, name, remark s
 func (s *RoleService) Delete(ctx context.Context, id int64) error {
 	role, err := repo.GetRoleByID(ctx, s.db, id)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrRoleNotFound, ErrRoleNotFound)
 	}
 	if role.IsBuiltin {
 		oplog.Failed(ctx, s.db, oplog.Entry{
@@ -149,7 +149,7 @@ func (s *RoleService) Delete(ctx context.Context, id int64) error {
 func (s *RoleService) UpdatePermissions(ctx context.Context, roleID int64, permissionIDs []int64) error {
 	role, err := repo.GetRoleByID(ctx, s.db, roleID)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrRoleNotFound, ErrRoleNotFound)
 	}
 	for _, pid := range permissionIDs {
 		var count int64

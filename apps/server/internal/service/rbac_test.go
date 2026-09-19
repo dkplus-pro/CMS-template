@@ -318,7 +318,7 @@ func TestStage4Services(t *testing.T) {
 	if err := dicts.Delete(ctx, created.ID); err != nil {
 		t.Fatalf("delete dict: %v", err)
 	}
-	if _, err := dicts.ListEntries(ctx, "gender"); !errors.Is(err, repo.ErrDictNotFound) {
+	if _, err := dicts.ListEntries(ctx, "gender"); !errors.Is(err, ErrDictNotFound) {
 		t.Fatalf("entries of deleted dict should 404, got %v", err)
 	}
 

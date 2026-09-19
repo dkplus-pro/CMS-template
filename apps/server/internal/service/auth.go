@@ -87,7 +87,7 @@ func (s *AuthService) Login(ctx context.Context, username, password string) (str
 func (s *AuthService) Me(ctx context.Context, userID int64) (types.UserInfo, error) {
 	user, err := repo.GetUserByID(ctx, s.db, userID)
 	if err != nil {
-		return types.UserInfo{}, err
+		return types.UserInfo{}, translateRepoErr(err, repo.ErrUserNotFound, ErrUserNotFound)
 	}
 	return s.buildUserInfo(ctx, user)
 }
@@ -96,7 +96,7 @@ func (s *AuthService) Me(ctx context.Context, userID int64) (types.UserInfo, err
 func (s *AuthService) ChangePassword(ctx context.Context, userID int64, oldPassword, newPassword string) error {
 	user, err := repo.GetUserByID(ctx, s.db, userID)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrUserNotFound, ErrUserNotFound)
 	}
 	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(oldPassword)); err != nil {
 		oplog.Failed(ctx, s.db, oplog.Entry{

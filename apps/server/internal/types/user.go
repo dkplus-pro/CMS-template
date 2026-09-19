@@ -55,45 +55,6 @@ type PermissionNode struct {
 	Children []PermissionNode
 }
 
-// MenuItem 管理端菜单条目(树)。
-type MenuItem struct {
-	ID             int64
-	ParentID       int64
-	Name           string
-	Path           string
-	ComponentKey   string
-	Icon           string
-	PermissionID   int64
-	PermissionCode string
-	Sort           int
-	Visible        bool
-	Children       []MenuItem
-}
-
-// MenuUpsert 菜单新建/编辑请求。
-type MenuUpsert struct {
-	ParentID       int64
-	Name           string
-	Path           string
-	ComponentKey   string
-	Icon           string
-	PermissionCode string
-	Sort           int
-	Visible        bool
-}
-
-// AuthMenuNode 当前用户可见菜单节点(树)。
-type AuthMenuNode struct {
-	ID           int64
-	ParentID     int64
-	Name         string
-	Path         string
-	ComponentKey string
-	Icon         string
-	Sort         int
-	Children     []AuthMenuNode
-}
-
 // OperationLogItem 业务操作日志条目(只读;字段语义见 docs/database.md)。
 type OperationLogItem struct {
 	ID          int64

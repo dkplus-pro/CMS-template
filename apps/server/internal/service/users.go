@@ -54,7 +54,7 @@ func (s *UserService) List(ctx context.Context, page, pageSize int, keyword stri
 func (s *UserService) Get(ctx context.Context, id int64) (types.UserItem, error) {
 	user, err := repo.GetUserByID(ctx, s.db, id)
 	if err != nil {
-		return types.UserItem{}, err
+		return types.UserItem{}, translateRepoErr(err, repo.ErrUserNotFound, ErrUserNotFound)
 	}
 	return s.toUserItem(ctx, user)
 }
@@ -93,7 +93,7 @@ func (s *UserService) Create(ctx context.Context, username, password, nickname, 
 func (s *UserService) Update(ctx context.Context, id int64, nickname, email string) (types.UserItem, error) {
 	user, err := repo.GetUserByID(ctx, s.db, id)
 	if err != nil {
-		return types.UserItem{}, err
+		return types.UserItem{}, translateRepoErr(err, repo.ErrUserNotFound, ErrUserNotFound)
 	}
 	if err := repo.UpdateUserProfile(ctx, s.db, id, nickname, email); err != nil {
 		return types.UserItem{}, err
@@ -112,7 +112,7 @@ func (s *UserService) UpdateStatus(ctx context.Context, operatorID, id int64, st
 	}
 	user, err := repo.GetUserByID(ctx, s.db, id)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrUserNotFound, ErrUserNotFound)
 	}
 	if user.IsBuiltin {
 		oplog.Failed(ctx, s.db, oplog.Entry{
@@ -142,7 +142,7 @@ func (s *UserService) Delete(ctx context.Context, operatorID, id int64) error {
 	}
 	user, err := repo.GetUserByID(ctx, s.db, id)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrUserNotFound, ErrUserNotFound)
 	}
 	if user.IsBuiltin {
 		oplog.Failed(ctx, s.db, oplog.Entry{
@@ -165,7 +165,7 @@ func (s *UserService) Delete(ctx context.Context, operatorID, id int64) error {
 func (s *UserService) UpdateRoles(ctx context.Context, id int64, roleIDs []int64) error {
 	user, err := repo.GetUserByID(ctx, s.db, id)
 	if err != nil {
-		return err
+		return translateRepoErr(err, repo.ErrUserNotFound, ErrUserNotFound)
 	}
 	if err := repo.ReplaceUserRoles(ctx, s.db, id, roleIDs); err != nil {
 		return err

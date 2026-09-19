@@ -83,7 +83,7 @@ func (s *Service) RenameGroup(ctx context.Context, id int64, name string) (Group
 		if errors.Is(err, repo.ErrMediaGroupNotFound) {
 			s.logGroupFailed(ctx, "mediaGroup.update", fmt.Sprint(id), "重命名分组失败:分组不存在")
 		}
-		return Group{}, err
+		return Group{}, translateMediaErr(err)
 	}
 	if conflict, err := repo.GetMediaGroupByName(ctx, s.db, group.Kind, name); err == nil && conflict.ID != id {
 		s.logGroupFailed(ctx, "mediaGroup.update", fmt.Sprint(id),
@@ -111,7 +111,7 @@ func (s *Service) DeleteGroup(ctx context.Context, id int64) error {
 		if errors.Is(err, repo.ErrMediaGroupNotFound) {
 			s.logGroupFailed(ctx, "mediaGroup.delete", fmt.Sprint(id), "删除分组失败:分组不存在")
 		}
-		return err
+		return translateMediaErr(err)
 	}
 	if err := repo.DeleteMediaGroup(ctx, s.db, id); err != nil {
 		return err
@@ -127,7 +127,7 @@ func (s *Service) DeleteGroup(ctx context.Context, id int64) error {
 func (s *Service) MoveGroup(ctx context.Context, id, groupID int64) (Asset, error) {
 	asset, err := repo.GetMediaAssetByID(ctx, s.db, id)
 	if err != nil {
-		return Asset{}, err
+		return Asset{}, translateMediaErr(err)
 	}
 	if err := s.validateGroupOfKind(ctx, asset.Kind, groupID); err != nil {
 		s.logGroupFailed(ctx, "media.moveGroup", fmt.Sprint(id),

@@ -138,9 +138,9 @@ func (h *Handler) ReplaceDictEntries(w http.ResponseWriter, r *http.Request, id 
 		httpapi.WriteError(w, http.StatusBadRequest, "参数错误")
 		return
 	}
-	entries := make([]repo.DictEntry, 0, len(req.Entries))
+	entries := make([]types.DictEntry, 0, len(req.Entries))
 	for _, e := range req.Entries {
-		entries = append(entries, repo.DictEntry{
+		entries = append(entries, types.DictEntry{
 			Label: e.Label, Value: e.Value, Sort: derefInt(e.Sort), Status: derefBoolDefault(e.Status, true),
 		})
 	}

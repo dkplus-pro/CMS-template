@@ -136,7 +136,7 @@ func TestGroupCRUD(t *testing.T) {
 			t.Fatalf("asset should be ungrouped after delete: %+v", asset)
 		}
 	}
-	if err := s.DeleteGroup(ctx, group.ID); !errors.Is(err, repo.ErrMediaGroupNotFound) {
+	if err := s.DeleteGroup(ctx, group.ID); !errors.Is(err, ErrMediaGroupNotFound) {
 		t.Fatalf("expected ErrMediaGroupNotFound, got %v", err)
 	}
 	if countLogs(t, s, "mediaGroup.delete", oplog.StatusSuccess) != 1 {
