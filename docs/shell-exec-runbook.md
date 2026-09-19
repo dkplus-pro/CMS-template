@@ -211,68 +211,68 @@
 
 ## 10. 执行台账
 
-| 卡号 | 流      | 执行者             | 状态    | 提交        | 备注                                                                                   |
-| ---- | ------- | ------------------ | ------- | ----------- | -------------------------------------------------------------------------------------- |
-| S1.1 | server  | MAIN（历史）       | ✅ 完成 | 35b4f60     | apps/server/AGENTS.md 8 节规范 + 根 AGENTS.md 11b 指向行                               |
-| N1.1 | miniapp | CA（历史）         | ✅ 完成 | d1dc2d3     | 多环境表+defineConstants；taro build 实证；曾被 lint-staged stash 误伤回滚后自愈       |
-| N1.2 | miniapp | CA（历史）         | ✅ 完成 | c4eda14     | core/transport 47 新用例（11→58）；测试落 apps/miniapp/tests/                          |
-| P1   | site    | CA（历史）         | ✅ 完成 | fa24ee6     | 4 依赖钉版+transformImport（camelToDashComponentName:false）+ANALYZE 门控；已 install  |
-| H1.A | h5      | CA（历史）         | ✅ 完成 | 349615b     | arco-mobile ^2.39.1 + transformImport + px-to-vw + 壳组件；**依赖未 install，留 H3.1** |
-| M0   | mobile  | 后台 shell（历史） | ✅ 完成 | —（无提交） | ~/flutter stable 3.47.5 就绪；android/ios/build 本机生成按约定不入库                   |
-| S1.2 | server  | MAIN               | 待启动  |             | 持 L7；archguard 目录已建但为空                                                        |
-| S2.1 | server  | MAIN               | 待启动  |             |                                                                                        |
-| S2.2 | server  | MAIN               | 待启动  |             |                                                                                        |
-| S2.3 | server  | MAIN               | 待启动  |             | 豁免清零硬要求                                                                         |
-| S3.1 | server  | MAIN               | 待启动  |             |                                                                                        |
-| S4.1 | server  | MAIN               | 待启动  |             |                                                                                        |
-| S5.1 | server  | MAIN               | 待启动  |             |                                                                                        |
-| S5.2 | server  | MAIN               | 待启动  |             |                                                                                        |
-| S6.1 | server  | CA                 | 待启动  |             | 依赖 S4.1+S5.2                                                                         |
-| S6.2 | server  | CA                 | 待启动  |             | 依赖 S4.1+S5.2                                                                         |
-| S6.3 | server  | CA                 | 待启动  |             | 依赖 S4.1+S5.2                                                                         |
-| S6.9 | server  | MAIN               | 待启动  |             | 收口，持 L8                                                                            |
-| P2   | site    | CA                 | 待启动  |             | 须待 P3 完工（layout.tsx 互斥）                                                        |
-| P3   | site    | CA                 | 待启动  |             |                                                                                        |
-| P4.1 | site    | CA                 | 待启动  |             | 依赖 P3                                                                                |
-| P4.2 | site    | CA                 | 待启动  |             | 依赖 P3                                                                                |
-| P5.1 | site    | CA                 | 待启动  |             | 依赖 P4                                                                                |
-| P5.2 | site    | CA                 | 待启动  |             | 依赖 P4                                                                                |
-| P6.1 | site    | CA                 | 待启动  |             | 依赖 P2~P5                                                                             |
-| P6.2 | site    | MAIN               | 待启动  |             | MAIN 跑 e2e 与快照基线                                                                 |
-| P7.1 | site    | CA                 | 待启动  |             | 依赖 P2~P5                                                                             |
-| P7.2 | site    | CA                 | 待启动  |             | 依赖 P2~P5                                                                             |
-| P8.1 | site    | MAIN               | 待启动  |             | 总收口，持 L5+L8，序在 D4 后                                                           |
-| H1.B | h5      | CA                 | 待启动  |             | 链头，W1                                                                               |
-| H2.A | h5      | CA                 | 待启动  |             | 持 h5 package.json                                                                     |
-| H2.B | h5      | CA                 | 待启动  |             |                                                                                        |
-| H2.C | h5      | CA                 | 待启动  |             |                                                                                        |
-| H3.1 | h5      | MAIN               | 待启动  |             | 收口，持 L1#1+L8                                                                       |
-| H4.1 | h5      | MAIN               | 待启动  |             | 持 L3                                                                                  |
-| H5.1 | h5      | MAIN               | 待启动  |             | 持 L2                                                                                  |
-| D1   | desktop | CA                 | 待启动  |             | electron-log 声明 MAIN 代写                                                            |
-| D2   | desktop | CA                 | 待启动  |             | 独占 desktop package.json                                                              |
-| D3   | desktop | CA                 | 待启动  |             | 依赖 D1+D2                                                                             |
-| D4   | desktop | MAIN               | 待启动  |             | 收口，持 L1#2+L3+L4+L5+L8                                                              |
-| N2.1 | miniapp | CA                 | 待启动  |             |                                                                                        |
-| N2.2 | miniapp | CA                 | 待启动  |             |                                                                                        |
-| N2.3 | miniapp | CA                 | 待启动  |             |                                                                                        |
-| N3   | miniapp | CA                 | 待启动  |             | 依赖 N2.x                                                                              |
-| N4a  | miniapp | CA                 | 待启动  |             | package.json 持有序 1                                                                  |
-| N4b  | miniapp | CA                 | 待启动  |             |                                                                                        |
-| N5a  | miniapp | CA                 | 待启动  |             | package.json 持有序 2；coverage 实跑留 N7.1                                            |
-| N5b  | miniapp | CA                 | 待启动  |             | package.json 持有序 3                                                                  |
-| N6.1 | miniapp | MAIN               | 待启动  |             | 持 L2                                                                                  |
-| N6.2 | miniapp | CA                 | 待启动  |             |                                                                                        |
-| N7.1 | miniapp | MAIN               | 待启动  |             | 收口，持 L1#3+L4+L6+L8                                                                 |
-| N7.2 | miniapp | MAIN               | 待启动  |             |                                                                                        |
-| M1.1 | mobile  | MAIN               | 待启动  |             | 平台目录已本机生成                                                                     |
-| M1.2 | mobile  | MAIN               | 待启动  |             | flutter pub get，不占 L1                                                               |
-| M1.3 | mobile  | MAIN               | 待启动  |             | 冻结接口，M2 前置                                                                      |
-| M2.A | mobile  | CA                 | 待启动  |             | 依赖 M1.3                                                                              |
-| M2.B | mobile  | CA                 | 待启动  |             | 依赖 M1.3                                                                              |
-| M2.C | mobile  | CA                 | 待启动  |             | 依赖 M1.3                                                                              |
-| M3.1 | mobile  | MAIN               | 待启动  |             |                                                                                        |
-| M3.2 | mobile  | MAIN               | 待启动  |             | MAIN 起 server 18085 自验                                                              |
-| M3.3 | mobile  | MAIN               | 待启动  |             |                                                                                        |
-| M4.A | mobile  | MAIN               | 待启动  |             | 持 L4                                                                                  |
-| M4.B | mobile  | CA                 | 待启动  |             | 依赖 M3.3                                                                              |
+| 卡号 | 流      | 执行者             | 状态    | 提交        | 备注                                                                                                                                                                                           |
+| ---- | ------- | ------------------ | ------- | ----------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| S1.1 | server  | MAIN（历史）       | ✅ 完成 | 35b4f60     | apps/server/AGENTS.md 8 节规范 + 根 AGENTS.md 11b 指向行                                                                                                                                       |
+| N1.1 | miniapp | CA（历史）         | ✅ 完成 | d1dc2d3     | 多环境表+defineConstants；taro build 实证；曾被 lint-staged stash 误伤回滚后自愈                                                                                                               |
+| N1.2 | miniapp | CA（历史）         | ✅ 完成 | c4eda14     | core/transport 47 新用例（11→58）；测试落 apps/miniapp/tests/                                                                                                                                  |
+| P1   | site    | CA（历史）         | ✅ 完成 | fa24ee6     | 4 依赖钉版+transformImport（camelToDashComponentName:false）+ANALYZE 门控；已 install                                                                                                          |
+| H1.A | h5      | CA（历史）         | ✅ 完成 | 349615b     | arco-mobile ^2.39.1 + transformImport + px-to-vw + 壳组件；**依赖未 install，留 H3.1**                                                                                                         |
+| M0   | mobile  | 后台 shell（历史） | ✅ 完成 | —（无提交） | ~/flutter stable 3.47.5 就绪；android/ios/build 本机生成按约定不入库                                                                                                                           |
+| S1.2 | server  | MAIN               | ✅ 完成 | 26302ff     | cutset 病灶比方案更重:Split 分隔符永切不开,{id} 端点全部漏配(权限旁路),已修;补登记 roles/all→system:role:list;矩阵补 storage/archguard 叶子(AGENTS.md §1 缺口,S6.3 对齐);豁免 4 条待 S2.3 清零 |
+| S2.1 | server  | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| S2.2 | server  | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| S2.3 | server  | MAIN               | 待启动  |             | 豁免清零硬要求                                                                                                                                                                                 |
+| S3.1 | server  | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| S4.1 | server  | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| S5.1 | server  | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| S5.2 | server  | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| S6.1 | server  | CA                 | 待启动  |             | 依赖 S4.1+S5.2                                                                                                                                                                                 |
+| S6.2 | server  | CA                 | 待启动  |             | 依赖 S4.1+S5.2                                                                                                                                                                                 |
+| S6.3 | server  | CA                 | 待启动  |             | 依赖 S4.1+S5.2                                                                                                                                                                                 |
+| S6.9 | server  | MAIN               | 待启动  |             | 收口，持 L8                                                                                                                                                                                    |
+| P2   | site    | CA                 | 待启动  |             | 须待 P3 完工（layout.tsx 互斥）                                                                                                                                                                |
+| P3   | site    | CA                 | 待启动  |             |                                                                                                                                                                                                |
+| P4.1 | site    | CA                 | 待启动  |             | 依赖 P3                                                                                                                                                                                        |
+| P4.2 | site    | CA                 | 待启动  |             | 依赖 P3                                                                                                                                                                                        |
+| P5.1 | site    | CA                 | 待启动  |             | 依赖 P4                                                                                                                                                                                        |
+| P5.2 | site    | CA                 | 待启动  |             | 依赖 P4                                                                                                                                                                                        |
+| P6.1 | site    | CA                 | 待启动  |             | 依赖 P2~P5                                                                                                                                                                                     |
+| P6.2 | site    | MAIN               | 待启动  |             | MAIN 跑 e2e 与快照基线                                                                                                                                                                         |
+| P7.1 | site    | CA                 | 待启动  |             | 依赖 P2~P5                                                                                                                                                                                     |
+| P7.2 | site    | CA                 | 待启动  |             | 依赖 P2~P5                                                                                                                                                                                     |
+| P8.1 | site    | MAIN               | 待启动  |             | 总收口，持 L5+L8，序在 D4 后                                                                                                                                                                   |
+| H1.B | h5      | CA                 | 待启动  |             | 链头，W1                                                                                                                                                                                       |
+| H2.A | h5      | CA                 | 待启动  |             | 持 h5 package.json                                                                                                                                                                             |
+| H2.B | h5      | CA                 | 待启动  |             |                                                                                                                                                                                                |
+| H2.C | h5      | CA                 | 待启动  |             |                                                                                                                                                                                                |
+| H3.1 | h5      | MAIN               | 待启动  |             | 收口，持 L1#1+L8                                                                                                                                                                               |
+| H4.1 | h5      | MAIN               | 待启动  |             | 持 L3                                                                                                                                                                                          |
+| H5.1 | h5      | MAIN               | 待启动  |             | 持 L2                                                                                                                                                                                          |
+| D1   | desktop | CA                 | 待启动  |             | electron-log 声明 MAIN 代写                                                                                                                                                                    |
+| D2   | desktop | CA                 | 待启动  |             | 独占 desktop package.json                                                                                                                                                                      |
+| D3   | desktop | CA                 | 待启动  |             | 依赖 D1+D2                                                                                                                                                                                     |
+| D4   | desktop | MAIN               | 待启动  |             | 收口，持 L1#2+L3+L4+L5+L8                                                                                                                                                                      |
+| N2.1 | miniapp | CA                 | 待启动  |             |                                                                                                                                                                                                |
+| N2.2 | miniapp | CA                 | 待启动  |             |                                                                                                                                                                                                |
+| N2.3 | miniapp | CA                 | 待启动  |             |                                                                                                                                                                                                |
+| N3   | miniapp | CA                 | 待启动  |             | 依赖 N2.x                                                                                                                                                                                      |
+| N4a  | miniapp | CA                 | 待启动  |             | package.json 持有序 1                                                                                                                                                                          |
+| N4b  | miniapp | CA                 | 待启动  |             |                                                                                                                                                                                                |
+| N5a  | miniapp | CA                 | 待启动  |             | package.json 持有序 2；coverage 实跑留 N7.1                                                                                                                                                    |
+| N5b  | miniapp | CA                 | 待启动  |             | package.json 持有序 3                                                                                                                                                                          |
+| N6.1 | miniapp | MAIN               | 待启动  |             | 持 L2                                                                                                                                                                                          |
+| N6.2 | miniapp | CA                 | 待启动  |             |                                                                                                                                                                                                |
+| N7.1 | miniapp | MAIN               | 待启动  |             | 收口，持 L1#3+L4+L6+L8                                                                                                                                                                         |
+| N7.2 | miniapp | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| M1.1 | mobile  | MAIN               | 待启动  |             | 平台目录已本机生成                                                                                                                                                                             |
+| M1.2 | mobile  | MAIN               | 待启动  |             | flutter pub get，不占 L1                                                                                                                                                                       |
+| M1.3 | mobile  | MAIN               | 待启动  |             | 冻结接口，M2 前置                                                                                                                                                                              |
+| M2.A | mobile  | CA                 | 待启动  |             | 依赖 M1.3                                                                                                                                                                                      |
+| M2.B | mobile  | CA                 | 待启动  |             | 依赖 M1.3                                                                                                                                                                                      |
+| M2.C | mobile  | CA                 | 待启动  |             | 依赖 M1.3                                                                                                                                                                                      |
+| M3.1 | mobile  | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| M3.2 | mobile  | MAIN               | 待启动  |             | MAIN 起 server 18085 自验                                                                                                                                                                      |
+| M3.3 | mobile  | MAIN               | 待启动  |             |                                                                                                                                                                                                |
+| M4.A | mobile  | MAIN               | 待启动  |             | 持 L4                                                                                                                                                                                          |
+| M4.B | mobile  | CA                 | 待启动  |             | 依赖 M3.3                                                                                                                                                                                      |
