@@ -36,7 +36,7 @@ try {
 
 const total = files.reduce((sum, file) => sum + statSync(file).size, 0);
 const kb = Math.round(total / 1024);
-console.log(`[check-size] 主包体积: ${kb} kB(硬限 ${Math.round(HARD_LIMIT_BYTES / 1024)} kB / 警告 ${Math.round(WARN_LIMIT_BYTES / 1024)} kB)`);
+console.info(`[check-size] 主包体积: ${kb} kB(硬限 ${Math.round(HARD_LIMIT_BYTES / 1024)} kB / 警告 ${Math.round(WARN_LIMIT_BYTES / 1024)} kB)`);
 
 if (total > HARD_LIMIT_BYTES) {
   console.error("[check-size] 超过微信主包 2MB 硬限制:必须分包或瘦身");
@@ -45,4 +45,4 @@ if (total > HARD_LIMIT_BYTES) {
 if (total > WARN_LIMIT_BYTES) {
   console.warn("[check-size] 超过 1.5MB 警告线:请评审分包与体积优化");
 }
-console.log("[check-size] 通过");
+console.info("[check-size] 通过");

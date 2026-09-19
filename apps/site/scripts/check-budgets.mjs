@@ -35,7 +35,6 @@ try {
   process.exit(1);
 }
 
-const kb = (bytes) => Math.round(bytes / 1024);
 const gzipKbBy = (files, ext) =>
   Math.round(
     files
