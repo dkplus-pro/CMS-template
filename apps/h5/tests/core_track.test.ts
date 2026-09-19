@@ -1,7 +1,8 @@
 // @vitest-environment node
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-// core/track 用例:选择逻辑(未启用 no-op / 启用 console)、console 输出事件形状。
+// core/track 用例:选择逻辑(未启用 no-op / 启用 ARMS 远端实现,见 track_arms.test.ts)、
+// console 输出事件形状(2.B 起保留为 SDK 加载失败的降级兜底)。
 // 边界:空值(payload 缺省/undefined)、零值(payload 含 0 不被吞)。
 
 const ENV_KEYS = ["TRACK_ENDPOINT"] as const;
@@ -35,10 +36,12 @@ describe("getTracker(选择逻辑)", () => {
     expect(console.info).not.toHaveBeenCalled();
   });
 
-  it("启用(TRACK_ENDPOINT 已配置)返回 consoleTracker", async () => {
+  it("启用(TRACK_ENDPOINT 已配置)返回 ARMS 远端实现(阶段 2.B 接入,非 console/noop)", async () => {
     stubEnv({ TRACK_ENDPOINT: "https://track.example.com" });
-    const { getTracker, consoleTracker } = await import("../src/core/track");
-    expect(getTracker()).toBe(consoleTracker);
+    const { getTracker, consoleTracker, noopTracker } = await import("../src/core/track");
+    const tracker = getTracker();
+    expect(tracker).not.toBe(consoleTracker);
+    expect(tracker).not.toBe(noopTracker);
   });
 });
 
